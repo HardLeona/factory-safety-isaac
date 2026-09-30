@@ -1,0 +1,7 @@
+{
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests", "-q"],
+  "files.exclude": { "**/__pycache__": true },
+  "terminal.integrated.env.windows": { "PYTHONIOENCODING": "utf-8" }
+}

@@ -1,0 +1,86 @@
+// Ctrl+Shift+P → Tasks: Run Task
+// Isaac 작업은 환경 변수 ISAACSIM_PYTHON (Isaac Sim 파이썬 경로) 이 필요해요.
+// 일반 파이썬 작업은 VSCode에서 선택한 인터프리터(.venv)로 실행돼요.
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Isaac: 장면 만들기",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/build_scene.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 순찰 (로봇 시점)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/run_patrol.py", "--camera", "robot"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 순찰 (바디캠 시점)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/run_patrol.py", "--camera", "bodycam"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 순찰 (관제 화면)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/run_patrol.py", "--view", "top", "--speed", "2"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 학습 데이터 만들기 (1000장)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/generate_dataset.py", "--num", "1000"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 강화학습 정책 재생",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/play_policy.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "YOLO 학습",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/train_yolo.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "강화학습 (PPO)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/train_rl.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "강화학습 평가 (기준 정책과 비교)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/eval_rl.py", "--model", "outputs/rl/ppo_patrol.zip"],
+      "problemMatcher": []
+    },
+    {
+      "label": "평면도 그리기",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/plot_layout.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "테스트",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "pytest", "tests", "-q"],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

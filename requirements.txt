@@ -1,0 +1,12 @@
+# 일반 파이썬 (강화학습, YOLO 학습, 평가, 테스트) 용
+# Isaac Sim 스크립트는 Isaac Sim에 들어있는 파이썬으로 돌리니까 여기 없어도 됨
+numpy
+pillow
+gymnasium>=1.0
+stable-baselines3>=2.3
+tensorboard
+ultralytics>=8.3
+pytest
+
+# 선택: Isaac Sim 없이 USD 장면 테스트 (tests/test_core.py 의 USD 테스트)
+usd-core
