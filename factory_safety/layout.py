@@ -241,6 +241,35 @@ def occluder_arrays(models):
     return np.array([b[0] for b in boxes]), np.array([b[1] for b in boxes])
 
 
+def map_boxes_3d(models, min_size=0.04, solid_footprint=20.0):
+    """공장 지도 (3D 박스). 화면 박스 위치 추정 때 광선이 처음 닿는 면을 찾는 데 쓴다.
+    랙, 작업대, 기계처럼 작은 설비(바닥 면적 solid_footprint m2 이하)는 통째로 한 덩어리로 넣는다.
+    랙 선반은 카메라 높이(1.55 m)와 비슷해서 얇은 판자만 넣으면 광선이 선반 사이로 빠져 벽까지 간다.
+    건물 벽, 천장, 기둥 묶음처럼 넓은 모델은 부품 단위로 넣는다."""
+    mins, maxs = [], []
+    for m in models:
+        boxes = []
+        for p in m.parts:
+            if p.role in ("floor",) or p.kind == "quad":
+                continue
+            c = m.transform(p.local_corners())
+            mn, mx = c.min(axis=0), c.max(axis=0)
+            if mn[2] > 5.0 or np.sort(mx - mn)[1] < min_size:   # 천장 근처 조명, 얇은 선은 뺌
+                continue
+            boxes.append((mn, mx))
+        if not boxes:
+            continue
+        hull_mn = np.min([b[0] for b in boxes], axis=0)
+        hull_mx = np.max([b[1] for b in boxes], axis=0)
+        ext = hull_mx - hull_mn
+        if ext[0] * ext[1] <= solid_footprint:
+            boxes = [(hull_mn, hull_mx)]
+        for mn, mx in boxes:
+            mins.append(mn)
+            maxs.append(mx)
+    return np.array(mins).reshape(-1, 3), np.array(maxs).reshape(-1, 3)
+
+
 def floor_obstacles_2d(models, max_z=1.2, min_z=-0.1):
     """바닥에서 부딪히는 장애물 (로봇 충돌용 2D 박스)."""
     mins, maxs = [], []

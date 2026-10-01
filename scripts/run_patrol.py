@@ -28,6 +28,13 @@ parser.add_argument("--yolo-every", type=int, default=6, help="YOLO를 몇 프�
 parser.add_argument("--save-frames", default=None, help="YOLO 결과 이미지를 저장할 폴더")
 parser.add_argument("--record", default=None, help="카메라 원본 화면을 저장할 폴더")
 parser.add_argument("--record-every", type=int, default=2, help="몇 프레임마다 저장할지")
+parser.add_argument("--no-zoom", action="store_true",
+                    help="압력계 줌 판독 끄기 (끄면 정상/부족을 YOLO 클래스로만 판정)")
+parser.add_argument("--save-zoom", default=None, help="압력계 줌 화면과 판독 결과를 저장할 폴더")
+parser.add_argument("--dump-dets", default=None,
+                    help="YOLO 검출, 카메라 자세, 줌 판독을 JSON 으로 저장 (scripts/replay_dets.py 로 Isaac 없이 다시 판단)")
+parser.add_argument("--sim-dt", type=float, default=0.0,
+                    help="0보다 크면 매 프레임 이 시간(초)만큼 진행 (실제 시간과 무관, 평가 재현용). 예: 0.0333")
 parser.add_argument("--headless", action="store_true")
 args, _ = parser.parse_known_args()
 
@@ -38,14 +45,15 @@ app = make_app(headless=args.headless)
 import numpy as np  # noqa: E402
 
 from factory_safety import layout as L  # noqa: E402
-from factory_safety.config import IMG_H, IMG_W  # noqa: E402
+from factory_safety.config import IMG_H, IMG_W, RISK_RGBA  # noqa: E402
 from factory_safety.detector import SimDetector  # noqa: E402
 from factory_safety.isaac_utils import (DebugBoxes, attach, get_annotator, isaac_labeler, new_stage,  # noqa: E402
                                         rgb_array, set_viewport_camera, set_viewport_top_view)
 from factory_safety.patrol import BodycamWalker, RobotPatrol  # noqa: E402
-from factory_safety.report import box_color, clock, event_line, summary  # noqa: E402
+from factory_safety.report import box_color, event_line, summary  # noqa: E402
 from factory_safety.scenario import sample_scenario  # noqa: E402
 from factory_safety.usd_scene import FactoryStage  # noqa: E402
+from factory_safety.yolo_judge import RISK, YoloJudge, judge_line, judge_summary  # noqa: E402
 
 # ---------------------------------------------------------------- 장면
 stage = new_stage()
@@ -63,8 +71,12 @@ if ex:
     s_min = np.vstack([s_min, [b[0] for b in ex]])
     s_max = np.vstack([s_max, [b[1] for b in ex]])
 det = SimDetector(scenario.hazards, s_min, s_max)
+# YOLO 모드: 화면 박스 + 로봇 자기 위치 + 공장 지도만으로 판단 (정답 위치는 마지막 채점에만 씀)
+# 로봇은 머리에 줌 카메라가 하나 더 있어서 압력계는 크게 찍어 바늘을 읽는다 (바디캠은 없음)
+use_zoom = args.detector == "yolo" and args.camera == "robot" and not args.no_zoom
+judge = YoloJudge(*L.map_boxes_3d(static), zoom=use_zoom) if args.detector == "yolo" else None
 
-agent = RobotPatrol(track=args.detector == "sim") if args.camera == "robot" else BodycamWalker(seed=seed)
+agent = RobotPatrol() if args.camera == "robot" else BodycamWalker(seed=seed)
 scene.set_robot_visible(args.camera == "robot" and args.view == "top")
 scene.set_worker_visible(args.camera == "bodycam" and args.view == "top")
 if args.view == "pov":
@@ -84,24 +96,90 @@ if args.detector == "yolo" or args.record:
 if args.detector == "yolo":
     from factory_safety.detector import YoloDetector
     yolo = YoloDetector(args.weights)
-for d in (args.save_frames, args.record):
+zoom_annot, ZOOM_PX = None, 320
+# Isaac Sim 6.0 에서 rt_subframes=1 로 한 번 렌더하면 어노테이터에는 한 단계 전 화면이 들어 있다
+# (카메라를 돌리고 바로 찍으면 돌리기 전 화면). 2 이상이면 지금 자세의 화면이 나온다.
+RT_SUBFRAMES = 2
+zoom_rp = None
+ZOOM_RESET_AFTER = 12   # 줌 판독이 연속으로 이만큼 실패하면 줌 render product 를 새로 만든다
+
+
+def make_zoom_render():
+    global zoom_annot, zoom_rp
+    if zoom_rp is not None:
+        try:
+            zoom_annot.detach()
+            zoom_rp.destroy()
+        except Exception:
+            pass
+    zoom_annot = get_annotator("rgb")
+    zoom_rp = rep.create.render_product(zoom_path, (ZOOM_PX, ZOOM_PX))
+    attach(zoom_annot, zoom_rp)
+
+
+if use_zoom:
+    from factory_safety.gauge_reader import read_gauge, zoom_pose
+    zoom_path = scene.add_camera("/World/ZoomCam")
+    make_zoom_render()
+for d in (args.save_frames, args.record, args.save_zoom):
     if d:
         os.makedirs(d, exist_ok=True)
+zoom_fail_streak = 0
+
+
+def zoom_read(cam, dets):
+    """줌 카메라로 압력계 하나를 읽어서 판단 모듈에 넣는다. 확정/재판정된 Track 목록 반환."""
+    global zoom_fail_streak
+    target = judge.zoom_target(cam, dets)
+    if target is None:
+        return []
+    scene.set_camera(zoom_pose(cam, target, IMG_W, IMG_H), ZOOM_PX, ZOOM_PX, path=zoom_path)
+    rep.orchestrator.step(delta_time=0.0, rt_subframes=RT_SUBFRAMES)
+    zimg = rgb_array(zoom_annot.get_data())
+    if zimg is None:
+        return []
+    reading, info = read_gauge(zimg)
+    # 평가 중 한 번, 중간부터 줌 화면이 계속 판독 불가로 나온 적이 있다 (원인 미상, 재현 안 됨).
+    # 연속으로 실패하면 그 화면을 남기고 줌 render product 를 새로 만들어 스스로 복구한다.
+    zoom_fail_streak = 0 if reading else zoom_fail_streak + 1
+    if zoom_fail_streak >= ZOOM_RESET_AFTER:
+        from PIL import Image
+        stuck = os.path.join(ROOT, "outputs", "logs", f"zoom_stuck_{frame:06d}.jpg")
+        os.makedirs(os.path.dirname(stuck), exist_ok=True)
+        Image.fromarray(zimg).save(stuck)
+        print(f"[경고] 줌 판독이 {zoom_fail_streak}번 연속 실패해서 줌 카메라를 다시 만들어요 (화면: {stuck}, 정보: {info})")
+        make_zoom_render()
+        zoom_fail_streak = 0
+    if args.save_zoom:
+        from PIL import Image, ImageDraw
+        # 파일 이름에 시뮬레이션 정답도 남긴다 (판독 정확도 채점용, 판단에는 안 씀)
+        xy = judge.locate(cam, target, wall_mounted=True)
+        exts = [h for h in scenario.hazards if h.type == "ext"]
+        near = min(exts, key=lambda h: np.linalg.norm(h.center[:2] - xy)) if xy is not None else None
+        gt = "gtnone" if near is None or np.linalg.norm(near.center[:2] - xy) > 2.0 else ("gtok" if near.ok else "gtlow")
+        im = Image.fromarray(zimg)
+        ImageDraw.Draw(im).text((6, 6), f"{reading or 'none'} {info.get('cos', '')}", fill=(255, 255, 0))
+        im.save(os.path.join(args.save_zoom, f"zoom_{frame:06d}_{reading or 'none'}_{gt}.jpg"), quality=90)
+    global last_zoom
+    last_zoom = [target, reading, info, float(np.asarray(zimg).mean())]
+    return judge.add_zoom_reading(t_sim, cam, target, reading) if reading else []
 
 # ---------------------------------------------------------------- 순찰 루프
 print("[안내] 순찰을 시작해요. 창을 닫거나 Ctrl+C로 끝낼 수 있어요.")
 t_sim, frame, last = 0.0, 0, time.time()
-last_seen = {}
+dump = [] if args.dump_dets else None
+last_zoom = None
 try:
     while app.is_running():
         now = time.time()
-        dt = min(0.05, now - last) * args.speed
+        dt = args.sim_dt if args.sim_dt > 0 else min(0.05, now - last) * args.speed
         last = now
         if dt <= 0:
             app.update()
             continue
         t_sim += dt
-        cam = agent.step(dt, det)
+        # 로봇의 능동 추적: sim 모드는 가상 검출기, yolo 모드는 화면 판단 결과를 보고 고개를 돌린다
+        cam = agent.step(dt, judge.focus_view(t_sim) if judge else det)
         scene.set_camera(cam)
         if args.camera == "robot":
             x, y, yaw, head = agent.base_pose
@@ -111,6 +189,17 @@ try:
             scene.set_worker(x, y, yaw, bob, visible=args.view == "top")
         scene.animate(t_sim)
 
+        want_yolo = args.detector == "yolo" and frame % args.yolo_every == 0 and frame > 10
+        want_rec = args.record and frame % args.record_every == 0 and frame > 10
+        img = None
+        if want_yolo or want_rec:
+            # Isaac Sim 6.0 은 app.update() 만으로는 rgb 어노테이터가 비어서 나온다 (크기 0).
+            # 화면이 필요한 프레임은 Replicator 로 렌더한다 (RT_SUBFRAMES 설명 참고).
+            rep.orchestrator.step(delta_time=0.0, rt_subframes=RT_SUBFRAMES)
+            img = rgb_array(rgb_annot.get_data())
+        else:
+            app.update()
+
         if args.detector == "sim":
             for i in det.update(dt, cam):
                 print(event_line(det.hazards[i], t_sim, det.conf[i]))
@@ -119,25 +208,27 @@ try:
                 if det.detected[i] or (det.in_view[i] and det.conf[i] > det.SHOW_CONF):
                     shown.append((h.aabb_min, h.aabb_max, box_color(h, det.detected[i], det.conf[i])))
             boxes.show(shown)
-        elif frame % args.yolo_every == 0 and frame > 10:
-            img = rgb_array(rgb_annot.get_data())
-            if img is not None:
-                dets, res = yolo(img)
-                for name, conf, xyxy in dets:
-                    if t_sim - last_seen.get(name, -99) > 3.0:
-                        print(f"[{clock(t_sim)}] YOLO {name} {conf * 100:.0f}%  box {[round(v) for v in xyxy]}")
-                    last_seen[name] = t_sim
-                if args.save_frames and dets:
-                    from PIL import Image
-                    Image.fromarray(res.plot()[..., ::-1]).save(os.path.join(args.save_frames, f"frame_{frame:06d}.jpg"))
-
-        if args.record and frame % args.record_every == 0 and frame > 10:
-            img = rgb_array(rgb_annot.get_data())
-            if img is not None:
+        elif want_yolo and img is not None:
+            dets, res = yolo(img)
+            events = judge.update(t_sim, cam, dets)
+            last_zoom = None
+            if use_zoom:
+                events += zoom_read(cam, dets)
+            if dump is not None:
+                dump.append({"t": t_sim, "cam": [*map(float, cam.pos), cam.yaw, cam.pitch, cam.roll, cam.vfov],
+                             "dets": [[n, c, [float(v) for v in b]] for n, c, b in dets], "zoom": last_zoom})
+            for tr in events:
+                print(judge_line(tr, t_sim))
+            boxes.show([(np.array([*tr.pos - 0.4, 0.0]), np.array([*tr.pos + 0.4, 0.8]),
+                         RISK_RGBA[RISK[tr.verdict]]) for tr in judge.confirmed])
+            if args.save_frames and dets:
                 from PIL import Image
-                Image.fromarray(img).save(os.path.join(args.record, f"cam_{frame:06d}.jpg"), quality=90)
+                Image.fromarray(res.plot()[..., ::-1]).save(os.path.join(args.save_frames, f"frame_{frame:06d}.jpg"))
 
-        app.update()
+        if want_rec and img is not None:
+            from PIL import Image
+            Image.fromarray(img).save(os.path.join(args.record, f"cam_{frame:06d}.jpg"), quality=90)
+
         frame += 1
         if args.duration and t_sim >= args.duration:
             break
@@ -146,4 +237,12 @@ except KeyboardInterrupt:
 
 if args.detector == "sim":
     print(summary(det, t_sim))
+else:
+    print(judge_summary(judge, t_sim, scenario.hazards))
+if dump is not None:
+    import json
+    os.makedirs(os.path.dirname(os.path.abspath(args.dump_dets)), exist_ok=True)
+    with open(args.dump_dets, "w", encoding="utf-8") as f:
+        json.dump({"seed": seed, "layout_seed": args.layout_seed, "zoom": use_zoom, "frames": dump}, f)
+    print(f"[저장] 검출 기록 {len(dump)}프레임: {args.dump_dets}  (python scripts/replay_dets.py {args.dump_dets})")
 app.close()

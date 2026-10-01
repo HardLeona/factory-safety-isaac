@@ -2,7 +2,10 @@
 
     pip install ultralytics
     python scripts/train_yolo.py --data outputs/dataset/data.yaml
-    python scripts/train_yolo.py --data outputs/dataset/data.yaml --model yolo11s.pt --epochs 150
+    python scripts/train_yolo.py --data outputs/dataset/data.yaml --model yolo26n.pt --epochs 150
+
+기본값은 YOLO26s, 입력 960. 압력계가 몇 픽셀밖에 안 돼서 데이터 해상도(960x540)를 줄이지 않고 쓰고,
+YOLO26 의 작은 물체용 라벨 할당(STAL)을 쓴다.
 """
 import argparse
 import os
@@ -13,9 +16,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def main():
     p = argparse.ArgumentParser(description="YOLO 학습")
     p.add_argument("--data", default=os.path.join(ROOT, "outputs", "dataset", "data.yaml"))
-    p.add_argument("--model", default="yolo11n.pt", help="시작 가중치 (n < s < m 순으로 크고 정확)")
+    p.add_argument("--model", default="yolo26s.pt", help="시작 가중치 (n < s < m 순으로 크고 정확)")
     p.add_argument("--epochs", type=int, default=100)
-    p.add_argument("--imgsz", type=int, default=640)
+    p.add_argument("--imgsz", type=int, default=960)
     p.add_argument("--batch", type=int, default=16)
     p.add_argument("--device", default=None, help="예: 0 (GPU), cpu")
     p.add_argument("--name", default="factory_hazard")

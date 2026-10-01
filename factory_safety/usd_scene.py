@@ -133,28 +133,63 @@ class FactoryStage:
 
     # ------------------------------------------------------------ 시나리오
     def set_scenario(self, scenario):
+        """위험 요소 배치를 바꾼다 (이전 배치는 지움). 처음은 /World/Hazards, 그다음은 /World/Hazards_0002 처럼 새 경로.
+        주의: Isaac Sim 6.0 Replicator 는 첫 렌더 뒤에 새로 만든 라벨 물체를 제대로 못 읽는다
+        (bounding_box_2d 가 비거나 일부 물체가 빠짐). 라벨이 필요하면 add_scenario + show_scenario 를 쓴다."""
         st = self.stage
-        for g in ("/World/Hazards", "/World/Extras"):
+        for g in getattr(self, "_scenario_roots", []):
             if st.GetPrimAtPath(g):
                 st.RemovePrim(g)
+        self._n_scenarios = getattr(self, "_n_scenarios", 0) + 1
+        sfx = "" if self._n_scenarios == 1 else f"_{self._n_scenarios:04d}"
+        self.hazard_root, extra_root = f"/World/Hazards{sfx}", f"/World/Extras{sfx}"
+        self._scenario_roots = [self.hazard_root, extra_root]
+        for g in self._scenario_roots:
             UsdGeom.Xform.Define(st, g)
         self.scenario = scenario
         for h in scenario.hazards:
             labels = {"main": CLASSES[h.cls]}
             if h.gauge_cls is not None:
                 labels["gauge"] = CLASSES[h.gauge_cls]
-            self._add_model(h.model, "/World/Hazards", labels=labels)
+            self._add_model(h.model, self.hazard_root, labels=labels)
         for m in scenario.extras:
-            self._add_model(m, "/World/Extras")
+            self._add_model(m, extra_root)
+
+    def add_scenario(self, scenario):
+        """배치를 하나 더 만들어 쌓아 둔다 (이전 배치는 그대로). 번호를 반환하고, show_scenario(번호)로 하나만 보이게 한다.
+        Isaac Sim 6.0 Replicator 는 첫 렌더 뒤에 새로 만든 라벨 물체를 제대로 못 읽어서, 학습 데이터를 만들 때는
+        배치를 첫 렌더 전에 미리 다 만들고 보이기/숨기기로만 바꾼다 (숨긴 물체는 정답 박스에 안 나옴)."""
+        self._scenario_roots = []
+        self.set_scenario(scenario)
+        self._bank = getattr(self, "_bank", []) + [(scenario, list(self._scenario_roots))]
+        return len(self._bank) - 1
+
+    def show_scenario(self, idx):
+        for j, (_, roots) in enumerate(self._bank):
+            for g in roots:
+                im = UsdGeom.Imageable(self.stage.GetPrimAtPath(g))
+                im.MakeVisible() if j == idx else im.MakeInvisible()
+        self.scenario = self._bank[idx][0]
 
     # ------------------------------------------------------------ 매 프레임 갱신
-    def set_camera(self, pose, width=IMG_W, height=IMG_H):
-        cam = UsdGeom.Camera(self.stage.GetPrimAtPath(self.cam_path))
+    def add_camera(self, path):
+        """보조 카메라 (예: 압력계 판독용 줌 카메라). set_camera(..., path=path) 로 움직인다."""
+        cam = UsdGeom.Camera.Define(self.stage, path)
+        cam.CreateHorizontalApertureAttr(H_APERTURE)
+        cam.CreateVerticalApertureAttr(H_APERTURE)
+        cam.CreateFocalLengthAttr(15.0)
+        cam.CreateClippingRangeAttr(Gf.Vec2f(0.05, 200.0))
+        self._ops[path] = UsdGeom.Xformable(cam).AddTransformOp()
+        return path
+
+    def set_camera(self, pose, width=IMG_W, height=IMG_H, path=None):
+        path = path or self.cam_path
+        cam = UsdGeom.Camera(self.stage.GetPrimAtPath(path))
         v_ap = H_APERTURE * height / width
         cam.GetVerticalApertureAttr().Set(v_ap)
         cam.GetFocalLengthAttr().Set((v_ap / 2.0) / math.tan(math.radians(pose.vfov) / 2.0))
         m = pose.usd_matrix()
-        self._ops["cam"].Set(Gf.Matrix4d(*[float(v) for v in m.flatten()]))
+        self._ops["cam" if path == self.cam_path else path].Set(Gf.Matrix4d(*[float(v) for v in m.flatten()]))
 
     def set_robot(self, x, y, yaw, head_yaw=0.0, visible=True):
         self._ops["Robot"][0].Set(Gf.Vec3d(x, y, 0.0))

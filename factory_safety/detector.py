@@ -104,7 +104,7 @@ class SimDetector:
 class YoloDetector:
     """ultralytics YOLO 래퍼. rgb: (H, W, 3|4) uint8."""
 
-    def __init__(self, weights, conf=0.35, imgsz=640, device=None):
+    def __init__(self, weights, conf=0.35, imgsz=960, device=None):
         try:
             from ultralytics import YOLO
         except ImportError as e:

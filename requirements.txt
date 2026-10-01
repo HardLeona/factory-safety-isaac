@@ -6,6 +6,7 @@ gymnasium>=1.0
 stable-baselines3>=2.3
 tensorboard
 ultralytics>=8.3
+scipy            # 압력계 판독 (gauge_reader.py), Isaac Sim 파이썬에는 이미 들어 있음
 pytest
 
 # 선택: Isaac Sim 없이 USD 장면 테스트 (tests/test_core.py 의 USD 테스트)

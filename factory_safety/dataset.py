@@ -8,11 +8,15 @@ from .config import CLASS_KO, CLASSES
 from .geometry import CameraPose
 
 
+# 드문 클래스가 더 자주 찍히도록 가중치 (generate_dataset.py --tool-weight 로 공구만 바꿀 수 있음)
+CAPTURE_WEIGHTS = {"ext_ok": 0.35, "ext_low": 1.8, "tool": 1.7, "puddle": 1.2}
+
+
 def capture_weight(h):
     """드문 클래스가 더 자주 찍히도록 가중치."""
     if h.type == "ext":
-        return 0.35 if h.ok else 1.8
-    return {"tool": 1.7, "puddle": 1.2}.get(h.type, 1.0)
+        return CAPTURE_WEIGHTS["ext_ok" if h.ok else "ext_low"]
+    return CAPTURE_WEIGHTS.get(h.type, 1.0)
 
 
 def sample_capture_pose(rng, scenario, path):
@@ -24,7 +28,8 @@ def sample_capture_pose(rng, scenario, path):
         w = np.array([capture_weight(h) for h in hz])
         subject = hz[int(rng.choice(len(hz), p=w / w.sum()))]
     if subject is not None:
-        span = (3.5 if subject.type == "ext" else 7.0) / path.length
+        # 작은 물체는 가까이서 찍는다 (공구는 0.4 m 라 7 m 밖에서는 박스가 6픽셀 안 돼서 라벨에서 빠짐)
+        span = {"ext": 3.5, "tool": 4.0}.get(subject.type, 7.0) / path.length
         u = (path.nearest_u(subject.center[0], subject.center[1]) + rng.uniform(-1, 1) * span) % 1.0
     else:
         u = rng.random()

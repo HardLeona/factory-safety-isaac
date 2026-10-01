@@ -28,6 +28,8 @@ parser.add_argument("--val-every", type=int, default=7, help="몇 장 중 1장�
 parser.add_argument("--no-light-random", action="store_true", help="조명 무작위화 끄기")
 parser.add_argument("--no-post", action="store_true", help="흔들림 블러, 노이즈 끄기")
 parser.add_argument("--max-occlusion", type=float, default=0.8)
+parser.add_argument("--tool-weight", type=float, default=None,
+                    help="공구를 골라 찍는 가중치 (기본 1.7). 공구 데이터를 늘릴 때 4 정도")
 parser.add_argument("--gui", action="store_true", help="창을 띄워서 보면서 생성")
 args, _ = parser.parse_known_args()
 
@@ -40,8 +42,11 @@ import omni.replicator.core as rep  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from factory_safety.config import CLASSES  # noqa: E402
-from factory_safety.dataset import (filter_boxes, post_process, sample_capture_pose, write_data_yaml,  # noqa: E402
-                                    write_readme, yolo_line)
+from factory_safety.dataset import (CAPTURE_WEIGHTS, filter_boxes, post_process, sample_capture_pose,  # noqa: E402
+                                    write_data_yaml, write_readme, yolo_line)
+
+if args.tool_weight is not None:
+    CAPTURE_WEIGHTS["tool"] = args.tool_weight
 from factory_safety.isaac_utils import (attach, disable_capture_on_play, get_annotator, isaac_labeler,  # noqa: E402
                                         new_stage, parse_bboxes, rgb_array, set_viewport_camera)
 from factory_safety.patrol import ClosedPath  # noqa: E402
@@ -56,6 +61,19 @@ scene.set_robot_visible(False)
 if args.gui:
     set_viewport_camera(scene.cam_path)
 
+
+rng = np.random.default_rng(args.seed)
+
+# 위험 요소 배치를 첫 렌더 전에 전부 만들어 두고 보이기/숨기기로만 바꾼다.
+# Isaac Sim 6.0 Replicator 는 첫 렌더 뒤에 새로 만든 라벨 물체를 제대로 못 읽어서
+# (정답 박스가 비거나 일부 물체가 빠짐: 처음 만든 데이터에서 공구가 보이는데 라벨이 없는 사진이 많았음),
+# 렌더 중에 물체를 지웠다 다시 만들지 않는다.
+n_scen = (args.num + args.scenario_every - 1) // args.scenario_every
+print(f"[준비] 배치 {n_scen}개를 미리 만들어요...")
+for _ in range(n_scen):
+    scene.add_scenario(sample_scenario(int(rng.integers(1 << 30))))
+scene.show_scenario(0)
+
 rp = rep.create.render_product(scene.cam_path, (args.width, args.height))
 rgb_annot = get_annotator("rgb")
 bbox_annot = get_annotator("bounding_box_2d_tight")
@@ -66,7 +84,6 @@ for split in ("train", "val"):
     os.makedirs(os.path.join(args.out, "images", split), exist_ok=True)
     os.makedirs(os.path.join(args.out, "labels", split), exist_ok=True)
 
-rng = np.random.default_rng(args.seed)
 path = ClosedPath()
 counts = [0] * len(CLASSES)
 n_train = n_val = empties = 0
@@ -74,14 +91,15 @@ scenario = None
 t0 = time.time()
 
 # 첫 몇 프레임은 셰이더와 텍스처가 덜 올라와서 버린다
-scene.set_scenario(sample_scenario(int(rng.integers(1 << 30))))
 for _ in range(3):
     rep.orchestrator.step(delta_time=0.0, rt_subframes=16)
 
 for i in range(args.num):
     if i % args.scenario_every == 0:
-        scenario = sample_scenario(int(rng.integers(1 << 30)))
-        scene.set_scenario(scenario)
+        scene.show_scenario(i // args.scenario_every)
+        scenario = scene.scenario
+        for _ in range(2):
+            rep.orchestrator.step(delta_time=0.0, rt_subframes=4)
     if not args.no_light_random:
         scene.randomize_lighting(rng)
     scene.animate(rng.uniform(0, 100))

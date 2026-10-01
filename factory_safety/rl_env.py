@@ -17,7 +17,8 @@ Isaac Sim 없이 numpy로만 돌아가서 일반 PC에서 병렬로 빠르게 �
 
 보상
   위험 요소 발견 +1.0, 정상 소화기 점검 +0.2, 처음 보는 칸 +0.01,
-  매 스텝 -0.002, 충돌 -0.02, 전부 찾으면 남은 시간 비례 보너스
+  매 스텝 -0.002, 충돌 -0.1, 장애물에 1 m 안쪽으로 붙으면 최대 -0.01,
+  전부 찾으면 남은 시간 비례 보너스
 """
 import math
 
@@ -37,6 +38,8 @@ ROBOT_R = 0.45
 N_RAYS, RAY_MAX = 16, 10.0
 GRID_NX, GRID_NY = 11, 8
 SEE_RANGE = 9.0
+COLLIDE_PEN = 0.1                  # 충돌 벌점 (0.02 일 때는 벽에 비비며 도는 정책이 나왔음)
+NEAR_DIST, NEAR_PEN = 1.0, 0.01    # 로봇 중심에서 장애물까지 이보다 가까우면 거리 비례 벌점
 
 
 def _segments_blocked_2d(origin, targets, mins, maxs):
@@ -109,7 +112,11 @@ class FactoryPatrolEnv(gym.Env):
         self.n_targets = sum(1 for h in self.scenario.hazards if h.is_hazard)
         self.n_ext = sum(1 for h in self.scenario.hazards if h.type == "ext")
         self.detector.update(1e-4, self.camera())
+        self.rays = self._ray_scan()
         return self._obs(), self._info([])
+
+    def _ray_scan(self):
+        return ray_distances_2d(self.pos, self.ray_angles + self.heading, self.o_mins, self.o_maxs, RAY_MAX)
 
     def camera(self):
         return CameraPose(pos=np.array([self.pos[0], self.pos[1], CAM_H_ROBOT]), yaw=self.heading + self.pan,
@@ -132,7 +139,9 @@ class FactoryPatrolEnv(gym.Env):
 
         cam = self.camera()
         new = self.detector.update(dt, cam)
-        reward = -0.002 - (0.02 if collided else 0.0)
+        self.rays = self._ray_scan()
+        near = max(0.0, (NEAR_DIST - float(self.rays.min())) / NEAR_DIST)
+        reward = -0.002 - (COLLIDE_PEN if collided else 0.0) - NEAR_PEN * near
         for i in new:
             h = self.scenario.hazards[i]
             reward += 1.0 if h.is_hazard else 0.2
@@ -166,8 +175,7 @@ class FactoryPatrolEnv(gym.Env):
         det = self.detector
         o = [self.pos[0] / (W / 2), self.pos[1] / (D / 2), math.cos(self.heading), math.sin(self.heading),
              self.pan / PAN_MAX, self.v / VMAX]
-        rays = ray_distances_2d(self.pos, self.ray_angles + self.heading, self.o_mins, self.o_maxs, RAY_MAX)
-        o += list(rays / RAY_MAX)
+        o += list(self.rays / RAY_MAX)
         o += list(self.seen_cells.astype(float))
         cam_yaw = self.heading + self.pan
         cands = []
