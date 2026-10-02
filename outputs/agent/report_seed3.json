@@ -1,0 +1,752 @@
+{
+ "summary": {
+  "hazards": 7,
+  "safe": 8,
+  "need_check": 0,
+  "urgent": 2,
+  "checkpoints_done": 8,
+  "checkpoints": 8
+ },
+ "findings": [
+  {
+   "id": "F06",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "서쪽 통로",
+   "x": -3.32,
+   "y": 8.19,
+   "confidence": 1.0,
+   "n_body": 28,
+   "n_ptz": 0,
+   "near_miss": 2,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill",
+   "checkpoint": null,
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+   "priority": "긴급",
+   "score": 7,
+   "rank": 1
+  },
+  {
+   "id": "F04",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "서쪽 통로",
+   "x": -6.43,
+   "y": 1.08,
+   "confidence": 1.0,
+   "n_body": 31,
+   "n_ptz": 0,
+   "near_miss": 1,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill",
+   "checkpoint": null,
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+   "priority": "긴급",
+   "score": 5,
+   "rank": 2
+  },
+  {
+   "id": "F03",
+   "class": "stack_unstable",
+   "label": "무너질 듯한 적재",
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": -6.53,
+   "y": -5.31,
+   "confidence": 0.85,
+   "n_body": 39,
+   "n_ptz": 0,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_unstable",
+   "checkpoint": null,
+   "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+   "priority": "높음",
+   "score": 3,
+   "rank": 3
+  },
+  {
+   "id": "F07",
+   "class": "stack_unstable",
+   "label": "무너질 듯한 적재",
+   "state": "위험",
+   "hazard": true,
+   "status": "재확인 완료",
+   "zone": "북쪽 구역",
+   "x": 6.8,
+   "y": 16.93,
+   "confidence": 0.88,
+   "n_body": 29,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": "stack_unstable",
+   "checkpoint": null,
+   "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+   "priority": "높음",
+   "score": 3,
+   "rank": 4
+  },
+  {
+   "id": "F09",
+   "class": "ext_fallen",
+   "label": "쓰러진 소화기",
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 0.14,
+   "y": 12.45,
+   "confidence": 1.0,
+   "n_body": 4,
+   "n_ptz": 0,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_fallen",
+   "checkpoint": "C3",
+   "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+   "priority": "보통",
+   "score": 2,
+   "rank": 5
+  },
+  {
+   "id": "F13",
+   "class": "ext_fallen",
+   "label": "쓰러진 소화기",
+   "state": "위험",
+   "hazard": true,
+   "status": "재확인 완료",
+   "zone": "남쪽 작업 구역",
+   "x": -8.91,
+   "y": -3.81,
+   "confidence": 1.0,
+   "n_body": 0,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "CCTV 확대",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": null,
+   "checkpoint": "C2",
+   "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+   "priority": "보통",
+   "score": 2,
+   "rank": 6
+  },
+  {
+   "id": "F14",
+   "class": "ext_fallen",
+   "label": "쓰러진 소화기",
+   "state": "위험",
+   "hazard": true,
+   "status": "재확인 완료",
+   "zone": "남쪽 작업 구역",
+   "x": 9.09,
+   "y": -3.81,
+   "confidence": 1.0,
+   "n_body": 0,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "CCTV 확대",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": null,
+   "checkpoint": "C6",
+   "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+   "priority": "보통",
+   "score": 2,
+   "rank": 7
+  },
+  {
+   "id": "F01",
+   "class": "stack_stable",
+   "label": "반듯한 적재",
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": -1.69,
+   "y": -9.58,
+   "confidence": 0.82,
+   "n_body": 82,
+   "n_ptz": 0,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "적재 상태 양호",
+   "priority": "-",
+   "score": 0,
+   "rank": 8
+  },
+  {
+   "id": "F02",
+   "class": "spill_marked",
+   "label": "조치된 유출 (표지판, 라바콘)",
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": -2.73,
+   "y": -8.77,
+   "confidence": 0.89,
+   "n_body": 62,
+   "n_ptz": 0,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill_marked",
+   "checkpoint": null,
+   "action": "표지 조치됨. 청소가 끝나면 표지 회수",
+   "priority": "-",
+   "score": 0,
+   "rank": 9
+  },
+  {
+   "id": "F05",
+   "class": "stack_stable",
+   "label": "반듯한 적재",
+   "state": "안전",
+   "hazard": false,
+   "status": "재확인 완료",
+   "zone": "북쪽 구역",
+   "x": -7.07,
+   "y": 16.55,
+   "confidence": 1.0,
+   "n_body": 50,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "적재 상태 양호",
+   "priority": "-",
+   "score": 0,
+   "rank": 10
+  },
+  {
+   "id": "F08",
+   "class": "ext_ok",
+   "label": "정상 비치 소화기",
+   "state": "안전",
+   "hazard": false,
+   "status": "재확인 완료",
+   "zone": "북쪽 구역",
+   "x": -8.86,
+   "y": 12.45,
+   "confidence": 1.0,
+   "n_body": 5,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": "C1",
+   "action": "소화기 정상 비치",
+   "priority": "-",
+   "score": 0,
+   "rank": 11
+  },
+  {
+   "id": "F10",
+   "class": "ext_ok",
+   "label": "정상 비치 소화기",
+   "state": "안전",
+   "hazard": false,
+   "status": "재확인 완료",
+   "zone": "북쪽 구역",
+   "x": 9.14,
+   "y": 12.45,
+   "confidence": 1.0,
+   "n_body": 1,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": "C5",
+   "action": "소화기 정상 비치",
+   "priority": "-",
+   "score": 0,
+   "rank": 12
+  },
+  {
+   "id": "F12",
+   "class": "ext_ok",
+   "label": "정상 비치 소화기",
+   "state": "안전",
+   "hazard": false,
+   "status": "재확인 완료",
+   "zone": "남쪽 작업 구역",
+   "x": 0.09,
+   "y": -3.81,
+   "confidence": 1.0,
+   "n_body": 4,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": "C4",
+   "action": "소화기 정상 비치",
+   "priority": "-",
+   "score": 0,
+   "rank": 13
+  },
+  {
+   "id": "F15",
+   "class": "tool_stored",
+   "label": "작업대에 정리된 공구",
+   "state": "안전",
+   "hazard": false,
+   "status": "재확인 완료",
+   "zone": "남쪽 작업 구역",
+   "x": -6.0,
+   "y": -11.45,
+   "confidence": 1.0,
+   "n_body": 0,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "CCTV 확대",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": null,
+   "checkpoint": "C7",
+   "action": "작업대 정리 상태 양호",
+   "priority": "-",
+   "score": 0,
+   "rank": 14
+  },
+  {
+   "id": "F16",
+   "class": "tool_stored",
+   "label": "작업대에 정리된 공구",
+   "state": "안전",
+   "hazard": false,
+   "status": "재확인 완료",
+   "zone": "남쪽 작업 구역",
+   "x": 6.0,
+   "y": -11.45,
+   "confidence": 1.0,
+   "n_body": 0,
+   "n_ptz": 2,
+   "near_miss": 0,
+   "source": "CCTV 확대",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": null,
+   "checkpoint": "C8",
+   "action": "작업대 정리 상태 양호",
+   "priority": "-",
+   "score": 0,
+   "rank": 15
+  }
+ ],
+ "checkpoints": [
+  {
+   "id": "C1",
+   "name": "소화기 1 (서쪽 랙 북쪽 끝)",
+   "status": "CCTV 확대 확인",
+   "finding": "F08",
+   "x": -8.86,
+   "y": 12.45
+  },
+  {
+   "id": "C2",
+   "name": "소화기 2 (서쪽 랙 남쪽 끝)",
+   "status": "CCTV 확대 확인",
+   "finding": "F13",
+   "x": -8.91,
+   "y": -3.81
+  },
+  {
+   "id": "C3",
+   "name": "소화기 3 (가운데 랙 북쪽 끝)",
+   "status": "바디캠 확인",
+   "finding": "F09",
+   "x": 0.14,
+   "y": 12.45
+  },
+  {
+   "id": "C4",
+   "name": "소화기 4 (가운데 랙 남쪽 끝)",
+   "status": "CCTV 확대 확인",
+   "finding": "F12",
+   "x": 0.09,
+   "y": -3.81
+  },
+  {
+   "id": "C5",
+   "name": "소화기 5 (동쪽 랙 북쪽 끝)",
+   "status": "CCTV 확대 확인",
+   "finding": "F10",
+   "x": 9.14,
+   "y": 12.45
+  },
+  {
+   "id": "C6",
+   "name": "소화기 6 (동쪽 랙 남쪽 끝)",
+   "status": "CCTV 확대 확인",
+   "finding": "F14",
+   "x": 9.09,
+   "y": -3.81
+  },
+  {
+   "id": "C7",
+   "name": "작업대 1 (서쪽)",
+   "status": "CCTV 확대 확인",
+   "finding": "F15",
+   "x": -6.0,
+   "y": -11.45
+  },
+  {
+   "id": "C8",
+   "name": "작업대 2 (동쪽)",
+   "status": "CCTV 확대 확인",
+   "finding": "F16",
+   "x": 6.0,
+   "y": -11.45
+  }
+ ],
+ "stats": {
+  "recheck_requested": 10,
+  "recheck_run": 9,
+  "recheck_found": 9,
+  "recheck_escalated": 1,
+  "recheck_rejected": 1
+ },
+ "timeline": [
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "목표: 순찰 한 바퀴(59 m) 동안 위험물을 찾아 위험/안전을 판정하고, 작업자 접근을 경고하고, 조치 지시서를 만든다"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "통로 바닥(유출, 공구, 적재)은 바디캠, 점검표 8곳은 바디캠으로 보되 못 보면 CCTV 확대로 확인"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C1 소화기 1 (서쪽 랙 북쪽 끝)  (확대 가능 CCTV: cctv_east)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C2 소화기 2 (서쪽 랙 남쪽 끝)  (확대 가능 CCTV: cctv_west, cctv_south)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C3 소화기 3 (가운데 랙 북쪽 끝)  (확대 가능 CCTV: cctv_east)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C4 소화기 4 (가운데 랙 남쪽 끝)  (확대 가능 CCTV: cctv_west, cctv_south)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C5 소화기 5 (동쪽 랙 북쪽 끝)  (확대 가능 CCTV: cctv_east)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C6 소화기 6 (동쪽 랙 남쪽 끝)  (확대 가능 CCTV: cctv_west)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C7 작업대 1 (서쪽)  (확대 가능 CCTV: cctv_west, cctv_south)"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "점검표 C8 작업대 2 (동쪽)  (확대 가능 CCTV: cctv_south, cctv_west, cctv_east)"
+  },
+  {
+   "t": 0.8333333333333333,
+   "kind": "판정",
+   "text": "바디캠 안전 반듯한 적재  |  남쪽 작업 구역  |  YOLO 96%  → 대장 F01"
+  },
+  {
+   "t": 0.8333333333333333,
+   "kind": "판정",
+   "text": "바디캠 안전 조치된 유출 (표지판, 라바콘)  |  남쪽 작업 구역  |  YOLO 95%  → 대장 F02"
+  },
+  {
+   "t": 0.8333333333333333,
+   "kind": "판정",
+   "text": "바디캠 위험 무너질 듯한 적재  |  남쪽 작업 구역  |  YOLO 95%  → 대장 F03"
+  },
+  {
+   "t": 3.63333333333333,
+   "kind": "판정",
+   "text": "바디캠 위험 방치된 유출 (기름/물)  |  서쪽 통로  |  YOLO 91%  → 대장 F04"
+  },
+  {
+   "t": 6.6333333333333195,
+   "kind": "재확인 계획",
+   "text": "F05 북쪽 구역: 바디캠에 1프레임만 보이고 지나감 (반듯한 적재?) → cctv_east 확대로 재확인 예약 (13 m)"
+  },
+  {
+   "t": 8.833333333333313,
+   "kind": "CCTV 선택",
+   "text": "cctv_east PTZ 를 F05 북쪽 구역 쪽으로 돌려 확대 (화각 17°, 13 m)"
+  },
+  {
+   "t": 8.833333333333313,
+   "kind": "판정",
+   "text": "바디캠 안전 반듯한 적재  |  북쪽 구역  |  YOLO 92%  → 대장 F05"
+  },
+  {
+   "t": 9.033333333333312,
+   "kind": "위치 보정",
+   "text": "F05 확대 화면으로 위치를 (-7.6, +16.2) → (-7.1, +16.6) 로 고침"
+  },
+  {
+   "t": 9.033333333333312,
+   "kind": "재확인",
+   "text": "F05 cctv_east 확대 결과 안전 반듯한 적재 92% 확인"
+  },
+  {
+   "t": 9.233333333333311,
+   "kind": "판정",
+   "text": "바디캠 위험 방치된 유출 (기름/물)  |  서쪽 통로  |  YOLO 88%  → 대장 F06"
+  },
+  {
+   "t": 9.233333333333311,
+   "kind": "판정",
+   "text": "바디캠 위험 무너질 듯한 적재  |  북쪽 구역  |  YOLO 72%  → 대장 F07"
+  },
+  {
+   "t": 9.833333333333309,
+   "kind": "재확인 계획",
+   "text": "F08 북쪽 구역: 바디캠에 1프레임만 보이고 지나감 (정상 비치 소화기?) → cctv_east 확대로 재확인 예약 (15 m)"
+  },
+  {
+   "t": 10.233333333333308,
+   "kind": "접근 경고",
+   "text": "cctv_west: 작업자 ↔ 방치된 유출 (기름/물) 2.0 m  |  서쪽 통로 → 대장 F04 우선순위 올림"
+  },
+  {
+   "t": 12.033333333333301,
+   "kind": "CCTV 선택",
+   "text": "cctv_east PTZ 를 F08 북쪽 구역 쪽으로 돌려 확대 (화각 15°, 15 m)"
+  },
+  {
+   "t": 12.2333333333333,
+   "kind": "재확인",
+   "text": "F08 cctv_east 확대 결과 안전 정상 비치 소화기 85% 확인"
+  },
+  {
+   "t": 12.2333333333333,
+   "kind": "점검표",
+   "text": "C1 소화기 1 (서쪽 랙 북쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F08)"
+  },
+  {
+   "t": 13.433333333333296,
+   "kind": "재확인 계획",
+   "text": "F07 북쪽 구역: 판정이 엇갈림 (무너질 듯한 적재 65%, 반듯한 적재 35%) → cctv_east 확대로 재확인 예약 (6 m)"
+  },
+  {
+   "t": 15.23333333333329,
+   "kind": "접근 경고",
+   "text": "cctv_west: 작업자 ↔ 방치된 유출 (기름/물) 2.0 m  |  서쪽 통로 → 대장 F06 우선순위 올림"
+  },
+  {
+   "t": 15.633333333333288,
+   "kind": "CCTV 선택",
+   "text": "cctv_east PTZ 를 F07 북쪽 구역 쪽으로 돌려 확대 (화각 39°, 6 m)"
+  },
+  {
+   "t": 15.833333333333288,
+   "kind": "위치 보정",
+   "text": "F07 확대 화면으로 위치를 (+7.7, +16.3) → (+6.8, +17.0) 로 고침"
+  },
+  {
+   "t": 15.833333333333288,
+   "kind": "재확인",
+   "text": "F07 cctv_east 확대 결과 위험 무너질 듯한 적재 94% 확인"
+  },
+  {
+   "t": 16.03333333333329,
+   "kind": "접근 경고",
+   "text": "cctv_east: 작업자 ↔ 방치된 유출 (기름/물) 1.0 m  |  서쪽 통로 → 대장 F06 우선순위 올림"
+  },
+  {
+   "t": 23.633333333333667,
+   "kind": "판정",
+   "text": "바디캠 위험 쓰러진 소화기  |  북쪽 구역  |  YOLO 84%  → 대장 F09"
+  },
+  {
+   "t": 23.633333333333667,
+   "kind": "점검표",
+   "text": "C3 소화기 3 (가운데 랙 북쪽 끝) 확인: 위험 쓰러진 소화기 (대장 F09)"
+  },
+  {
+   "t": 26.633333333333816,
+   "kind": "재확인 계획",
+   "text": "F10 북쪽 구역: 바디캠에 1프레임만 보이고 지나감 (정상 비치 소화기?) → cctv_east 확대로 재확인 예약 (8 m)"
+  },
+  {
+   "t": 28.633333333333916,
+   "kind": "CCTV 선택",
+   "text": "cctv_east PTZ 를 F10 북쪽 구역 쪽으로 돌려 확대 (화각 28°, 8 m)"
+  },
+  {
+   "t": 28.833333333333925,
+   "kind": "재확인",
+   "text": "F10 cctv_east 확대 결과 안전 정상 비치 소화기 90% 확인"
+  },
+  {
+   "t": 28.833333333333925,
+   "kind": "점검표",
+   "text": "C5 소화기 5 (동쪽 랙 북쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F10)"
+  },
+  {
+   "t": 31.633333333334065,
+   "kind": "재확인 계획",
+   "text": "F11 서쪽 통로: 바디캠에 1프레임만 보이고 지나감 (방치된 유출 (기름/물)?) → 볼 수 있는 CCTV 없음"
+  },
+  {
+   "t": 31.633333333334065,
+   "kind": "재확인",
+   "text": "F11 확대해도 안 보이고 근거가 약함 → 오검출로 보고 대장에서 뺌"
+  },
+  {
+   "t": 33.23333333333401,
+   "kind": "재확인 계획",
+   "text": "F12 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (정상 비치 소화기?) → cctv_west 확대로 재확인 예약 (10 m)"
+  },
+  {
+   "t": 35.433333333333884,
+   "kind": "CCTV 선택",
+   "text": "cctv_west PTZ 를 F12 남쪽 작업 구역 쪽으로 돌려 확대 (화각 23°, 10 m)"
+  },
+  {
+   "t": 35.63333333333387,
+   "kind": "재확인",
+   "text": "F12 cctv_west 확대 결과 안전 정상 비치 소화기 91% 확인"
+  },
+  {
+   "t": 35.63333333333387,
+   "kind": "점검표",
+   "text": "C4 소화기 4 (가운데 랙 남쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F12)"
+  },
+  {
+   "t": 47.066666666666556,
+   "kind": "계획",
+   "text": "순찰 끝. 점검표 4/8 확인, 남은 4곳과 대기 중인 재확인 0건을 CCTV 확대로 처리"
+  },
+  {
+   "t": 47.066666666666556,
+   "kind": "재확인 계획",
+   "text": "C2 소화기 2 (서쪽 랙 남쪽 끝): 순찰 중 확인 못 한 점검 지점 → cctv_west 확대로 재확인 예약 (10 m, cctv_south 는 F03 적재에 가림)"
+  },
+  {
+   "t": 47.066666666666556,
+   "kind": "재확인 계획",
+   "text": "C6 소화기 6 (동쪽 랙 남쪽 끝): 순찰 중 확인 못 한 점검 지점 → cctv_west 확대로 재확인 예약 (16 m)"
+  },
+  {
+   "t": 47.066666666666556,
+   "kind": "재확인 계획",
+   "text": "C7 작업대 1 (서쪽): 순찰 중 확인 못 한 점검 지점 → cctv_west 확대로 재확인 예약 (4 m)"
+  },
+  {
+   "t": 47.066666666666556,
+   "kind": "재확인 계획",
+   "text": "C8 작업대 2 (동쪽): 순찰 중 확인 못 한 점검 지점 → cctv_south 확대로 재확인 예약 (5 m)"
+  },
+  {
+   "t": 47.066666666666556,
+   "kind": "CCTV 선택",
+   "text": "cctv_west PTZ 를 소화기 2 (서쪽 랙 남쪽 끝) 쪽으로 돌려 확대 (화각 24°, 10 m)"
+  },
+  {
+   "t": 47.466666666666555,
+   "kind": "재확인",
+   "text": "F13 cctv_west 확대 결과 위험 쓰러진 소화기 92% 확인"
+  },
+  {
+   "t": 47.466666666666555,
+   "kind": "점검표",
+   "text": "C2 소화기 2 (서쪽 랙 남쪽 끝) 확인: 위험 쓰러진 소화기 (대장 F13)"
+  },
+  {
+   "t": 47.86666666666655,
+   "kind": "CCTV 선택",
+   "text": "cctv_west PTZ 를 소화기 6 (동쪽 랙 남쪽 끝) 쪽으로 돌려 확대 (화각 14°, 16 m)"
+  },
+  {
+   "t": 48.26666666666655,
+   "kind": "재확인",
+   "text": "F14 cctv_west 확대 결과 위험 쓰러진 소화기 93% 확인"
+  },
+  {
+   "t": 48.26666666666655,
+   "kind": "점검표",
+   "text": "C6 소화기 6 (동쪽 랙 남쪽 끝) 확인: 위험 쓰러진 소화기 (대장 F14)"
+  },
+  {
+   "t": 48.66666666666655,
+   "kind": "CCTV 선택",
+   "text": "cctv_west PTZ 를 작업대 1 (서쪽) 쪽으로 돌려 확대 (화각 50°, 4 m)"
+  },
+  {
+   "t": 49.06666666666655,
+   "kind": "재확인",
+   "text": "F15 cctv_west 확대 결과 안전 작업대에 정리된 공구 80% 확인"
+  },
+  {
+   "t": 49.06666666666655,
+   "kind": "점검표",
+   "text": "C7 작업대 1 (서쪽) 확인: 안전 작업대에 정리된 공구 (대장 F15)"
+  },
+  {
+   "t": 49.46666666666655,
+   "kind": "CCTV 선택",
+   "text": "cctv_south PTZ 를 작업대 2 (동쪽) 쪽으로 돌려 확대 (화각 44°, 5 m)"
+  },
+  {
+   "t": 49.866666666666546,
+   "kind": "재확인",
+   "text": "F16 cctv_south 확대 결과 안전 작업대에 정리된 공구 85% 확인"
+  },
+  {
+   "t": 49.866666666666546,
+   "kind": "점검표",
+   "text": "C8 작업대 2 (동쪽) 확인: 안전 작업대에 정리된 공구 (대장 F16)"
+  }
+ ]
+}

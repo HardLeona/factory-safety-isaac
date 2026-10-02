@@ -29,16 +29,18 @@ def iou(a, b):
     return inter / ua if ua > 0 else 0.0
 
 
-def floor_point(cam, xyxy, cls, img_w, img_h, max_range=30.0):
-    """박스 -> 바닥(z=0) 위 공장 좌표. 납작한 유출은 박스 가운데, 나머지는 아래쪽 가운데 (발, 바닥에 닿은 곳)."""
+def floor_point(cam, xyxy, cls, img_w, img_h, max_range=30.0, z=0.0):
+    """박스 -> 바닥(높이 z 평면) 위 공장 좌표. 납작한 유출은 박스 가운데, 나머지는 아래쪽 가운데 (발, 바닥에 닿은 곳).
+    작업대 위 물체처럼 바닥이 아닌 곳에 놓인 것은 z 에 그 높이를 준다."""
     p = Projector(img_w, img_h)
     p.set_pose(cam)
     u = (xyxy[0] + xyxy[2]) / 2.0
-    v = (xyxy[1] + xyxy[3]) / 2.0 if cls in FLAT else xyxy[3]
+    # 표지된 유출은 표지판·라바콘이 박스 위쪽을 키워서 가운데보다 아래(3/4) 를 바닥 위치로 씀
+    v = {"spill": 0.5, "spill_marked": 0.75}.get(cls, 1.0) * (xyxy[3] - xyxy[1]) + xyxy[1]
     d = p.f + p.r * (u - p.w / 2.0) / p.fx + p.u * (p.h / 2.0 - v) / p.fy
-    if d[2] >= -1e-6:
+    if d[2] >= -1e-6 or cam.pos[2] <= z:
         return None
-    t = -cam.pos[2] / d[2]
+    t = (z - cam.pos[2]) / d[2]
     if t * math.hypot(d[0], d[1]) > max_range:
         return None
     return np.asarray(cam.pos[:2], float) + t * d[:2]

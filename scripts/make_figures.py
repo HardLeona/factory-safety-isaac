@@ -1,0 +1,107 @@
+"""보고서·발표용 그림 (일반 파이썬, Pillow).
+
+    python scripts/make_figures.py          # docs/architecture.png, docs/workflow.png
+"""
+import os
+
+from PIL import Image, ImageDraw, ImageFont
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FONT = "C:/Windows/Fonts/malgun.ttf"
+FONT_B = "C:/Windows/Fonts/malgunbd.ttf"
+INK = (33, 41, 56)
+MUTED = (100, 110, 128)
+COL = {"twin": (64, 120, 200), "sensor": (40, 150, 180), "ai": (120, 90, 200), "agent": (220, 130, 30), "out": (50, 150, 90)}
+
+
+def f(size, bold=False):
+    return ImageFont.truetype(FONT_B if bold else FONT, size)
+
+
+def box(d, xy, title, lines, col, title_size=34, size=25):
+    x0, y0, x1, y1 = xy
+    d.rounded_rectangle(xy, 22, fill=(255, 255, 255), outline=col, width=5)
+    d.rounded_rectangle([x0, y0, x1, y0 + 66], 22, fill=col)
+    d.rectangle([x0, y0 + 40, x1, y0 + 66], fill=col)
+    d.text(((x0 + x1) / 2, y0 + 33), title, font=f(title_size, True), fill=(255, 255, 255), anchor="mm")
+    y = y0 + 92
+    for ln in lines:
+        bold = ln.startswith("*")
+        d.text((x0 + 24, y), ln.lstrip("*"), font=f(size, bold), fill=INK if bold else MUTED if ln.startswith("  ") else INK)
+        y += int(size * 1.55)
+
+
+def arrow(d, x0, y, x1, col=(120, 128, 140), w=6, label=None, up=False):
+    d.line([(x0, y), (x1 - 18, y)], fill=col, width=w)
+    s = 1 if x1 > x0 else -1
+    d.polygon([(x1, y), (x1 - 22 * s, y - 14), (x1 - 22 * s, y + 14)], fill=col)
+    if label:
+        d.text(((x0 + x1) / 2, y + (-34 if up else 12)), label, font=f(21, True), fill=col, anchor="ma")
+
+
+def architecture(path):
+    W_, H_ = 2600, 900
+    im = Image.new("RGB", (W_, H_), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    d.text((W_ / 2, 40), "창고 안전 순찰 AI 에이전트 구조", font=f(48, True), fill=INK, anchor="ma")
+    bw, gap, top, bh = 440, 72, 130, 560
+    xs = [60 + i * (bw + gap) for i in range(5)]
+    box(d, (xs[0], top, xs[0] + bw, top + bh), "디지털 트윈", [
+        "*NVIDIA Isaac Sim 6.0", "실사 창고 (랙 3줄, 24×30 m)", "", "*위험 4종 + 안전 짝",
+        "  유출 / 표지된 유출", "  통로 공구 / 작업대 공구", "  불안정 / 반듯한 적재", "  쓰러짐·가로막힘 / 정상 소화기",
+        "", "*걷는 작업자 (정해진 경로)", "*정답표 (채점 전용)"], COL["twin"])
+    box(d, (xs[1], top, xs[1] + bw, top + bh), "센서 (입력·도구)", [
+        "*작업자 가슴 바디캠", "  높이 1.38 m, 걸음 흔들림", "", "*CCTV 3대 (고정)", "  천장 4.6~5 m",
+        "", "*CCTV PTZ 확대", "  에이전트가 방향·화각 지정", "", "*Replicator 렌더"], COL["sensor"])
+    box(d, (xs[2], top, xs[2] + bw, top + bh), "AI 판단", [
+        "*YOLO26s (10 클래스)", "  합성 데이터 4000장 학습", "  mAP50 0.923", "", "*ByteTrack 추적",
+        "  같은 물체 판정 모으기", "", "*바닥 투영", "  화면 박스 → 창고 좌표", "  작업자-위험물 거리"], COL["ai"])
+    box(d, (xs[3], top, xs[3] + bw, top + bh), "에이전트", [
+        "*계획: 점검표 8곳", "  (도면의 소화기, 작업대)", "*기억: 위험물 대장", "  위치·상태·확신도·본 횟수",
+        "*판단: 재확인 필요 여부", "  잠깐 보임 / 판정 엇갈림", "*도구 선택: CCTV 고르기", "  거리 + 랙 가림 계산",
+        "*피드백: 판정 수정, 재시도", "  현장 확인 요청"], COL["agent"])
+    box(d, (xs[4], top, xs[4] + bw, top + bh), "결과", [
+        "*실시간 알림", "  위험/안전 판정, 접근 경고", "", "*조치 지시서 (HTML)", "  우선순위 · 위치 · 조치",
+        "  평면도, 점검표, 기록", "", "*정답표 채점", "  바디캠만 vs 에이전트"], COL["out"])
+    ym = top + bh / 2
+    for i in range(4):
+        arrow(d, xs[i] + bw + 6, ym, xs[i + 1] - 6)
+    # 에이전트 -> 센서 피드백 (확대 명령)
+    yb = top + bh + 70
+    c = COL["agent"]
+    d.line([(xs[3] + bw / 2, top + bh), (xs[3] + bw / 2, yb)], fill=c, width=6)
+    d.line([(xs[3] + bw / 2, yb), (xs[1] + bw / 2, yb)], fill=c, width=6)
+    d.line([(xs[1] + bw / 2, yb), (xs[1] + bw / 2, top + bh + 22)], fill=c, width=6)
+    d.polygon([(xs[1] + bw / 2, top + bh + 4), (xs[1] + bw / 2 - 14, top + bh + 28), (xs[1] + bw / 2 + 14, top + bh + 28)], fill=c)
+    d.text(((xs[1] + xs[3]) / 2 + bw / 2, yb + 16), "재확인: CCTV 선택 → PTZ 방향·화각 명령 → 확대 화면 YOLO 재판정 → 대장 수정 (못 찾으면 다음 CCTV, 그래도 안 되면 현장 확인)",
+           font=f(25, True), fill=c, anchor="ma")
+    im.save(path)
+    return path
+
+
+def workflow(path):
+    """End-to-End 흐름 (가로 한 줄)."""
+    steps = [("① 입력", "바디캠 화면\nCCTV 3대 화면"), ("② 판단", "YOLO 위험/안전\n추적·위치 추정"), ("③ 계획", "애매한 물체,\n못 본 점검 지점"),
+             ("④ 도구 실행", "CCTV 선택\nPTZ 확대 재판정"), ("⑤ 결과 확인", "판정 수정·재시도\n현장 확인 요청"), ("⑥ 보고", "조치 지시서\n우선순위·위치")]
+    W_, H_ = 2600, 420
+    im = Image.new("RGB", (W_, H_), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    bw, gap = 370, 54
+    x = 40
+    cols = [COL["sensor"], COL["ai"], COL["agent"], COL["agent"], COL["agent"], COL["out"]]
+    for i, (h, body) in enumerate(steps):
+        d.rounded_rectangle([x, 60, x + bw, 360], 20, fill=(255, 255, 255), outline=cols[i], width=5)
+        d.text((x + bw / 2, 110), h, font=f(36, True), fill=cols[i], anchor="mm")
+        for j, ln in enumerate(body.split("\n")):
+            d.text((x + bw / 2, 190 + j * 50), ln, font=f(28), fill=INK, anchor="mm")
+        if i < len(steps) - 1:
+            arrow(d, x + bw + 4, 210, x + bw + gap - 4)
+        x += bw + gap
+    im.save(path)
+    return path
+
+
+if __name__ == "__main__":
+    os.makedirs(os.path.join(ROOT, "docs"), exist_ok=True)
+    print(architecture(os.path.join(ROOT, "docs", "architecture.png")))
+    print(workflow(os.path.join(ROOT, "docs", "workflow.png")))

@@ -3,8 +3,10 @@ __pycache__/
 outputs/*
 !outputs/.gitkeep
 !outputs/eval/
+!outputs/agent/
 outputs/eval/*.txt
 *.pt
 .venv/
 .venv-isaac/
 *.zip
+~$*

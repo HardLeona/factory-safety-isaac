@@ -164,6 +164,225 @@ def test_cctv_event_scoring():
     assert s["worker_err_median"] < 1e-6
 
 
+def _agent():
+    from factory_safety.agent import SafetyAgent
+    return SafetyAgent(960, 540, [c[0] for c in W.CCTVS], log=None)
+
+
+def _box_at(cam, xyz, w=60, h=30, flat=True):
+    P = Projector(960, 540)
+    P.set_pose(cam)
+    uv, _ = P.project(np.array([xyz], float))
+    u, v = uv[0]
+    return [u - w / 2, v - h / 2, u + w / 2, v + h / 2] if flat else [u - w / 2, v - h, u + w / 2, v]
+
+
+def _shoot(agent, t, cls=None, conf=0.8):
+    """확대 촬영 한 장: 목표점 자리에 cls 박스를 돌려준다 (cls 가 None 이면 아무것도 못 찾음)."""
+    name, pose = agent.next_ptz(t)
+    dets = [(cls, conf, _box_at(pose, agent.job["target"], 120, 80), None)] if cls else []
+    agent.on_ptz(t, dets)
+    return name
+
+
+def test_agent_plan_and_cameras():
+    a = _agent()
+    a.plan(59.0)
+    opts = {cp.cid: [n for n, _ in a.camera_options(cp.target)] for cp in a.checkpoints}
+    assert "cctv_east" in opts["C1"] and "cctv_west" in opts["C2"]      # 서쪽 랙 북쪽 끝 / 남쪽 끝 소화기
+    assert all(opts[c] for c in ("C7", "C8"))                          # 작업대 2곳은 남쪽 CCTV 로 보임
+    # 랙(6 m)이 가리면 후보에서 빠진다: 서쪽 통로 바닥은 동쪽 CCTV 에서 안 보임
+    assert "cctv_east" not in [n for n, _ in a.camera_options(np.array([-5.9, 0.5, 0.0]))]
+    # 대장에 있는 적재물이 시야를 가리면 그 CCTV 도 뺀다 (동쪽 랙 남쪽 끝 소화기를 서쪽 CCTV 에서 볼 때)
+    from factory_safety.agent import Finding
+    c6 = next(c for c in a.checkpoints if c.cid == "C6")
+    assert "cctv_west" in [n for n, _ in a.camera_options(c6.target)]
+    st = Finding("F09", "stack", np.array([6.85, -5.22]), 0.0, "바디캠")
+    st.body["stack_stable"] += 3.0
+    a.findings.append(st)
+    why = {}
+    assert "cctv_west" not in [n for n, _ in a.camera_options(c6.target, why=why)] and why == {"cctv_west": "F09"}
+    pose = a.aim("cctv_west", np.array([-5.9, 0.5, 0.0]), 4.0)
+    P = Projector(960, 540)
+    P.set_pose(pose)
+    (u, v), = P.project(np.array([[-5.9, 0.5, 0.0]]))[0]
+    assert abs(u - 480) < 1 and abs(v - 270) < 1 and pose.vfov < 20
+
+
+def test_agent_tentative_recheck():
+    a = _agent()
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    a.on_bodycam(1.0, cam, [("tool_floor", 0.5, _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False), 7)])
+    a.on_bodycam(2.0, cam, [])                                   # 1프레임만 보이고 사라짐
+    f = a.findings[0]
+    assert f.status == "재확인 대기" and len(a.jobs) == 1 and abs(f.xy[1] - 3.0) < 0.3
+    assert a.next_ptz(2.5) is None                                # 잠깐 기다림 (바디캠이 다시 볼 수도 있음)
+    _shoot(a, 4.5, "tool_floor", 0.9)
+    _shoot(a, 4.7, "tool_floor", 0.85)
+    assert f.status == "재확인 완료" and f.cls == "tool_floor" and a.job is None
+    rep = a.report()
+    assert rep["findings"][0]["state"] == "위험" and "작업대로 회수" in rep["findings"][0]["action"]
+
+
+def test_agent_retry_and_escalate():
+    a = _agent()
+    cam = CameraPose(pos=np.array([4.5, 8.0, 1.38]), yaw=-math.pi / 2, pitch=-0.2, vfov=70)
+    a.on_bodycam(1.0, cam, [("spill", 0.35, _box_at(cam, [3.1, 2.2, 0.0]), 3)])          # 근거 약함
+    a.on_bodycam(1.2, cam, [("spill", 0.7, _box_at(cam, [5.9, 9.4 - 6.0, 0.0]), 4),
+                            ("spill", 0.7, _box_at(cam, [5.9, 9.4 - 6.0, 0.0]), 4)])     # 2프레임 0.7
+    a.on_bodycam(3.0, cam, [])
+    weak, strong = a.findings
+    shots = []
+    while a.busy() and len(shots) < 20:
+        shots.append(_shoot(a, 10.0 + len(shots)))
+    assert weak.status == "기각" and strong.status == "현장 확인 필요"
+    # 나중에 바디캠이 다시 보고 확정하면 현장 확인은 취소
+    box = _box_at(cam, [5.9, 9.4 - 6.0, 0.0])
+    for k in range(3):
+        a.on_bodycam(40.0 + 0.2 * k, cam, [("spill", 0.8, box, 9)])
+    assert strong.status == "확정"
+    assert a.stats["recheck_retry"] >= 1 or len(set(shots)) == 1     # 볼 수 있는 CCTV 가 여럿이면 다음 CCTV 로
+    rep = a.report()
+    assert [r["state"] for r in rep["findings"]] == ["위험"]
+
+
+def test_agent_cancel_and_checkpoints():
+    a = _agent()
+    cam = CameraPose(pos=np.array([-4.5, -6.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [-3.1, 7.8, 0.0])
+    a.on_bodycam(1.0, cam, [("spill_marked", 0.6, box, 1)])
+    a.on_bodycam(2.0, cam, [])                                    # 잠깐 보임 -> 재확인 예약
+    for k in range(3):                                           # 다른 추적 번호로 다시 보고 확정
+        a.on_bodycam(2.5 + 0.2 * k, cam, [("spill_marked", 0.8, box, 2)])
+    assert a.findings[0].status == "확정" and not a.jobs and a.stats["recheck_canceled"] == 1
+    a.finish_patrol(60.0)
+    assert len(a.jobs) == len(a.checkpoints)                     # 순찰 중 점검 지점을 하나도 못 봄
+    n = 0
+    while a.busy() and n < 60:
+        job = a.job or a.jobs[0]
+        want = "ext_ok" if (job["checkpoint"] and job["checkpoint"].group == "ext") else "tool_stored"
+        _shoot(a, 61.0 + n, want)
+        n += 1
+    rep = a.report()
+    assert rep["summary"]["checkpoints_done"] == len(a.checkpoints)
+    assert sum(1 for r in rep["findings"] if r["class"] == "ext_ok") == len(W.EXT_MOUNTS)
+
+
+def test_agent_table_check_picks_target():
+    """작업대 확대 화면에 옆 바닥 공구가 같이 보여도 작업대 위 공구를 고르고, 바닥 공구 항목은 안 건드림."""
+    from factory_safety.agent import Finding
+    a = _agent()
+    floor = Finding("F01", "tool_floor", np.array([-6.16, -9.71]), 0.0, "바디캠")
+    floor.body["tool_floor"] += 3.0
+    floor.body_confirmed = True
+    a.findings.append(floor)
+    a.finish_patrol(50.0)
+    a.jobs = [j for j in a.jobs if j["checkpoint"].cid == "C7"]
+    for k in range(2):
+        name, pose = a.next_ptz(51.0 + k)
+        P = Projector(960, 540)
+        P.set_pose(pose)
+        (uf, vf), = P.project(np.array([[-6.16, -9.71, 0.1]]))[0]
+        (ut, vt), = P.project(np.array([a.job["target"]]))[0]
+        a.on_ptz(51.0 + k, [("tool_floor", 0.95, [uf - 30, vf - 20, uf + 30, vf + 20], None),
+                            ("tool_stored", 0.7, [ut - 80, vt - 40, ut + 80, vt + 40], None)])
+    table = [f for f in a.findings if f.group == "tool_stored"]
+    assert len(table) == 1 and table[0].cls == "tool_stored" and np.allclose(floor.xy, [-6.16, -9.71])
+
+
+def test_agent_ptz_relocates_and_merges():
+    """바디캠 위치가 3 m 넘게 틀린 적재물도 확대 화면에서 구한 위치로 고쳐 원래 항목과 합친다."""
+    from factory_safety.agent import Finding
+    a = _agent()
+    true = Finding("F01", "stack", np.array([7.2, -5.6]), 0.0, "바디캠")
+    true.body["stack_unstable"] += 3.0
+    true.body_confirmed = True
+    off = Finding("F02", "stack", np.array([4.0, -7.6]), 0.0, "바디캠", status="재확인 대기")
+    off.body["stack_unstable"] += 0.9
+    a.findings += [true, off]
+    a.PTZ_WINDOWS, a.MATCH_FRAC = (9.0, 7.0), 0.9    # 진짜 자리까지 화면에 들어오고 짝지어지게 넓게
+    a._request(1.0, off, None, "잠깐 보임", "잠깐 보임")
+    for k in range(2):
+        name, pose = a.next_ptz(5.0 + k)
+        P = Projector(960, 540)
+        P.set_pose(pose)
+        (u, v), = P.project(np.array([[7.2, -5.6, 0.0]]))[0]
+        assert 0 < u < 960 and 0 < v < 540
+        a.on_ptz(5.0 + k, [("stack_unstable", 0.9, [u - 60, v - 120, u + 60, v], None)])
+    assert off.status == "병합" and off.merged_into == "F01" and true.n_ptz == 2
+
+
+def test_agent_near_miss_priority_and_eval():
+    from factory_safety.agent import Finding
+    a = _agent()
+    for fid, cls, xy in (("F01", "tool_floor", (-7.3, 4.6)), ("F02", "spill", (3.1, 2.2)), ("F03", "stack_stable", (7.2, -5.6))):
+        f = Finding(fid, cls if KIND[cls] == "tool" else KIND[cls], np.array(xy, float), 0.0, "바디캠")
+        f.body[cls] += 3.0
+        f.n_body, f.body_confirmed = 3, True
+        a.findings.append(f)
+    a.findings[0].near_miss = 2
+    rep = a.report()
+    assert [r["id"] for r in rep["findings"]] == ["F01", "F02", "F03"] and rep["findings"][0]["priority"] == "긴급"
+    key = {"objects": [
+        {"id": "O1", "class": "tool_floor", "hazard": True, "x": -7.2, "y": 4.4, "zone": ""},
+        {"id": "O2", "class": "spill_marked", "hazard": False, "x": 3.0, "y": 2.0, "zone": ""},   # 안전을 위험으로
+        {"id": "O3", "class": "stack_stable", "hazard": False, "x": 7.0, "y": -5.5, "zone": ""},
+        {"id": "O4", "class": "ext_fallen", "hazard": True, "x": 9.1, "y": -4.3, "zone": ""}]}    # 놓침
+    ev = a.evaluate(key)["after"]
+    assert (ev["hazard_found"], ev["hazard_missed"], ev["safe_ok"], ev["safe_as_hazard"]) == (1, 1, 1, 1)
+    assert ev["false_reports"] == 0
+
+
+def test_agent_regroup_and_low_confidence():
+    from factory_safety.agent import Finding, SafetyAgent
+    a = _agent()
+    ext = Finding("F01", "ext", np.array([0.09, -3.81]), 0.0, "바디캠")
+    ext.body["ext_blocked"] += 5.0
+    ext.body_confirmed = True
+    stack = Finding("F02", "stack", np.array([-0.4, -3.9]), 0.0, "바디캠")
+    stack.body["stack_unstable"] += 1.0
+    stack.body["ext_blocked"] += 2.0                       # 소화기 앞을 막은 상자를 처음엔 적재로 봄
+    a.findings += [ext, stack]
+    assert a._regroup(1.0, stack) is ext and stack.status == "병합" and ext.n_body == 0
+    assert [r["id"] for r in a.report()["findings"]] == ["F01"]
+    a.findings = [ext]
+    # 랙 안이나 벽 밖으로 떨어진 위치는 안으로 끌어옴
+    assert SafetyAgent._sanitize(np.array([9.0, 5.0]))[0] in (8.0, 10.0) and SafetyAgent._sanitize(np.array([2.0, -12.5]))[1] > -12
+    assert SafetyAgent._sanitize(np.array([2.0, -14.0])) is None          # 벽 밖 1 m 넘게 나간 추정은 버림
+    # 멀리서 봐서 위치가 틀어진 "가로막힌 소화기" 도 가장 가까운 소화기 자리 항목과 합침
+    far = Finding("F03", "stack", np.array([-5.14, -7.12]), 0.0, "바디캠")
+    far.body["ext_blocked"] += 2.0
+    lone = Finding("F04", "ext", np.array([-8.91, -3.81]), 0.0, "바디캠")
+    lone.body["ext_blocked"] += 2.0
+    a.findings += [far, lone]
+    assert a._regroup(2.0, far) is lone and far.status == "병합"
+    odd = Finding("F05", "stack", np.array([4.5, 4.0]), 0.0, "바디캠")       # 소화기 자리에서 8 m 넘게 떨어짐
+    odd.body["ext_fallen"] += 2.0
+    a.findings.append(odd)
+    assert a._regroup(3.0, odd) is odd and odd.status == "현장 확인 필요"
+    # 확대 판정 확신이 낮으면 다른 CCTV 로 한 번 더, 마지막까지 낮으면 현장 확인
+    a = _agent()
+    a.finish_patrol(60.0)
+    job = a.jobs[[j["checkpoint"].cid for j in a.jobs].index("C4")]
+    a.jobs = [job]
+    n_cams = len(job["cams"])
+    for k in range(2 * n_cams):
+        _shoot(a, 61.0 + k, "ext_blocked", 0.34)
+    cp = next(c for c in a.checkpoints if c.cid == "C4")
+    assert n_cams >= 2 and cp.status == "현장 확인 필요" and a.stats["recheck_retry"] == n_cams - 1
+
+
+def test_dashboard():
+    import tempfile
+    from factory_safety.dashboard import write_dashboard
+    a = _agent()
+    a.plan(59.0)
+    test_agent_tentative_recheck()
+    path = os.path.join(tempfile.mkdtemp(), "d.html")
+    write_dashboard(path, a.report(), seed=1)
+    assert "조치 목록" in open(path, encoding="utf-8").read()
+
+
 def test_usd_build():
     try:
         from pxr import Usd
