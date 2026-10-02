@@ -66,6 +66,7 @@ factory-safety-isaac/
 │   ├── train_yolo.py         [파이썬] YOLO 학습
 │   ├── train_rl.py           [파이썬] 강화학습
 │   ├── eval_rl.py            [파이썬] 비교 평가
+│   ├── demo_all.py           [파이썬] 전체 시연 (Isaac 창을 단계별로 띄움)
 │   ├── eval_patrol.py        [파이썬] Isaac 순찰 여러 시나리오 평가 (내부에서 Isaac 실행)
 │   ├── replay_dets.py        [파이썬] 순찰 검출 기록을 Isaac 없이 다시 판단
 │   ├── compare_yolo.py       [파이썬] YOLO 가중치 여러 개를 같은 검증 데이터로 비교
@@ -102,6 +103,8 @@ py -3.12 -m venv .venv-isaac
 setx ISAACSIM_PYTHON "C:\dev\factory-safety-isaac\.venv-isaac\Scripts\python.exe"
 # Isaac 안에서 YOLO 를 돌리려면 (Isaac 의 torch 는 건드리지 않게 --no-deps)
 .venv-isaac\Scripts\python -m pip install --no-deps ultralytics==8.4.166 ultralytics-thop polars
+# 강화학습 정책 재생 (play_policy.py) 에 필요
+.venv-isaac\Scripts\python -m pip install --no-deps gymnasium==1.3.0 farama-notifications
 
 # 2) 학습용 가상환경
 py -3.12 -m venv .venv
@@ -116,6 +119,9 @@ py -3.12 -m venv .venv
 
 > Isaac Sim을 공식 사이트에서 zip(바이너리)으로 받았다면 1)은 건너뛰고 `setx ISAACSIM_PYTHON "C:\isaacsim\python.bat"` 만 하면 됩니다.
 > Linux는 `python3.12 -m venv`, `.venv-isaac/bin/python`, `export ISAACSIM_PYTHON=...` 로 바꾸면 같아요.
+
+**한 번에 보기** (Isaac 창이 단계별로 떴다가 저절로 닫힘, 약 10분): `python scripts/demo_all.py`
+장면 → 로봇 시점 순찰 (YOLO + 줌) → 관제 화면 → 바디캠 → 강화학습 정책 재생. 일부만: `--steps patrol policy`
 
 **확인** (Isaac 없이 30초)
 
@@ -404,7 +410,7 @@ Isaac Sim 기본과 같습니다. 단위는 미터.
 | 실제 Isaac Sim 6.0.1 (RTX 4060 Ti 16 GB, Windows 11) | ✅ `build_scene.py` 장면 생성과 의미 라벨 (22개) · ✅ `generate_dataset.py` 렌더링과 정답 박스 (4000장, 장당 약 0.3초, 배치 125개 미리 만들기) |
 | PPO 학습 결과 | ✅ 위 결과 표 (600만 스텝) · numpy 내보내기 정책도 같은 결과 |
 | YOLO 학습, Isaac 안 YOLO 순찰 | ✅ 위 결과 표 (시나리오 5개 위험 100%, 소화기 100%) · 줌 판독은 실제 줌 화면 92장 전부 정확 |
-| 강화학습 정책 Isaac 재생 (`play_policy.py`) | ⏳ 아직 Isaac 화면에서 확인 안 함 |
+| 강화학습 정책 Isaac 재생 (`play_policy.py`) | ✅ 시드 1: 57초에 위험 8/8, 소화기 8/8, 충돌 0 |
 
 ---
 

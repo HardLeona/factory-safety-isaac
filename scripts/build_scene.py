@@ -16,6 +16,7 @@ parser.add_argument("--seed", type=int, default=0, help="위험 요소 배치 �
 parser.add_argument("--layout-seed", type=int, default=0, help="랙 적재물 배치 시드")
 parser.add_argument("--out", default=os.path.join(ROOT, "outputs", "usd", "factory.usd"))
 parser.add_argument("--headless", action="store_true", help="창 없이 저장만 하고 종료")
+parser.add_argument("--duration", type=float, default=0.0, help="창을 이 시간(초)만 보여주고 종료, 0이면 닫을 때까지")
 args, _ = parser.parse_known_args()
 
 from factory_safety.isaac_utils import make_app  # noqa: E402
@@ -42,8 +43,12 @@ for h in scenario.hazards:
         print(f"       - {h.label} ({h.zone})")
 
 if not args.headless:
+    import time
     set_viewport_top_view(stage)
     print("[안내] 창을 닫으면 종료돼요.")
+    t0 = time.time()
     while app.is_running():
         app.update()
+        if args.duration and time.time() - t0 > args.duration:
+            break
 app.close()

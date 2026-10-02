@@ -108,9 +108,14 @@ class RobotPatrol:
         self.look_off += (want - self.look_off) * (1 - math.exp(-dt * rate))
         return self.camera()
 
+    # 카메라는 머리 앞 렌즈 위치. 머리 한가운데에 두면 관제 화면처럼 로봇 모델이 보일 때
+    # 카메라가 머리 안에 들어가서 화면이 가려진다 (머리 앞뒤 반폭 0.1 m)
+    LENS_OFFSET = 0.16
+
     def camera(self):
         yaw = self.heading + self.look_off
-        pos = np.array([self.pos2[0], self.pos2[1], CAM_H_ROBOT])
+        pos = np.array([self.pos2[0] + self.LENS_OFFSET * math.cos(yaw),
+                        self.pos2[1] + self.LENS_OFFSET * math.sin(yaw), CAM_H_ROBOT])
         return CameraPose(pos=pos, yaw=yaw, pitch=self.pitch, roll=0.0, vfov=self.vfov)
 
     @property
