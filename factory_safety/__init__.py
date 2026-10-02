@@ -1,8 +1,6 @@
-"""공장 안전 순찰 시뮬레이터 (Isaac Sim 버전) 핵심 패키지.
+"""창고 안전 순찰 (Isaac Sim): 작업자 바디캠 + YOLO 위험/안전 판정 + CCTV 작업자-위험물 거리 경고.
 
-Isaac Sim 없이도 돌아가는 모듈: config, geometry, models, layout, scenario, patrol,
-detector, dataset, report, rl_env, policy_numpy, textures
-pxr(OpenUSD) 필요: usd_scene
+Isaac 없이 쓰는 모듈: config, warehouse, scenario, walker, walk_anim(수식), geometry, dataset, inspection, report, detector
+pxr(OpenUSD) 필요: scene
 Isaac Sim 필요: isaac_utils
 """
-__version__ = "0.1.0"

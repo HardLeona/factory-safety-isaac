@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 outputs/*
 !outputs/.gitkeep
+!outputs/eval/
+outputs/eval/*.txt
 *.pt
 .venv/
 .venv-isaac/

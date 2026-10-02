@@ -5,6 +5,13 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "전체 시연 (Isaac 창이 단계별로 뜸)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/demo_all.py"],
+      "problemMatcher": []
+    },
+    {
       "label": "Isaac: 장면 만들기",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
@@ -12,52 +19,38 @@
       "problemMatcher": []
     },
     {
-      "label": "Isaac: 순찰 (로봇 시점)",
+      "label": "Isaac: 순찰 (바디캠 화면)",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/run_patrol.py", "--camera", "robot"],
-      "problemMatcher": []
-    },
-    {
-      "label": "Isaac: 순찰 (바디캠 시점)",
-      "type": "shell",
-      "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/run_patrol.py", "--camera", "bodycam"],
+      "args": ["scripts/run_patrol.py"],
       "problemMatcher": []
     },
     {
       "label": "Isaac: 순찰 (관제 화면)",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/run_patrol.py", "--view", "top", "--speed", "2"],
+      "args": ["scripts/run_patrol.py", "--view", "top"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 순찰 (CCTV 화면)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/run_patrol.py", "--view", "cctv_west"],
       "problemMatcher": []
     },
     {
       "label": "Isaac: 학습 데이터 만들기 (4000장)",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/generate_dataset.py", "--num", "4000", "--tool-weight", "3", "--scenario-every", "32"],
-      "problemMatcher": []
-    },
-    {
-      "label": "Isaac: 순찰 (YOLO + 압력계 줌 판독)",
-      "type": "shell",
-      "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/run_patrol.py", "--detector", "yolo", "--weights", "outputs/yolo/factory_hazard_v2/weights/best.pt"],
-      "problemMatcher": []
-    },
-    {
-      "label": "Isaac: 강화학습 정책 재생",
-      "type": "shell",
-      "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/play_policy.py"],
+      "args": ["scripts/generate_dataset.py", "--num", "4000", "--scenario-every", "40"],
       "problemMatcher": []
     },
     {
       "label": "YOLO 학습",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
-      "args": ["scripts/train_yolo.py", "--epochs", "80", "--name", "factory_hazard_v2"],
+      "args": ["scripts/train_yolo.py", "--epochs", "80"],
       "problemMatcher": []
     },
     {
@@ -65,20 +58,6 @@
       "type": "shell",
       "command": "${command:python.interpreterPath}",
       "args": ["scripts/eval_patrol.py", "--seeds", "0", "1", "2", "3", "4"],
-      "problemMatcher": []
-    },
-    {
-      "label": "강화학습 (PPO)",
-      "type": "shell",
-      "command": "${command:python.interpreterPath}",
-      "args": ["scripts/train_rl.py", "--steps", "6000000", "--envs", "12"],
-      "problemMatcher": []
-    },
-    {
-      "label": "강화학습 평가 (기준 정책과 비교)",
-      "type": "shell",
-      "command": "${command:python.interpreterPath}",
-      "args": ["scripts/eval_rl.py", "--model", "outputs/rl/ppo_patrol.zip"],
       "problemMatcher": []
     },
     {

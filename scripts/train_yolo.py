@@ -21,7 +21,7 @@ def main():
     p.add_argument("--imgsz", type=int, default=960)
     p.add_argument("--batch", type=int, default=16)
     p.add_argument("--device", default=None, help="예: 0 (GPU), cpu")
-    p.add_argument("--name", default="factory_hazard")
+    p.add_argument("--name", default="warehouse")
     a = p.parse_args()
 
     from ultralytics import YOLO
@@ -32,7 +32,7 @@ def main():
                 hsv_h=0.02, hsv_s=0.6, hsv_v=0.5, degrees=3.0, mosaic=1.0)
     best = os.path.join(ROOT, "outputs", "yolo", a.name, "weights", "best.pt")
     print(f"\n[완료] 가중치: {best}")
-    print(f"       Isaac Sim에서 확인: python.sh scripts/run_patrol.py --detector yolo --weights {best}")
+    print(f"       Isaac Sim에서 확인: python.sh scripts/run_patrol.py --weights {best}")
 
 
 if __name__ == "__main__":

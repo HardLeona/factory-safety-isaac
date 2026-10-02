@@ -11,9 +11,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     p = argparse.ArgumentParser(description="YOLO 가중치 비교")
-    p.add_argument("--weights", nargs="+", default=[
-        os.path.join(ROOT, "outputs", "yolo", "factory_hazard", "weights", "best.pt"),
-        os.path.join(ROOT, "outputs", "yolo", "factory_hazard_v2", "weights", "best.pt")])
+    p.add_argument("--weights", nargs="+", default=[os.path.join(ROOT, "outputs", "yolo", "warehouse", "weights", "best.pt")])
     p.add_argument("--data", default=os.path.join(ROOT, "outputs", "dataset", "data.yaml"))
     p.add_argument("--imgsz", type=int, default=960)
     p.add_argument("--device", default="0")
