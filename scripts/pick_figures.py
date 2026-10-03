@@ -120,7 +120,7 @@ def main():
     # 조치 지시서 화면 (녹화한 순찰의 대장으로 다시 만들어서 영상과 같은 내용)
     sys.path.insert(0, ROOT)
     from factory_safety.dashboard import write_dashboard
-    html = os.path.join(ROOT, "outputs", "agent", f"dashboard_seed{seed}.html")
+    html = os.path.join(ROOT, "outputs", "agent", f"dashboard_{MV.dash_tag(final, states)}.html")
     write_dashboard(html, final["report"], final.get("evaluation"), seed=seed)
     png = os.path.join(DOCS, "fig_dashboard.png")
     if os.path.exists(EDGE) and os.path.exists(html):

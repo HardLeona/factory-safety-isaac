@@ -645,7 +645,7 @@ def main():
             d.rounded_rectangle([bx1 - 230, 78, bx1 - 8, 112], 8, fill=ORANGE)
             text(d, (bx1 - 119, 95), "주요 장면 · 잠깐 멈춤", 18, (20, 20, 20), True, anchor="mm")
             emit(im, HOLD_S)
-    html_path = os.path.join(ROOT, "outputs", "agent", f"dashboard_seed{seed}.html")
+    html_path = os.path.join(ROOT, "outputs", "agent", f"dashboard_{dash_tag(final, states)}.html")
     png = screenshot(html_path, os.path.join(tempfile.gettempdir(), f"dash_{seed}.png"))
     if png:
         for im in dashboard_frames(png):
@@ -658,6 +658,12 @@ def main():
     if clips:
         add_audio(a.out, clips, n[0] / FPS)
     print(f"[완료] {a.out}  ({n[0] / FPS:.0f}초, 음성 경고 {len(voice_marks)}번, 손동작 안내 {len(assist)}번)")
+
+
+def dash_tag(final, states):
+    """조치 지시서 파일 이름: 시연 이야기 녹화는 story_seed<시드>, 그 밖은 seed<시드> (run_patrol.py 와 같게)."""
+    story = final.get("story", any(s.get("story") for s in states))
+    return f"story_seed{final['seed']}" if story else f"seed{final['seed']}"
 
 
 def voice_banner(im):
@@ -732,7 +738,6 @@ def assist_caption(im, ev, progress):
 
 def add_audio(video, clips, total_s):
     """무음 트랙에 음성 (경고, 손동작 안내) 을 시각마다 얹고 영상과 합친다. clips: [(시각 초, wav)]."""
-    import struct
     import wave
     import imageio_ffmpeg
     rate, cache = 22050, {}

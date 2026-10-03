@@ -8,7 +8,7 @@
     <isaac>/python.sh scripts/run_patrol.py --headless --sim-dt 0.0333 --seed 3    # 평가용 (같은 시드면 같은 결과)
     <isaac>/python.sh scripts/run_patrol.py --headless --sim-dt 0.0333 --seed 1 --yolo-every 3 --record outputs/record/seed1
 
-끝나면 조치 지시서(outputs/agent/dashboard_seed<시드>.html)를 만들고,
+끝나면 조치 지시서(outputs/agent/dashboard_seed<시드>.html, --story 는 dashboard_story_seed<시드>.html)를 만들고,
 정답표(outputs/eval/answer_key_seed<시드>.json)와 맞춘 채점 결과를 출력하고 저장한다.
 """
 import argparse
@@ -385,17 +385,18 @@ cs = agent.prox.report() if cctv_names else None
 if cs:
     print(cctv_summary(cs))
 print(evaluation_summary(evaluation))
-dash = write_dashboard(os.path.join(agent_dir, f"dashboard_seed{seed}.html"), report, evaluation, seed=seed)
+tag = f"story_seed{seed}" if args.story else f"seed{seed}"      # 시연 이야기는 평가 결과를 덮지 않게 따로
+dash = write_dashboard(os.path.join(agent_dir, f"dashboard_{tag}.html"), report, evaluation, seed=seed)
 out = args.result or os.path.join(eval_dir, f"inspection_seed{seed}.json")
 with open(out, "w", encoding="utf-8") as f:
     json.dump({"seed": seed, "sim_time": t_sim, "bodycam": summ, "objects": rows, "cctv": cs,
                "agent": {"evaluation": evaluation, "report": {k: v for k, v in report.items() if k != "timeline"}}},
               f, ensure_ascii=False, indent=1)
-with open(os.path.join(agent_dir, f"report_seed{seed}.json"), "w", encoding="utf-8") as f:
+with open(os.path.join(agent_dir, f"report_{tag}.json"), "w", encoding="utf-8") as f:
     json.dump(report, f, ensure_ascii=False, indent=1)
 if args.record:
     with open(os.path.join(args.record, "final.json"), "w", encoding="utf-8") as f:
-        json.dump({"seed": seed, "report": report, "evaluation": evaluation, "bodycam": summ, "cctv": cs and
+        json.dump({"seed": seed, "story": bool(args.story), "report": report, "evaluation": evaluation, "bodycam": summ, "cctv": cs and
                    {k: v for k, v in cs.items() if k != "log"}}, f, ensure_ascii=False, indent=1)
 print(f"[저장] 조치 지시서 {dash}\n[저장] 채점 결과 {out}")
 app.close()

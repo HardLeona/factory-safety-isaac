@@ -1,6 +1,7 @@
 // Ctrl+Shift+P → Tasks: Run Task
 // Isaac 작업은 환경 변수 ISAACSIM_PYTHON (Isaac Sim 파이썬 경로) 이 필요해요.
 // 일반 파이썬 작업은 VSCode에서 선택한 인터프리터(.venv)로 실행돼요.
+// 손동작·LLM 은 .venv-assistant 와 Ollama (qwen2.5:7b) 가 있어야 해요 (README 설치 3·4).
 {
   "version": "2.0.0",
   "tasks": [
@@ -47,31 +48,46 @@
       "problemMatcher": []
     },
     {
-      "label": "Isaac: 학습 데이터 만들기 (4000장)",
+      "label": "Isaac: 시연 이야기 (손동작, 카트, LLM, 창으로 보기)",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/generate_dataset.py", "--num", "4000", "--scenario-every", "40"],
+      "args": ["scripts/run_patrol.py", "--story", "--seed", "5"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 손동작 인식 시험 (경로 8곳 x 손가락 1~5)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/test_gestures.py", "--raw", "outputs/eval/gesture_raw"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Isaac: 학습 데이터 만들기 (5000장)",
+      "type": "shell",
+      "command": "${env:ISAACSIM_PYTHON}",
+      "args": ["scripts/generate_dataset.py", "--num", "5000", "--scenario-every", "40", "--seed", "7"],
       "problemMatcher": []
     },
     {
       "label": "YOLO 학습",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
-      "args": ["scripts/train_yolo.py", "--epochs", "80"],
+      "args": ["scripts/train_yolo.py", "--data", "outputs/data_v3.yaml", "--epochs", "80"],
       "problemMatcher": []
     },
     {
       "label": "Isaac 순찰 여러 시나리오 평가",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
-      "args": ["scripts/eval_patrol.py", "--seeds", "0", "1", "2", "3", "4"],
+      "args": ["scripts/eval_patrol.py", "--seeds", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
       "problemMatcher": []
     },
     {
       "label": "Isaac: 시연 영상용 녹화 (시드 5)",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/run_patrol.py", "--headless", "--sim-dt", "0.0333333", "--seed", "5", "--yolo-every", "3", "--story", "--record", "outputs/record/seed5"],
+      "args": ["scripts/run_patrol.py", "--headless", "--sim-dt", "0.0333333", "--seed", "5", "--yolo-every", "3", "--story", "--sound", "off",
+               "--record", "outputs/record/seed5", "--result", "outputs/record/seed5_result.json"],
       "problemMatcher": []
     },
     {
@@ -82,6 +98,13 @@
       "problemMatcher": []
     },
     {
+      "label": "보고서 그림 고르기 (녹화에서)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/pick_figures.py"],
+      "problemMatcher": []
+    },
+    {
       "label": "보고서·기술설명서 만들기",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
@@ -89,10 +112,24 @@
       "problemMatcher": []
     },
     {
+      "label": "발표자료 만들기 (팀 양식)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["scripts/make_slides.py"],
+      "problemMatcher": []
+    },
+    {
+      "label": "제출 문서 PDF 로 바꾸기 (Word·PowerPoint 필요)",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-ExecutionPolicy", "Bypass", "-File", "scripts/to_pdf.ps1"],
+      "problemMatcher": []
+    },
+    {
       "label": "평면도 그리기",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
-      "args": ["scripts/plot_layout.py"],
+      "args": ["scripts/plot_layout.py", "--seed", "5"],
       "problemMatcher": []
     },
     {

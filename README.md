@@ -137,7 +137,7 @@
 5. 동쪽 통로 중간에서 손가락 2 → 공장 전체 위험 스캔 (LLM 이 `hazard_log` 에서 알릴 위험과 순서를 고름)
 6. 한 바퀴를 다 돌면 손가락 4 → 관리자 호출 (위치·가까운 위험 + LLM 요약), 시뮬레이션 끝
 
-**조치 지시서** (`outputs/agent/dashboard_seed<시드>.html`): 평면도(번호 = 우선순위, 위험 영역), 조치 목록 (긴급/높음/보통, 위치, 조치 방법, 근거), 위험 영역, 음성 경고 기록, 점검표, 에이전트 기록. 우선순위 점수 = 위험 종류별 심각도 + 접근 경고 횟수 × 2.
+**조치 지시서** (`outputs/agent/dashboard_seed<시드>.html`, 시연 이야기는 `dashboard_story_seed5.html`): 평면도(번호 = 우선순위, 위험 영역), 조치 목록 (긴급/높음/보통, 위치, 조치 방법, 근거), 위험 영역, 음성 경고 기록, 점검표, 에이전트 기록. 우선순위 점수 = 위험 종류별 심각도 + 접근 경고 횟수 × 2.
 
 ---
 
@@ -421,7 +421,7 @@ ollama pull qwen2.5:7b
 powershell -ExecutionPolicy Bypass -File scripts/to_pdf.ps1                     # → submission/*.pdf, 쪽수 확인
 ```
 
-VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 자주 쓰는 작업 (장면, 순찰 화면별, 평가, 시연 녹화·영상, 보고서, 테스트) 이 들어 있어요.
+VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 위 작업 (장면, 순찰 화면별, 시연 이야기, 손동작 시험, 데이터·학습, 평가, 시연 녹화·영상, 제출 문서·PDF, 평면도, 테스트) 이 들어 있어요.
 
 ---
 
@@ -451,6 +451,7 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 자주 쓰는 작업
 
 관제/CCTV 화면에서는 접근 경고가 나면 작업자와 위험물 사이에 빨간 선이 그려집니다.
 끝나면 `outputs/agent/dashboard_seed<시드>.html` (조치 지시서), `outputs/agent/report_seed<시드>.json` (대장과 기록) 이 생깁니다.
+`--story` 는 평가 결과를 덮지 않게 `dashboard_story_seed<시드>.html`, `report_story_seed<시드>.json` 으로 저장합니다.
 </details>
 
 <details>
@@ -478,7 +479,7 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 자주 쓰는 작업
 | 옵션 | 기본값 | 설명 |
 |---|---|---|
 | `--data` | `outputs/data_v3.yaml` | 데이터 (일반 촬영 + 공구 가까이 + 운반 카트, 19클래스) |
-| `--model` | `yolo26s.pt` | 시작 가중치 (YOLO26: NMS 없는 출력, 작은 물체용 라벨 할당). 새 모델은 첫 모델 `outputs/yolo/warehouse/weights/best.pt` 에서 이어 학습 |
+| `--model` | `yolo26s.pt` | 시작 가중치 (YOLO26: NMS 없는 출력, 작은 물체용 라벨 할당). 지금 가중치 (v3) 는 v2 (18클래스) 에서 이어 15 epoch, 저장소에는 v3 만 |
 | `--imgsz` | `960` | 데이터 해상도 그대로 |
 | `--epochs` | `100` | 처음부터 80, 이어 학습이면 40 |
 | `--batch` | `16` | YOLO26s, 960 에서 약 11 GB |

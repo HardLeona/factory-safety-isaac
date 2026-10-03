@@ -1,4 +1,4 @@
-"""창고 평면도: 랙, 순찰 경로, 위험/안전 물체 (한 시나리오), CCTV 위치와 시야 (일반 파이썬, matplotlib).
+"""창고 평면도: 랙, 순찰 경로, 위험/안전 물체와 위험 영역 (한 시나리오), CCTV 위치와 시야 (일반 파이썬, matplotlib).
 
     python scripts/plot_layout.py               # docs/layout.png
     python scripts/plot_layout.py --seed 3
@@ -40,6 +40,15 @@ def main():
     path = W.PatrolPath()
     ax.plot(path.pts[:, 0], path.pts[:, 1], "--", color="#1f9bd8", lw=1.8, label=f"작업자 순찰 경로 ({path.length:.0f} m)")
     sc = sample_scenario(a.seed)
+    from matplotlib.patches import Circle
+    for z in sc.zones:
+        # 위험 영역: 라바콘 링 또는 DANGER 표지 (반경은 배치 자리 크기)
+        ax.add_patch(Circle((z.x, z.y), z.radius, color="#e03131", alpha=0.12, zorder=2))
+        for cx, cy in z.params.get("cones", []):
+            ax.scatter([cx], [cy], marker="^", s=28, color="#fd7e14", edgecolor="k", lw=0.5, zorder=4)
+        if z.params.get("sign"):
+            ax.scatter([z.x], [z.y], marker="X", s=70, color="#ffd43b", edgecolor="k", zorder=4)
+        ax.text(z.x, z.y - z.radius - 0.45, f"{z.id} 위험 영역", ha="center", fontsize=6.5, color="#c92a2a")
     for o in sc.objects:
         c = "#e03131" if o.hazard else "#2f9e44"
         ax.scatter([o.x], [o.y], marker=MARK[o.kind], s=90, color=c, edgecolor="k", zorder=5)
@@ -57,6 +66,8 @@ def main():
     ax.scatter([], [], marker="o", color="#e03131", label="위험")
     ax.scatter([], [], marker="o", color="#2f9e44", label="안전")
     ax.scatter([], [], marker="v", color="#f59f00", label="CCTV")
+    ax.scatter([], [], marker="^", color="#fd7e14", edgecolor="k", label="라바콘")
+    ax.scatter([], [], marker="X", color="#ffd43b", edgecolor="k", label="DANGER 표지")
     ax.set_xlim(-11, 11)
     ax.set_ylim(-12.8, 18.8)
     ax.set_aspect("equal")
