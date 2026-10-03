@@ -26,6 +26,7 @@
 | 🧠 | **YOLO 학습**: 위험한 상태와 안전한 상태를 따로 가르쳐서 YOLO 가 직접 구분, 공구는 종류별로 | `train_yolo.py`, `val_yolo.py` | 일반 파이썬 |
 | 🤖 | **순찰 + 에이전트**: 바디캠 판정, CCTV 접근 경고, CCTV 확대 재확인, 위험 영역, 음성 경고, 조치 지시서, 정답표 채점 | `run_patrol.py` | Isaac Sim |
 | ✋ | **손동작 명령**: 손가락 1~5 → 장비 설명, 공장 위험 스캔, TBM, 관리자 호출, SOS (작업자 언어 음성) | `run_patrol.py --story`, `test_gestures.py` | Isaac Sim + `.venv-assistant` |
+| 💬 | **LLM 에이전트**: LangGraph + 로컬 Qwen2.5-7B (Ollama) 가 손동작 요청마다 도구로 상황을 보고 무엇을 말할지·근거·관리자 메시지를 정함 | `llm_agent.py` | `.venv-assistant` + Ollama |
 | 📊 | **여러 시나리오 평가**: 순찰을 시드별로 돌려 채점 표 (바디캠만 vs 에이전트) | `eval_patrol.py` | 일반 파이썬 (내부에서 Isaac) |
 | 🎬 | **시연 영상**: 녹화한 화면과 에이전트 기록을 1920x1080 영상으로 | `make_video.py` | 일반 파이썬 |
 | 📝 | **제출 문서**: 개발완료보고서, 기술설명서, 발표자료 (수치는 채점 결과에서) | `make_docs.py`, `make_slides.py` | 일반 파이썬 |
@@ -97,18 +98,40 @@
 | 5 (손바닥) | SOS 신고 | 경보음 + 위치 알림, **작업자를 볼 수 있는 CCTV 를 골라 PTZ 로 작업자를 확대** |
 
 - **인식**: MediaPipe Hands 로 손 관절 21점 → 손가락마다 마디가 곧은지 (각도) 와 손목에서 먼지, 엄지는 약지 뿌리까지 거리로 수를 셈. 손을 가로로 내밀어도 되게 화면 방향은 안 씀. 같은 수가 3번 연속이면 명령, 손을 내려야 다시 받음
+- **판단 (LLM 에이전트, `factory_safety/llm_agent.py`)**: 명령이 오면 지금 상황 (방금 바디캠에 보인 물체, 위험물 대장, 위험 영역, 오늘 TBM, 작업자 위치) 을 넘기고,
+  LangGraph 그래프에서 로컬 **Qwen2.5-7B** (Ollama, 인터넷·API 키 없음) 가 도구를 골라 부른 뒤 `finish` 로 결정합니다. 도구 없이 글로만 답하면 `finish` 를 부르라고 한 번 더 요청하고, 그래도 안 되거나 Ollama 가 꺼져 있으면 규칙으로 정합니다
+
+  ```mermaid
+  flowchart LR
+    S([손동작 명령]) --> A[agent<br/>Qwen2.5-7B]
+    A -- 도구 호출 --> T[tools<br/>look_around · equipment_info · hazard_log<br/>todays_tbm · worker_status]
+    T --> A
+    A -. 글로만 답함 .-> M[remind] -.-> A
+    A -- finish --> R[결정<br/>말할 항목 · 근거 · 관리자 메시지]
+    R --> V[검수한 문장 틀로 작업자 언어 음성]
+  ```
+
+  | 도구 | 하는 일 |
+  |---|---|
+  | `look_around` | 최근 몇 초 바디캠에 보인 물체 (번호, 이름, 거리, 방향, 화면 가운데에서 얼마나 먼지) |
+  | `equipment_info(id)` | 그 물체가 무엇이고 어떻게 안전하게 쓰는지 |
+  | `hazard_log(limit)` | 공장 전체 위험물 대장 (우선순위 순, 구역, 작업자와 거리) |
+  | `todays_tbm` / `worker_status` | 오늘 TBM / 작업자 위치·구역 |
+  | `finish(say_ids, reason_ko, manager_ko)` | 말할 항목 (도구가 준 번호만 받음), 한국어 근거, 관리자 메시지 |
+
+  LLM 은 안전 문장을 직접 쓰지 않습니다 (말할 것만 고름). 판단 근거는 에이전트 기록에 `LLM 판단` 으로 남고, 관리자 메시지는 확인된 사실 (위치, 가까운 위험) 뒤에 `AI 요약` 으로 붙습니다
 - **언어**: 안내 문장은 사람이 검수한 4개 언어 문장 틀 + 현장 용어집으로 만듭니다. 번역 모델 (NLLB-200) 을 시험했더니 "안전화 → seat belt", "지게차 → parking lot" 처럼 현장 용어를 틀려서 안전 안내에는 쓰지 않습니다. 관리자에게는 한국어로 같이 남김
 - **음성**: edge-tts (Microsoft 온라인 신경망 음성, 인터넷 필요). 안 되면 Windows 음성 (한국어·영어·일본어). 만든 음성은 문장별로 저장해 다시 씀
-- **시뮬레이션**: 작업자 뼈대에 손가락 1~5 자세를 직접 만들고 (`walk_anim.py`, 아래팔·손은 손바닥이 카메라를 보게 두 벡터로 회전), 시연에서는 `DemoScript` 가 작업자 역할로 순서대로 손동작을 함. Isaac Sim 파이썬과 MediaPipe 가 같이 안 깔려서 손 인식·음성은 따로 띄운 프로세스 (`scripts/assistant_worker.py`) 가 맡음
+- **시뮬레이션**: 작업자 뼈대에 손가락 1~5 자세를 직접 만들고 (`walk_anim.py`: 손을 아래에서 위로 들어 올리며 손바닥이 카메라를 보게, 손가락은 위로 조금 벌려서, 엄지는 손바닥 쪽으로 접음, 2관절 IK. 붙어 있으면 비스듬한 화면에서 약지가 가려 36/40 → 벌려서 37~38/40, RTX 렌더가 매번 조금 달라 시험마다 한 번쯤 다름), 시연에서는 `DemoScript` 가 작업자 역할로 순서대로 손동작을 함. Isaac Sim 파이썬과 MediaPipe 가 같이 안 깔려서 손 인식·음성은 따로 띄운 프로세스 (`scripts/assistant_worker.py`) 가 맡음
 
-**시연 이야기** (`factory_safety/story.py`, `run_patrol.py --story`, 작업자 언어 영어): 작업자 역할만 정해 두고 에이전트는 바디캠·CCTV 화면과 손동작으로만 압니다.
+**시연 이야기** (`factory_safety/story.py`, `run_patrol.py --story`, 작업자 언어 영어, **CCTV 없이 바디캠만**, 음성 경고는 한 번만): 작업자 역할만 정해 두고 에이전트는 바디캠 화면과 손동작으로만 압니다.
 
 1. 시작하자마자 손가락 3 → 오늘의 TBM ("카트로 상자 4개를 북쪽 보관 구역에서 남쪽 작업 구역으로", 주의할 위험, 지킬 것)
-2. 순찰하며 걷기 (에이전트가 위험/안전 판정, 위험 영역, 닿기 직전 음성 경고)
-3. 북쪽 보관 구역에서 운반 카트를 3초 보고 손가락 1 → YOLO 가 알아본 카트의 쓰는 법과 주의점
+2. 순찰하며 걷기 (에이전트가 위험/안전 판정, 위험 영역, 닿기 직전 음성 경고 한 번)
+3. 북쪽 보관 구역에서 운반 카트를 3초 보고 손가락 1 → LLM 이 `look_around` → `equipment_info` 로 카트를 골라, 쓰는 법과 주의점
 4. 옆 팔레트의 상자 4개를 카트에 싣고 왼손으로 카트를 끌며 걷기 (오른손은 손동작)
-5. 동쪽 통로 중간에서 손가락 2 → 공장 전체 위험 스캔 (CCTV 확대가 위험을 차례로 비춤)
-6. 한 바퀴를 다 돌면 손가락 4 → 관리자 호출, 그동안 에이전트는 남은 점검 지점을 CCTV 확대로 확인하고 끝
+5. 동쪽 통로 중간에서 손가락 2 → 공장 전체 위험 스캔 (LLM 이 `hazard_log` 에서 알릴 위험과 순서를 고름)
+6. 한 바퀴를 다 돌면 손가락 4 → 관리자 호출 (위치·가까운 위험 + LLM 요약), 시뮬레이션 끝
 
 **조치 지시서** (`outputs/agent/dashboard_seed<시드>.html`): 평면도(번호 = 우선순위, 위험 영역), 조치 목록 (긴급/높음/보통, 위치, 조치 방법, 근거), 위험 영역, 음성 경고 기록, 점검표, 에이전트 기록. 우선순위 점수 = 위험 종류별 심각도 + 접근 경고 횟수 × 2.
 
@@ -234,13 +257,13 @@
 
 | 항목 | 결과 |
 |---|:-:|
-| 보인 손가락 수대로 명령이 한 번 나옴 | **35/40** |
-| 다른 명령이 나옴 | 1 (손가락 3 → 4, 접은 새끼손가락을 MediaPipe 가 편 것으로 봄) |
-| 명령이 안 나옴 | 4 (모두 아주 어두운 북쪽 끝 한 곳, 화면 평균 밝기 9%) |
-| 손을 다 올린 화면 중 수를 맞힘 | 418/476 |
+| 보인 손가락 수대로 명령이 한 번 나옴 | **37/40** |
+| 다른 명령이 나옴 | 3 (손가락 2 → 1 두 번, 3 → 2 한 번: 어둡거나 역광인 손에서 MediaPipe 가 검지 관절을 접힌 것으로 봄) |
+| 명령이 안 나옴 | 0 |
+| 손을 다 올린 화면 중 수를 맞힘 | 478/520 |
 | 손을 올리고 내리는 중 잘못 실행된 명령 | **0** (멈춘 손만 셈) |
 
-`score_gestures.py` 는 저장한 시험 화면 (`--raw`) 으로 Isaac 없이 다시 채점합니다 (손 인식 기준을 바꿀 때).
+`score_gestures.py` 는 저장한 시험 화면 (`--raw`) 으로 Isaac 없이 다시 채점합니다 (손 인식 기준을 바꿀 때, JPEG 로 저장한 화면이라 실시간 시험과 한두 번 다를 수 있음).
 
 시나리오별 표는 [`outputs/eval/patrol_results.md`](outputs/eval/patrol_results.md), 물체별 판정은 `outputs/eval/inspection_seed<시드>.json`, 조치 지시서는 `outputs/agent/dashboard_seed<시드>.html`.
 시드마다 약 5분 (Isaac 안 YOLO 는 CPU). RTX 렌더링이 매번 조금씩 달라서 같은 시드라도 결과가 한두 개 달라질 수 있습니다.
@@ -266,6 +289,7 @@ factory-safety-isaac/
 │   ├── voice.py              음성 경고 (경보음 + Windows 한국어 음성)
 │   ├── overlay.py            화면에 박스와 한국어 이름, 손 관절 그리기
 │   ├── assistant.py          손동작 명령 1~5 실행 (장비 설명, 공장 스캔, TBM, 호출, SOS)
+│   ├── llm_agent.py          [.venv-assistant] LLM 에이전트 (LangGraph + 로컬 Qwen2.5-7B, 도구 6개)
 │   ├── story.py              시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출)
 │   ├── assistant_client.py   손 인식·음성 도우미 프로세스 부르기
 │   ├── hand_count.py         손 관절 21점 → 손가락 수, 연속 확인
@@ -284,7 +308,7 @@ factory-safety-isaac/
 │   ├── run_patrol.py         [Isaac] 순찰 + 에이전트, 조치 지시서, 채점 (--gestures demo 로 손동작)
 │   ├── test_gestures.py      [Isaac] 손동작 인식 시험 (경로 여러 곳 x 손가락 1~5)
 │   ├── score_gestures.py     [.venv-assistant] 저장한 시험 화면으로 다시 채점
-│   ├── assistant_worker.py   [.venv-assistant] MediaPipe 손 인식 + 다국어 음성
+│   ├── assistant_worker.py   [.venv-assistant] MediaPipe 손 인식 + 다국어 음성 + LLM 에이전트
 │   ├── train_yolo.py         [파이썬] YOLO 학습
 │   ├── val_yolo.py           [파이썬] YOLO 검증 점수 (metrics.json)
 │   ├── compare_yolo.py       [파이썬] YOLO 가중치 비교
@@ -332,7 +356,10 @@ py -3.12 -m venv .venv
 
 # 3) 손동작·다국어 음성 도우미 (손동작 명령을 쓸 때만, 손 모델은 처음 실행 때 받음)
 py -3.12 -m venv .venv-assistant
-.venv-assistant\Scripts\python -m pip install mediapipe edge-tts imageio-ffmpeg
+.venv-assistant\Scripts\python -m pip install mediapipe edge-tts imageio-ffmpeg langgraph langchain-ollama
+# 4) 로컬 LLM (손동작 요청 판단, 약 4.7 GB). 없으면 규칙으로 동작 (--llm off 와 같음)
+winget install Ollama.Ollama
+ollama pull qwen2.5:7b
 # Windows 에서는 위 명령이 CPU 전용 torch 를 깔아요. GPU 학습용으로 CUDA 빌드로 바꿔주기
 .venv\Scripts\python -m pip install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu126 --force-reinstall --no-deps
 ```
@@ -340,7 +367,7 @@ py -3.12 -m venv .venv-assistant
 > Isaac Sim 첫 실행 때 NVIDIA Omniverse 라이선스(EULA) 동의를 물어봐요. 터미널에서 `Yes` 를 입력하거나 환경 변수 `OMNI_KIT_ACCEPT_EULA=YES`.
 > `setx` 후에는 **VSCode를 완전히 껐다 켜야** 환경 변수가 적용돼요.
 
-**확인** (Isaac 없이 1초): `.venv\Scripts\python -m pytest tests -q` → `28 passed`
+**확인** (Isaac 없이 1초): `.venv\Scripts\python -m pytest tests -q` → `29 passed`
 
 ---
 
@@ -391,7 +418,9 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 전부 들어 있어
 | `--no-cctv` | | CCTV 거리 측정과 확대 재확인 끄기 |
 | `--no-recheck` | | 에이전트 재확인(CCTV 확대) 끄기 (비교용) |
 | `--record` | | 영상용: 바디캠, CCTV, 확대 화면과 에이전트 상태를 저장할 폴더 (`make_video.py` 입력) |
-| `--story` | | 시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출, 손 인식 켬) |
+| `--story` | | 시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출, 손 인식 켬, CCTV 없음, 음성 경고 1번) |
+| `--llm` | `qwen2.5:7b` | 손동작 요청을 판단할 Ollama 모델, `off` 면 규칙만 |
+| `--voice-max` | 없음 (`--story` 는 `1`) | 음성 경고 최대 횟수 |
 | `--gestures` | `off` | `demo`: 손가락 3 → 1 → 2 → 4 → 5 를 차례로 보임, `watch`: 손 인식만 (손동작은 안 함) |
 | `--lang` | `zh,en,ja` (`--story` 는 `en`) | 작업자 언어 (`ko` `en` `zh` `ja`). 여러 개면 명령마다 돌아가며 |
 | `--sound` | `auto` | 음성 경고·안내 소리 (`auto` 는 창이 있을 때만) |
@@ -487,10 +516,10 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 
 | 부분 | 상태 |
 |---|---|
-| 배치, 정답표, 경로, 걷기, 판정·채점 로직, 바닥 투영, CCTV 거리, USD 장면, 에이전트 (재확인·재시도·병합·위치 보정·조치 지시서), 위험 영역, 음성 경고, 공구 자리 판단, 손가락 세기, 다국어 문장, 손동작 자세, 시연 이야기, 카트 추적 | 테스트 28개 통과 (`tests/test_core.py`) |
+| 배치, 정답표, 경로, 걷기, 판정·채점 로직, 바닥 투영, CCTV 거리, USD 장면, 에이전트 (재확인·재시도·병합·위치 보정·조치 지시서), 위험 영역, 음성 경고, 공구 자리 판단, 손가락 세기, 다국어 문장, 손동작 자세, 시연 이야기, 카트 추적, LLM 결정 반영 | 테스트 29개 통과 (`tests/test_core.py`) |
 | 실제 Isaac Sim 6.0.1 (RTX 4060 Ti 16 GB, Windows 11) 장면, 라벨, 작업자 걷기 | ✅ |
 | 학습 데이터 7700장 (19클래스), YOLO 학습, 시나리오 10개 순찰 + 에이전트·위험 영역·음성 경고·공구 이름 채점 | ✅ (위 결과 표) |
-| 손동작 명령 (손가락 1~5, 경로 8곳 x 조명) | ✅ 35/40 |
+| 손동작 명령 (손가락 1~5, 경로 8곳 x 조명) | ✅ 37/40 |
 | 실제 사진, 실제 CCTV | ❌ 아직 안 함 (합성 데이터만으로 학습) |
 
 ---
@@ -511,6 +540,7 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 - [Poly Haven](https://polyhaven.com/models) 공구 실물 스캔 (CC0): 망치 3종, 드라이버 2종, 톱 2종, 곡괭이, 삽, 렌치 3종. `get_assets.py` 로 받고 저장소에 포함하지 않음
 - Windows 음성 합성 (SAPI, 한국어 Heami)
 - [MediaPipe Hands](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker) (Apache-2.0) 손 관절 인식
+- [Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) (Apache-2.0) 를 [Ollama](https://ollama.com) 로 로컬 실행, [LangGraph](https://github.com/langchain-ai/langgraph) (MIT) 로 도구 호출 그래프
 - [edge-tts](https://github.com/rany2/edge-tts) (Microsoft 온라인 신경망 음성, 인터넷 필요)
 - [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) (AGPL-3.0, 상업적으로 쓸 계획이면 라이선스 확인 필요)
 - numpy, Pillow, matplotlib

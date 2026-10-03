@@ -6,7 +6,9 @@
     4 관리자 호출    작업자 위치와 바디캠 화면을 관리자에게 보냄
     5 SOS 신고       위치를 관리자·안전팀에 보내고, 작업자를 볼 수 있는 CCTV 가 작업자 쪽을 확대 촬영
 
-문장은 i18n 의 검수한 틀로 만든다 (작업자 언어 + 관리자용 한국어). 손가락 수는 MediaPipe 손 관절로 센다 (hand_count).
+무엇을 말할지는 LLM 에이전트 (llm_agent.py: LangGraph + 로컬 Qwen2.5-7B) 가 도구로 상황을 보고 정하고 (planner),
+LLM 이 없거나 실패하면 규칙으로 정한다. 작업자에게 들려주는 문장은 i18n 의 검수한 틀로 만든다 (작업자 언어 + 관리자용 한국어).
+손가락 수는 MediaPipe 손 관절로 센다 (hand_count).
 """
 import json
 import os
@@ -51,6 +53,7 @@ class SiteAssistant:
         self.events = []
         self.sos = None
         self.scan = None
+        self.planner = None       # 스냅샷 -> LLM 결정 (assistant_client.AssistantClient.agent). None 이면 규칙
         self.w, self.h = w or agent.w, h or agent.h
 
     # ------------------------------------------------------------ 입력
@@ -71,6 +74,7 @@ class SiteAssistant:
         self.n_cmd += 1
         wxy = np.asarray(worker_xy, float)
         ctx = {"t": t, "cam": cam, "xy": wxy, "yaw": float(worker_yaw), "zone": W.zone_name(*wxy)}
+        ctx["decision"] = self._plan(ctx, count, lang)
         fn = {1: self._equip, 2: self._scan, 3: self._tbm, 4: self._manager, 5: self._sos}[count]
         texts, extra = {}, {}
         for lg in dict.fromkeys((lang, "ko")):
@@ -80,10 +84,57 @@ class SiteAssistant:
               "cmd_lang": i18n.COMMANDS[count][lang], "lang": lang, "lang_name": i18n.LANGS[lang],
               "text": ack[lang] + " " + texts[lang], "text_ko": ack["ko"] + " " + texts["ko"],
               "zone": ctx["zone"], "worker": [round(float(wxy[0]), 2), round(float(wxy[1]), 2)], **extra}
+        dec = ctx["decision"]
+        if dec:
+            ev["llm"] = {k: dec.get(k) for k in ("llm", "model", "say_ids", "reason_ko", "manager_ko", "trace", "sec", "error")}
+            if dec.get("llm"):
+                self.agent.say(t, "LLM 판단", f"{dec['model']}: {' → '.join(dec.get('trace', []))} | {dec.get('reason_ko', '')}")
+            else:
+                self.agent.say(t, "LLM 판단", f"LLM 을 못 써서 규칙으로 정함 ({dec.get('error', '')[:60]})")
         self.events.append(ev)
         kind = {4: "관리자 호출", 5: "SOS"}.get(count, "손동작")
         self.agent.say(t, kind, f"손가락 {count}개 → {ev['cmd']} ({ev['lang_name']}): {texts['ko']}")
         return ev
+
+    # ------------------------------------------------------------ LLM 에이전트에 넘길 상황
+    def _plan(self, ctx, count, lang):
+        """지금 상황 스냅샷을 만들어 planner (LLM) 에게 결정을 받는다. planner 가 없으면 None (규칙)."""
+        seen = sorted(self._seen(ctx), key=lambda o: (EQUIP_RANK.get(KIND.get(o["cls"]), 0.5) + o["center"] + 0.06 * o["dist"]))
+        ctx["view_ids"] = {f"V{k + 1}": o for k, o in enumerate(seen)}
+        rep = self.agent.report()
+        haz = [r for r in rep["findings"] if r["state"] == "위험"]
+        ctx["haz_by_id"] = {r["id"]: r for r in haz}
+        if self.planner is None:
+            return None
+        view = []
+        for vid, o in ctx["view_ids"].items():
+            key = o["tool"] or o["cls"]
+            k = KIND.get(o["cls"], o["cls"])
+            info = i18n.INFO.get(key, {}).get("en") or i18n.INFO.get(k, {}).get("en", "")
+            view.append({"id": vid, "name": i18n.name(key, "en"), "name_ko": i18n.name(key, "ko"), "kind": k,
+                         "dist": round(o["dist"], 1), "dir": o["dir"], "center": round(o["center"], 2), "info": info})
+        hazards = []
+        for r in haz:
+            key = r["class"]
+            what = i18n.name(key, "en") + (f" ({', '.join(r.get('tool_types') or [])})" if r.get("tool_types") else "")
+            d = float(np.hypot(r["x"] - ctx["xy"][0], r["y"] - ctx["xy"][1]))
+            hazards.append({"id": r["id"], "what": what, "what_ko": r["label"], "area": i18n.zone(r["zone"], "en"), "area_ko": r["zone"],
+                            "dist": round(d, 1), "priority": {"긴급": "urgent", "높음": "high", "보통": "medium"}.get(r["priority"], "low")})
+        tb = self.tbm
+        snap = {"count": count, "t": round(float(ctx["t"]), 1), "lang": lang, "lang_name": i18n.LANGS[lang], "view": view,
+                "hazards": hazards, "zones": [{"id": z["id"], "kind": z["source"], "area_ko": z["zone"]} for z in rep["zones"]],
+                "tbm": {key: [i18n.TBM_ITEMS[k]["en"] for k in tb.get(key, [])] for key in ("work", "risks", "rules")},
+                "worker": {"area": i18n.zone(ctx["zone"], "en"), "area_ko": ctx["zone"], "xy": [round(float(v), 1) for v in ctx["xy"]],
+                           "cctv": bool(self.agent.cctvs)}}
+        try:
+            return self.planner(snap)
+        except Exception as e:      # 도우미 연결 문제
+            return {"llm": False, "error": f"{type(e).__name__}: {e}"}
+
+    @staticmethod
+    def _llm_ids(ctx):
+        dec = ctx.get("decision") or {}
+        return (dec.get("say_ids") or []) if dec.get("llm") else []
 
     # ------------------------------------------------------------ 바로 전 화면에서 본 물체
     def _seen(self, ctx):
@@ -127,8 +178,9 @@ class SiteAssistant:
         cand = [o for o in self._seen(ctx) if o["dist"] <= self.EQUIP_MAX_M]
         if not cand:
             return i18n.fmt("equip_none", lang), {"items": []}
-        # 작업자가 비추던 것: 장비(공구, 소화기) 를 먼저, 화면 가로 가운데에 가깝고 가까운 것
-        o = min(cand, key=lambda o: EQUIP_RANK.get(KIND.get(o["cls"]), 0.5) + o["center"] + 0.06 * o["dist"])
+        # LLM 이 고른 물체, 없으면 규칙: 장비(카트, 공구, 소화기) 를 먼저, 화면 가로 가운데에 가깝고 가까운 것
+        picked = [ctx["view_ids"][i] for i in self._llm_ids(ctx) if i in ctx.get("view_ids", {})]
+        o = picked[0] if picked else min(cand, key=lambda o: EQUIP_RANK.get(KIND.get(o["cls"]), 0.5) + o["center"] + 0.06 * o["dist"])
         if o["tool"]:
             nm = i18n.name(o["tool"], lang)
             info = i18n.INFO[o["tool"]][lang] + " " + i18n.fmt("tool_floor_note" if o["cls"] == "tool_floor" else "tool_stored_note", lang)
@@ -145,6 +197,9 @@ class SiteAssistant:
         """공장 전체: 위험물 대장 (바디캠·CCTV 확대로 확정한 것) 의 위험을 우선순위 순으로. 같은 종류·구역은 한 번만."""
         rep = self.agent.report()
         haz = [r for r in rep["findings"] if r["state"] == "위험"]
+        # LLM 이 고른 위험을 먼저 (고른 순서대로), 나머지는 우선순위 순
+        order = {i: k for k, i in enumerate(self._llm_ids(ctx))}
+        haz.sort(key=lambda r: order.get(r["id"], len(order)))
         said, seen = [], set()
         for r in haz:
             key = (r["class"], r["zone"])
@@ -153,10 +208,11 @@ class SiteAssistant:
             seen.add(key)
             said.append(r)
         n_zone = len(rep["zones"])
+        log_only = "" if self.agent.cctvs else "_log"           # CCTV 가 없으면 위험물 대장으로만
         if not said:
-            return i18n.fmt("scan_none", lang), {"items": [], "zones": n_zone}
+            return i18n.fmt("scan_none" + log_only, lang), {"items": [], "zones": n_zone}
         sep = " " if lang in ("ko", "en") else ""
-        parts = [i18n.fmt("scan_head", lang, n=len(said))]
+        parts = [i18n.fmt("scan_head" + log_only, lang, n=len(said))]
         for r in said[:self.SCAN_SAY]:
             if r.get("tool_types"):
                 nm = i18n.fmt("floor_tool", lang, tool=i18n.join([i18n.name(t, lang) for t in r["tool_types"][:2]], lang))
@@ -199,7 +255,18 @@ class SiteAssistant:
 
     # ------------------------------------------------------------ 4. 관리자 호출
     def _manager(self, ctx, lang):
-        return i18n.fmt("manager", lang, zone=i18n.zone(ctx["zone"], lang)), {"notify": "관리자"}
+        return i18n.fmt("manager", lang, zone=i18n.zone(ctx["zone"], lang)), {"notify": "관리자", "manager_ko": self._manager_note(ctx)}
+
+    def _manager_note(self, ctx):
+        """관리자에게 보내는 한국어 메시지: 확인된 사실 (위치, 가까운 위험) + LLM 요약."""
+        near = sorted(ctx.get("haz_by_id", {}).values(), key=lambda r: np.hypot(r["x"] - ctx["xy"][0], r["y"] - ctx["xy"][1]))[:2]
+        facts = f"작업자 위치 {ctx['zone']} ({ctx['xy'][0]:+.1f}, {ctx['xy'][1]:+.1f})"
+        if near:
+            facts += ", 가까운 위험: " + ", ".join(f"{r['id']} {r['label']} ({r['zone']})" for r in near)
+        dec = ctx.get("decision") or {}
+        if dec.get("llm") and dec.get("manager_ko"):
+            facts += f" | AI 요약: {dec['manager_ko']}"
+        return facts
 
     # ------------------------------------------------------------ 5. SOS
     def _sos(self, ctx, lang):
@@ -209,9 +276,11 @@ class SiteAssistant:
         if self.sos is None or self.sos.get("t0") != ctx["t"]:
             self.sos = {"t0": float(ctx["t"]), "cam": cam, "target": target, "until": float(ctx["t"]) + self.SOS_VIEW_S}
         zone = i18n.zone(ctx["zone"], lang)
+        note = self._manager_note(ctx)
         if cam:
-            return i18n.fmt("sos", lang, zone=zone, cam=i18n.CAMS.get(cam, {}).get(lang, cam)), {"notify": "관리자, 안전팀", "cctv": cam}
-        return i18n.fmt("sos_nocam", lang, zone=zone), {"notify": "관리자, 안전팀", "cctv": None}
+            return i18n.fmt("sos", lang, zone=zone, cam=i18n.CAMS.get(cam, {}).get(lang, cam)), \
+                {"notify": "관리자, 안전팀", "cctv": cam, "manager_ko": note}
+        return i18n.fmt("sos_nocam", lang, zone=zone), {"notify": "관리자, 안전팀", "cctv": None, "manager_ko": note}
 
     def sos_view(self, t):
         """SOS 뒤 작업자를 확대해 보는 CCTV (이름, 카메라 자세) 또는 None."""

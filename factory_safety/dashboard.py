@@ -108,6 +108,17 @@ def _eval_html(ev):
             f'(맞게 고침 {r["changed_correct"]}), 다른 CCTV 로 재시도 {r["recheck_retry"]}, 현장 확인 {r["recheck_escalated"]}</p>')
 
 
+def llm_note(e):
+    """LLM 에이전트가 정한 근거와 부른 도구."""
+    m = e.get("llm") or {}
+    if not m:
+        return ""
+    if not m.get("llm"):
+        return '<br><span class="muted">판단: 규칙 (LLM 못 씀)</span>'
+    return (f'<br><span class="llm">AI 판단 ({html.escape(str(m.get("model")))}, {m.get("sec", 0):.1f}초): {html.escape(m.get("reason_ko") or "")}'
+            f'<br>{html.escape(" → ".join(m.get("trace") or []))}</span>')
+
+
 def cctv_note(e):
     return f" · CCTV {html.escape(e['cctv'])} 가 작업자 확대" if e.get("cctv") else ""
 
@@ -127,12 +138,13 @@ def write_dashboard(path, rep, evaluation=None, seed=None, title="창고 안전 
     asst = rep.get("assistant", [])
     arows = "".join(
         f'<tr class="a{e["count"]}"><td>{clock(e["t"])}</td><td><b>{e["count"]}</b></td><td class="zone">{html.escape(e["cmd"])}</td>'
-        f'<td class="zone">{html.escape(e["lang_name"])}</td><td>{html.escape(e["text"])}<br><span class="muted">{html.escape(e["text_ko"])}</span></td></tr>'
+        f'<td class="zone">{html.escape(e["lang_name"])}</td><td>{html.escape(e["text"])}<br><span class="muted">{html.escape(e["text_ko"])}</span>'
+        f'{llm_note(e)}</td></tr>'
         for e in asst)
     alerts = "".join(
         f'<div class="alert {"sos" if e["count"] == 5 else "mgr"}"><b>{"SOS 신고" if e["count"] == 5 else "관리자 호출"}</b> '
         f'{clock(e["t"])} · {html.escape(e["zone"])} ({e["worker"][0]:+.1f}, {e["worker"][1]:+.1f}) · 작업자 언어 {html.escape(e["lang_name"])}'
-        f'{cctv_note(e)}</div>'
+        f'{cctv_note(e)}{"<br>" + html.escape(e["manager_ko"]) if e.get("manager_ko") else ""}</div>'
         for e in asst if e["count"] in (4, 5))
     doc = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>{title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -140,7 +152,7 @@ def write_dashboard(path, rep, evaluation=None, seed=None, title="창고 안전 
 body{{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei","Yu Gothic",sans-serif;background:#f6f7f9;color:#1d2330}}
 .alert{{margin:10px 24px 0;padding:10px 14px;border-radius:8px;font-size:14px}} .alert.sos{{background:#d93a3a;color:#fff}}
 .alert.mgr{{background:#f6e3a6;color:#4a3a00}} .k손동작{{color:#0a7cc4}} .k관리자호출{{color:#c27c00}} .kSOS{{color:#d93a3a}}
-tr.a5 td{{background:#fdeaea}} tr.a4 td{{background:#fdf6e0}}
+tr.a5 td{{background:#fdeaea}} tr.a4 td{{background:#fdf6e0}} .llm{{color:#6b3fc7;font-size:12px}} .kLLM판단{{color:#6b3fc7}}
 header{{background:#1f2b3d;color:#fff;padding:14px 24px}} header h1{{margin:0;font-size:22px}} header p{{margin:4px 0 0;opacity:.8}}
 main{{display:grid;grid-template-columns:400px 1fr;gap:18px;padding:18px 24px}}
 .card{{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}}

@@ -90,7 +90,8 @@ for i in range(args.spots):
                     tag = f"spot{i}_g{c}"
                     if args.raw:
                         Image.fromarray(img).save(os.path.join(args.raw, f"{tag}_{len(seq):02d}_a{int(alpha * 100):03d}.jpg"), quality=92)
-                    if args.save and alpha >= 0.999 and not os.path.exists(os.path.join(args.save, f"{tag}.jpg")):
+                    # 명령이 확정된 화면 (확정이 없으면 다 올린 첫 화면)
+                    if args.save and (f or (alpha >= 0.999 and not fired and not os.path.exists(os.path.join(args.save, f"{tag}.jpg")))):
                         overlay.draw_hand(Image.fromarray(img), pts, cnt).save(os.path.join(args.save, f"{tag}.jpg"), quality=85)
             walker.step(dt)
             n += 1

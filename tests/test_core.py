@@ -575,12 +575,12 @@ def test_walker_gesture():
         w.step(1 / 30)
     s0, ahead0 = w.s, np.linalg.norm(w.camera().pos[:2] - np.array(w.base_pose[:2]))
     w.start_gesture(3, hold=1.0)
-    for _ in range(20):
+    for _ in range(25):
         w.step(1 / 30)
     assert w.s == s0 and w.gesture_count == 3 and w.base_pose[3] > 30          # 멈춰 서서 손동작 클립
     cam = w.camera()
     assert np.linalg.norm(cam.pos[:2] - np.array(w.base_pose[:2])) < ahead0 - 0.1 and abs(cam.yaw - w.base_pose[2]) < 1e-6
-    for _ in range(45):
+    for _ in range(55):
         w.step(1 / 30)
     assert w.gesture is None and w.s > s0
 
@@ -615,7 +615,7 @@ def test_gesture_rig():
         _, world = rig.solve(*rig.gesture(c))
         pos = {n: world[i][:3, 3] for i, n in enumerate(rig.names)}
         assert pos["R_Hand"][1] < -GESTURE_CAM_AHEAD - 0.1                  # 손은 바디캠 앞
-        assert pos["R_Index3"][0] - pos["R_Index1"][0] > 0.05               # 검지는 펴서 왼쪽(+X)
+        assert pos["R_Index3"][2] - pos["R_Index1"][2] > 0.04               # 검지는 펴서 위로
         for k, name in enumerate(("Mid", "Ring", "Pinky")):
             reach = np.linalg.norm(pos[f"R_{name}3"] - pos["R_Hand"])
             assert (reach > 0.16) == (c >= k + 2 or c == 5), (c, name, reach)
@@ -667,6 +667,37 @@ def test_agent_equipment_track():
     assert f.status == "기각" and 5 in a.equip_tids
     a.on_bodycam(1.0, cam, [("stack_unstable", 0.7, box, 5)], worker_xy=(-4.5, -2.3))
     assert all(x.status == "기각" for x in a.findings if x.group == "stack")
+
+
+def test_assistant_llm_planner():
+    """LLM 결정 (가짜 planner) 을 받아 말할 물체를 고르고, 관리자 메시지에 사실 + AI 요약, 기록에 LLM 판단을 남긴다."""
+    from factory_safety.assistant import SiteAssistant
+    a = _agent()
+    tbm = {"date": "2026-10-03", "work": ["work_move_boxes"], "risks": ["risk_slip"], "rules": ["rule_ppe"], "todo": []}
+    s = SiteAssistant(a, langs=["en"], tbm=tbm)
+    seen = []
+
+    def planner(snap):
+        seen.append(snap)
+        if snap["count"] == 1:      # 규칙이라면 카트를 고르지만 LLM 은 망치를 고름
+            hammer = next(o["id"] for o in snap["view"] if o["name"] == "a hammer")
+            return {"llm": True, "model": "fake", "say_ids": [hammer], "reason_ko": "망치가 바닥에 있어 위험", "trace": ["look_around()"]}
+        return {"llm": True, "model": "fake", "say_ids": [], "reason_ko": "호출", "manager_ko": "서쪽 통로 작업자 호출", "trace": []}
+    s.planner = planner
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    dets = [("cart", 0.9, _box_at(cam, [-4.4, 0.0, 0.0], 90, 160, flat=False), 9),
+            ("hammer", 0.85, _box_at(cam, [-3.9, 0.6, 0.0], 50, 22, flat=False), 1)]
+    for k in range(3):
+        s.observe(0.1 * k, cam, dets)
+        a.on_bodycam(0.1 * k, cam, dets, worker_xy=(-4.5, -2.3))
+    ev = s.run(1.0, 1, cam, (-4.5, -2.3), math.pi / 2)
+    assert "hammer" in ev["text"] and ev["llm"]["llm"] and {o["kind"] for o in seen[0]["view"]} >= {"equipment", "tool"}
+    ev = s.run(2.0, 4, cam, (-4.5, -2.3), math.pi / 2)
+    assert "작업자 위치 서쪽 통로" in ev["manager_ko"] and "AI 요약: 서쪽 통로 작업자 호출" in ev["manager_ko"]
+    assert sum(e["kind"] == "LLM 판단" for e in a.timeline) == 2
+    s.planner = lambda snap: {"llm": False, "error": "꺼짐"}             # LLM 이 안 되면 규칙
+    ev = s.run(3.0, 1, cam, (-4.5, -2.3), math.pi / 2)
+    assert "hand cart" in ev["text"] and not ev["llm"]["llm"]
 
 
 if __name__ == "__main__":

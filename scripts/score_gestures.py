@@ -44,7 +44,8 @@ def main():
             if x:
                 fired.append(x)
             out = os.path.join(a.save, f"spot{spot}_g{c}.jpg")
-            if alpha >= 0.999 and len(full) == 3:
+            # 명령이 확정된 화면 (확정이 없으면 다 올린 세 번째 화면)
+            if x or (alpha >= 0.999 and len(full) == 3 and not fired):
                 from PIL import Image
                 from factory_safety import overlay
                 overlay.draw_hand(Image.open(f).convert("RGB"), r.get("pts"), cnt).save(out, quality=85)

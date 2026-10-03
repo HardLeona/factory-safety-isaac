@@ -199,6 +199,7 @@ class SafetyAgent:
         self._warned = {}
         self.worker_log = []     # 채점용 실제 작업자 위치 (판정에는 안 씀)
         self.equip_tids = set()  # 운반 카트처럼 장비로 본 추적 번호 (그 번호로는 위험/안전 판정을 안 함)
+        self.voice_max = None    # 음성 경고 최대 횟수 (None 이면 제한 없음, 시연은 1)
         self._t = 0.0
 
     # ------------------------------------------------------------ 기록
@@ -212,7 +213,7 @@ class SafetyAgent:
         self.say(0.0, "계획", f"목표: 순찰 한 바퀴({path_len:.0f} m) 동안 위험물을 찾아 위험/안전을 판정하고, "
                               f"작업자 접근을 경고하고, 조치 지시서를 만든다")
         self.say(0.0, "계획", f"통로 바닥(유출, 공구, 적재)은 바디캠, 점검표 {len(self.checkpoints)}곳은 바디캠으로 보되 "
-                              f"못 보면 CCTV 확대로 확인")
+                              f"못 보면 {'CCTV 확대로 확인' if self.cctvs else '작업자에게 현장 확인 요청 (CCTV 없음)'}")
         for cp in self.checkpoints:
             cams = self.camera_options(cp.target)
             self.say(0.0, "계획", f"점검표 {cp.cid} {cp.name}  (확대 가능 CCTV: {', '.join(n for n, _ in cams) or '없음'})")
@@ -731,7 +732,7 @@ class SafetyAgent:
         others = [o for o in j.get("others", []) if o[1] >= self.OTHER_SURE]
         if f.body_confirmed:
             f.rechecked = True
-            self.say(t, "재확인", f"{f.fid} 확대로 못 봄 → 바디캠 판정 유지 ({verdict(f.cls)})")
+            self.say(t, "재확인", f"{f.fid} {'확대로 못 봄' if j['cams'] else '볼 CCTV 없음'} → 바디캠 판정 유지 ({verdict(f.cls)})")
         elif others and not f.near_miss:
             o = max(others, key=lambda x: x[1])
             f.status = "기각"
@@ -743,7 +744,7 @@ class SafetyAgent:
         else:
             f.status = "기각"
             self.stats["recheck_rejected"] += 1
-            self.say(t, "재확인", f"{f.fid} 확대해도 안 보이고 근거가 약함 → 오검출로 보고 대장에서 뺌")
+            self.say(t, "재확인", f"{f.fid} {'확대해도 안 보이고' if j['cams'] else '볼 CCTV 가 없고'} 근거가 약함 → 오검출로 보고 대장에서 뺌")
 
     # ------------------------------------------------------------ CCTV 접근 경고
     def on_cctv(self, t, name, cam, dets):
@@ -835,7 +836,7 @@ class SafetyAgent:
                 lab = CLASS_KO[name] + (f" ({TOOL_KO[tool]})" if tool else "")
                 cands.append((d, f"D:{name}:{int(xy[0] * 2)}:{int(xy[1] * 2)}", f"화면의 {lab} {d:.1f} m"))
         cands = [c for c in cands if t - self._warned.get(c[1], -1e9) >= self.WARN_REPEAT_S]
-        if not cands:
+        if not cands or (self.voice_max is not None and len(self.voice_events) >= self.voice_max):
             return
         for _, key, _ in cands:
             self._warned[key] = t
@@ -853,7 +854,8 @@ class SafetyAgent:
     def finish_patrol(self, t):
         todo = [cp for cp in self.checkpoints if cp.status == "미확인"]
         self.say(t, "계획", f"순찰 끝. 점검표 {len(self.checkpoints) - len(todo)}/{len(self.checkpoints)} 확인, "
-                            f"남은 {len(todo)}곳과 대기 중인 재확인 {len(self.jobs)}건을 CCTV 확대로 처리")
+                            f"남은 {len(todo)}곳과 대기 중인 재확인 {len(self.jobs)}건을 "
+                            f"{'CCTV 확대로 처리' if self.cctvs else '현장 확인으로 넘김'}")
         for j in self.jobs:
             j["t_req"] = -1e9
         for cp in todo:

@@ -28,6 +28,7 @@ FOLLOW_M = 1.25                         # 카트 바퀴 축은 작업자 뒤 이
 PULL_TILT = 40.0                        # 끌 때 카트 기울기 (도)
 LOOK_S = 3.0                            # 카트를 보는 시간
 TURN_S = 0.8
+START_S = 1.5                           # 경로 출발점에서 이만큼 앞에서 시작 (바로 옆 바닥 공구에 닿지 않게)
 LOAD_EACH_S = 1.0                       # 상자 하나 싣는 시간
 ATTACH_S = 1.2                          # 카트를 끄는 자세로 잡는 시간
 HOLD = 2.0                              # 손을 들고 있는 시간
@@ -63,6 +64,7 @@ class Story:
         self.loaded = 0
         self.lap_done = False           # run_patrol 이 보고 에이전트 finish_patrol 을 부름
         self.done = False
+        walker.reset(s0=START_S)
 
     @property
     def label(self):
@@ -142,7 +144,7 @@ class Story:
                 self._show(t, 3)
                 self._go("tbm", t)
         elif st == "tbm":
-            if self._gesture_over(t):
+            if self._gesture_over(t) and t >= self.busy_until:      # TBM 을 끝까지 듣고 출발
                 w.resume()
                 self._go("walk", t)
         elif st == "walk":

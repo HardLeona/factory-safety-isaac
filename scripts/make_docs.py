@@ -31,7 +31,7 @@ DIVISION = os.environ.get("DIVISION", "대학부")
 TITLE = "창고 안전 순찰 AI 에이전트"
 SUBTITLE = "작업자 바디캠과 CCTV로 위험 요소를 판정·재확인하고, 손동작 명령에 작업자 언어로 답하는 피지컬 AI"
 REPO = "https://github.com/HardLeona/factory-safety-isaac"
-N_TESTS = 28
+N_TESTS = 29
 sys.path.insert(0, ROOT)
 from factory_safety.config import TOOL_TYPES  # noqa: E402
 
@@ -58,8 +58,12 @@ def _gestures():
     demo, langs = {"recognized": 0, "shown": 0, "extra": 0}, []
     if os.path.exists(rec):
         f = json.load(open(rec, encoding="utf-8"))
-        demo = f.get("evaluation", {}).get("gestures", demo)
-        langs = list(dict.fromkeys(e["lang_name"] for e in f["report"].get("assistant", [])))
+        demo = dict(f.get("evaluation", {}).get("gestures", demo))
+        evs = f["report"].get("assistant", [])
+        langs = list(dict.fromkeys(e["lang_name"] for e in evs))
+        demo["llm"] = sum(1 for e in evs if (e.get("llm") or {}).get("llm"))          # LLM 이 결정한 요청 수
+        demo["requests"] = len(evs)
+        demo["llm_sec"] = max([(e.get("llm") or {}).get("sec") or 0 for e in evs] or [0])
     return test, demo, langs
 
 
@@ -323,7 +327,8 @@ def report(rs, figs):
                 "에이전트는 판정을 **위험물 대장**에 모으고, 애매한 물체와 못 본 점검 지점은 **볼 수 있는 CCTV 를 골라 확대(PTZ)로 다시 판정**한다. "
                 "**라바콘으로 둘러친 곳, DANGER 표지가 선 곳, 스스로 위험하다고 판단한 주변을 위험 영역**으로 잡고, 작업자가 위험물에 닿기 직전이거나 "
                 "영역에 들어서면 **\"경고 경고 위험 요소가 식별되었습니다\" 음성 경고**를 낸다. 작업자가 바디캠 앞에 **손가락 1~5개**를 보이면 장비 설명, 공장 위험 스캔, "
-                "오늘의 TBM, 관리자 호출, SOS 를 **작업자 언어(중국어·영어·일본어·한국어)** 음성으로 처리한다. 순찰이 끝나면 **조치 지시서**를 만든다."],
+                "오늘의 TBM, 관리자 호출, SOS 를 **로컬 LLM(Qwen2.5-7B) 에이전트(LangGraph)** 가 도구로 상황을 보고 판단해 **작업자 언어(중국어·영어·일본어·한국어)** 음성으로 처리한다. "
+                "순찰이 끝나면 **조치 지시서**를 만든다."],
         ["핵심 성과", f"학습에 안 쓴 시나리오 {A['n']}개 (창고 물체 {A['objects']}개): 위험 물체 **{a['hazard_found']}/{nh} ({pct(a['hazard_found'], nh)})**, "
                     f"안전 물체 **{a['safe_ok']}/{ns} ({pct(a['safe_ok'], ns)})** 판정 (바디캠만 썼을 때 {b['hazard_found']}, {b['safe_ok']}), 거꾸로 판정 "
                     f"{a['hazard_as_safe'] + a['safe_as_hazard']}건. 위험 영역 {X['zone_found']}/{X['zone_gt']} 인식, 닿기 직전 음성 경고 "
@@ -377,7 +382,9 @@ def report(rs, figs):
         "**CCTV 선택**: 재확인 지점과 CCTV 사이가 랙(6 m)·기둥·대장의 적재물에 막히는지, 32 m 안인지 계산. PTZ 는 목표를 향해 화면 4 m → 2.6 m 로 두 장",
         "**위험 영역**: 3 m 안으로 이어진 라바콘 2개 이상 → 볼록 다각형, DANGER 표지 → 반경 1.2 m, 방치된 유출 → 1.3 m (미끄럼), 무너질 듯한 적재 → 1.6 m (붕괴)",
         "**음성 경고**: 작업자가 위험물 1 m 안 (닿기 직전) 이나 영역 경계 0.5 m 안이면 경보음 + 한국어 음성. 대장의 기억과 지금 화면을 함께 봄. CCTV 는 2 m 접근 경고",
-        "**손동작 명령** (1 장비 설명, 2 공장 위험 스캔: 위험물 대장을 우선순위로 읽고 CCTV 확대로 차례로 비춤, 3 TBM, 4 관리자 호출, 5 SOS): "
+        "**LLM 에이전트**: LangGraph 그래프 (agent ⇄ tools → finish) 에서 로컬 **Qwen2.5-7B** (Ollama, 인터넷·API 키 불필요) 가 손동작 요청마다 "
+        "도구(look_around, equipment_info, hazard_log, todays_tbm, worker_status)로 상황을 보고 말할 항목·근거·관리자 메시지를 정함. 안전 문장은 검수한 틀로, LLM 실패 시 규칙으로",
+        "**손동작 명령** (1 장비 설명, 2 공장 위험 스캔: 위험물 대장을 우선순위로, 3 TBM, 4 관리자 호출, 5 SOS): "
         "**MediaPipe Hands** 손 관절 21점에서 손가락마다 마디가 곧은지(각도)·손목에서 먼지, 엄지는 약지 뿌리까지 거리로 1~5 를 세고, 3번 연속 같으면 확정 "
         "(손을 내려야 다시 받음). 안내 문장은 **검수한 4개 언어 문장 틀 + 현장 용어집**으로 만든다 (번역 모델 NLLB 는 '안전화→seat belt' 처럼 현장 용어를 틀려 안전 안내에 안 씀). "
         "음성은 신경망 TTS (edge-tts)",
@@ -389,8 +396,8 @@ def report(rs, figs):
         ["Goal", "순찰 한 바퀴 동안 위험물을 찾아 판정하고, 위험 영역을 잡고, 작업자를 경고하고, 조치 지시서를 만든다"],
         ["Planning", "순찰 전 도면(소화기 6, 작업대 2)으로 점검표와 지점별 볼 수 있는 CCTV 계산. 순찰 끝에 못 본 지점을 CCTV 확대 일정으로"],
         ["Reasoning", "재확인 대상 고르기 (1~2프레임만 보임, 판정 1등 70% 미만, CCTV 경고로 처음 본 물체), 공구 위험/안전 (놓인 자리), "
-                      "위험 영역 (라바콘 묶음·표지·위험 주변), 음성 경고 시점 (거리), 손동작 → 명령, 방금 화면에서 설명할 장비 고르기, 공장 스캔 순서"],
-        ["Tool Use", "바디캠·CCTV 3대, YOLO26, CCTV PTZ 방향·화각 명령 (SOS 때 작업자 확대), 손 인식, 다국어 음성, 관리자 알림, 조치 지시서(HTML)"],
+                      "위험 영역 (라바콘 묶음·표지·위험 주변), 음성 경고 시점 (거리), 손동작 요청은 LLM(Qwen2.5-7B) 이 도구로 보고 무엇을 말할지·근거·관리자 메시지 결정"],
+        ["Tool Use", "바디캠·CCTV, YOLO26, CCTV PTZ 명령, 손 인식, LLM 이 부르는 도구 (화면 물체·장비 정보·위험물 대장·TBM·작업자 상태), 다국어 음성, 관리자 알림, 조치 지시서"],
         ["Memory/State", "위험물 대장 (위치, 판정 표, 공구 종류, 확신도, 상태), 라바콘·표지 위치, 위험 영역 목록, 점검표, 경고·작업자 요청 기록, 최근 바디캠 화면"],
         ["Feedback", "확대 판정으로 대장 수정·위치 보정·병합, 실패하면 다른 CCTV 재시도 → 현장 확인 요청, 바디캠이 다시 보면 취소, 정답표 채점"],
     ], [2.6, 14.8], size=8, first_col_shade=True)
@@ -399,7 +406,7 @@ def report(rs, figs):
         ["일차", "내용"],
         ["9/29~10/1", "Isaac Sim 6.0 장면·카메라·Replicator 파이프라인 (첫 버전은 로봇 순찰 강화학습), 실제 실행 검증과 라벨 문제 해결"],
         ["10/2", "**위험 판단 중심으로 재설계**: 고정 경로 작업자 바디캠, 위험/안전 짝 물체, 정답표 채점, 합성 데이터·YOLO 학습, CCTV 접근 경고"],
-        ["10/3", "에이전트 (점검표, 대장, CCTV 선택·확대 재확인, 현장 확인, 조치 지시서) + **위험 영역, 음성 경고, 공구 이름 8종, 손동작 명령·다국어 안내** 추가, 재학습"],
+        ["10/3", "에이전트 (점검표, 대장, CCTV 선택·확대 재확인, 현장 확인, 조치 지시서) + **위험 영역, 음성 경고, 공구 이름 8종, 손동작 명령·다국어 안내, LLM 에이전트 (LangGraph + 로컬 Qwen2.5-7B)** 추가, 운반 카트 시연, 재학습"],
         ["10/4~10/6", "평가, 시연 영상, 보고서, 기술설명서, 발표자료"],
     ], [2.6, 14.8], size=8, first_col_shade=True)
 
@@ -431,8 +438,9 @@ def report(rs, figs):
             f"에이전트가 스스로 판단한 위험 영역은 {X['zone_agent']}개(실제 위험 주변 {X['zone_agent_real']}개), 음성 경고는 모두 {X['voices']}번 "
             f"(그중 실제 닿기 직전 사건에 맞은 것 {X['voices_useful']}번)이었다. CCTV 접근 경고 {A['ev'][0]}/{A['ev'][1]}건, 거리 오차 중앙값 {A['dist']:.2f} m. "
             f"**손동작**은 경로 {G_TEST.get('spots', len({r['spot'] for r in G_TEST.get('rows', [])}))}곳에서 조명을 바꿔 손가락 1~5 를 보인 {G_TEST['trials']}번 중 "
-            f"{G_TEST['ok']}번을 맞게 인식했고 (다른 명령 {G_TEST['wrong']}번, 손을 올리고 내리는 중 잘못 실행 0번, 못 알아본 것은 아주 어두운 한 곳), 시연 순찰에서는 {G_DEMO['shown']}번 중 "
-            f"{G_DEMO['recognized']}번을 인식해 {', '.join(G_LANGS) or '작업자 언어'}로 안내했다. "
+            f"{G_TEST['ok']}번을 맞게 인식했고 (다른 명령 {G_TEST['wrong']}번은 어둡거나 역광인 손, 못 알아본 것 {G_TEST['missed']}번, 손을 올리고 내리는 중 잘못 실행 0번), 시연 순찰에서는 {G_DEMO['shown']}번 중 "
+            f"{G_DEMO['recognized']}번을 인식해 {', '.join(G_LANGS) or '작업자 언어'}로 안내했고, 요청 {G_DEMO.get('requests', 0)}건 중 "
+            f"{G_DEMO.get('llm', 0)}건을 로컬 Qwen2.5-7B 에이전트가 도구로 상황을 보고 결정했다 (요청당 최대 {G_DEMO.get('llm_sec', 0):.0f}초). "
             f"Isaac 없이 도는 단위 테스트 {N_TESTS}개(투영, 채점, 재확인·병합, 위험 영역, 음성 경고, 손가락 세기, 다국어 문장 등)가 모두 통과한다.", size=8.5)
 
     # 5. 기대효과
@@ -457,15 +465,18 @@ def report(rs, figs):
         "**작업자 위치**: 음성 경고는 작업자 위치를 정확히 안다고 가정 (시뮬레이션 값). 실제로는 바디캠에 UWB·실내 측위나 영상 기반 위치 추정이 필요",
         "**처리 속도**: Isaac Sim 6.0.1 의 PyTorch 가 CPU 전용이라 시뮬레이션 안 YOLO 는 CPU (시간 고정이라 결과는 재현). 실제 배치는 GPU·엣지 장치",
         "**규칙 기반 판단**: 재확인 조건, 영역 크기, 경고 거리는 규칙. 현장 피드백으로 보정하고 MES·작업지시 연동 계획. 지게차 같은 움직이는 위험은 아직 없음",
+        "**LLM**: 로컬 7B 모델이라 요청당 수 초가 걸리고 판단 근거 문장이 가끔 부정확함 (그래서 작업자에게 들려주는 안전 문장은 틀로 고정, 말할 항목은 도구가 준 번호만 받음). "
+        "손동작 요청에만 쓰고 순찰 중 위험 판정·경고는 규칙",
     ], size=8.5)
     heading(d, "5.3 기존자산과 신규개발분, 출처", 2)
     table(d, [
         ["구분", "내용"],
         ["기존자산 (제3자)", "NVIDIA Isaac Sim 6.0·Replicator·에셋(창고, 소품, 작업자; 에셋 서버 참조), Poly Haven 공구 모델(CC0), YCB 드릴, "
-                         "Ultralytics YOLO26 사전학습 가중치(AGPL-3.0)·ByteTrack, Google MediaPipe Hands(Apache-2.0), edge-tts(Microsoft 온라인 음성), "
+                         "Ultralytics YOLO26 사전학습 가중치(AGPL-3.0)·ByteTrack, Google MediaPipe Hands(Apache-2.0), Qwen2.5-7B-Instruct(Apache-2.0)·Ollama·LangGraph(MIT), "
+                         "edge-tts(Microsoft 온라인 음성), "
                          "Windows 음성 합성, numpy·Pillow"],
         ["8일 신규개발분", "장면·시나리오·정답표, 위험/안전 짝 물체·전동톱·DANGER 표지 모델링, 걷기 동작, 카메라, 합성 데이터 파이프라인과 학습, 바닥 투영, "
-                         "에이전트 (점검표, 대장, 재확인, 위험 영역, 음성 경고, 조치 지시서), 손동작 자세·손가락 세기·다국어 문장 틀, 채점, 영상 (커밋 9/30~10/6)"],
+                         "에이전트 (점검표, 대장, 재확인, 위험 영역, 음성 경고, 조치 지시서), LLM 에이전트 그래프·도구, 손동작·다국어 문장 틀, 채점, 영상 (커밋 9/30~10/6)"],
         ["AI 활용", "코드 작성·디버깅·문서 초안에 AI 코딩 도구(Anthropic Claude Code)를 사용함. 설계 방향 결정, 위험 요소 선정, 결과 검증은 팀이 수행"],
         ["데이터·안전", "실제 개인정보·현장 영상 없음 (전부 합성). API 키·비밀번호 없음. 통계 출처: 고용노동부 「2025년 산업재해 현황」"],
     ], [3.0, 14.4], size=7.8, first_col_shade=True)
@@ -490,9 +501,9 @@ def tech_sheet(rs):
                    "출입 금지 구역에 다가가는 순간을 알려 줄 수단이 없음, 외국인 작업자는 한국어 안전 안내를 알아듣기 어려움 (2025년 사고재해자 중 넘어짐 25.2%로 1위, 고용노동부)"],
         ["대상 사용자", "물류창고·제조공장 안전관리자, 순찰 작업자, 관제 담당자"],
         ["Agent Goal", "순찰 한 바퀴 동안 위험물을 찾아 위험/안전과 공구 이름을 판정하고, 애매하면 스스로 재확인하고, 위험 영역을 잡아 작업자에게 음성으로 경고하고, "
-                       "작업자의 손동작 요청에 작업자 언어로 답하며, 우선순위가 있는 조치 지시서를 만든다"],
+                       "작업자의 손동작 요청은 LLM 이 상황을 보고 판단해 작업자 언어로 답하며, 우선순위가 있는 조치 지시서를 만든다"],
         ["사용 AI / 모델", f"YOLO26s (합성 데이터 {DATA['n']}장, 19 클래스: 위험/안전 상태, 공구 8종, 운반 카트, 라바콘, DANGER 표지, 작업자, mAP50 {YOLO['map50']}) "
-                          "+ ByteTrack, MediaPipe Hands (손 관절 21점 → 손가락 1~5), 신경망 TTS (중·영·일·한). "
+                          "+ ByteTrack, MediaPipe Hands (손가락 1~5), **Qwen2.5-7B 로컬 LLM + LangGraph** (요청마다 도구 골라 판단), 신경망 TTS (중·영·일·한). "
                           "에이전트 판단(재확인, CCTV 선택, 공구 자리, 위험 영역, 경고 시점, 우선순위)은 규칙·기하 계산"],
         ["사용 Tool / Data / 장비", "NVIDIA Isaac Sim 6.0 디지털 트윈(실사 창고, NVIDIA·Poly Haven·YCB 에셋), 작업자 바디캠과 스피커, CCTV 3대와 PTZ(방향·화각 명령), "
                                  "Replicator(정답 박스), 도면 데이터(랙, 기둥, 소화기, 작업대, CCTV), TBM 데이터, 4개 언어 문장 틀·현장 용어집, HTML 조치 지시서"],
@@ -505,12 +516,14 @@ def tech_sheet(rs):
                                       "④ 라바콘 묶음·DANGER 표지·위험 주변을 위험 영역으로 설정\n"
                                       "⑤ 작업자가 위험물 1 m·영역 0.5 m 안이면 \"경고 경고 위험 요소가 식별되었습니다\" 음성 경고, CCTV 는 2 m 접근 경고 (도구)\n"
                                       "⑥ 애매한 물체·못 본 지점은 CCTV 를 골라 PTZ 확대로 재판정, 실패 시 재시도·현장 확인 (결과 확인)\n"
-                                      "⑦ 작업자가 손가락 1~5 → 장비 설명·공장 위험 스캔·TBM·관리자 호출·SOS(CCTV 가 작업자 확대) 를 작업자 언어로 (도구)\n"
+                                      "⑦ 작업자가 손가락 1~5 → LLM 에이전트가 도구로 보고 결정 → 장비 설명·공장 위험 스캔·TBM·관리자 호출·SOS 를 작업자 언어로 (도구)\n"
                                       "⑧ 순찰 끝에 조치 지시서 (우선순위·위치·공구 이름·위험 영역·작업자 요청) 출력, 정답표로 채점"],
         ["핵심기능 3~5개", "1) 바디캠 위험/안전·공구 이름 판정  2) CCTV 선택·확대 재확인  3) 위험 영역 + 닿기 직전 음성 경고  "
-                         "4) 손동작 명령 → 작업자 언어 안내·호출·SOS  5) 조치 지시서"],
-        ["기존자산 / 8일 신규개발분", "· 기존자산: Isaac Sim·Replicator, NVIDIA·Poly Haven(CC0)·YCB 에셋, Ultralytics YOLO26·ByteTrack, Windows 음성 합성\n"
-                                   "· 신규개발: 장면·시나리오·정답표, 위험/안전 짝·전동톱·DANGER 표지 모델링, 걷기·카메라, 합성 데이터와 학습, 바닥 투영, 에이전트 전체, 채점·영상"],
+                         "4) 손동작 명령 → LLM 판단 → 작업자 언어 안내·호출·SOS  5) 조치 지시서"],
+        ["기존자산 / 8일 신규개발분", "· 기존자산: Isaac Sim·Replicator, NVIDIA·Poly Haven(CC0)·YCB 에셋, Ultralytics YOLO26·ByteTrack, MediaPipe Hands, "
+                                   "Qwen2.5-7B·Ollama·LangGraph, edge-tts·Windows 음성 합성\n"
+                                   "· 신규개발: 장면·시나리오·정답표, 위험/안전 짝·전동톱·DANGER 표지 모델링, 걷기·손동작 자세·카메라, 합성 데이터와 학습, 바닥 투영, "
+                                   "에이전트 전체 (LLM 도구·그래프 포함), 다국어 문장 틀, 채점·영상"],
         [f"대표 테스트 {A['n']}건 결과", f"학습에 안 쓴 배치 {A['n']}개 (창고 물체 {A['objects']}개): 위험 {a['hazard_found']}/{nh} ({pct(a['hazard_found'], nh)}), "
                                      f"안전 {a['safe_ok']}/{ns} ({pct(a['safe_ok'], ns)}), 거꾸로 판정 {a['hazard_as_safe'] + a['safe_as_hazard']} "
                                      f"(바디캠만: 위험 {b['hazard_found']}, 안전 {b['safe_ok']})\n위험 영역 인식 {X['zone_found']}/{X['zone_gt']}, "
@@ -518,7 +531,8 @@ def tech_sheet(rs):
                                      f"재확인 {rc['recheck_run']}건, CCTV 접근 경고 {A['ev'][0]}/{A['ev'][1]}건, 손동작 명령 {gtxt()}"],
         ["현재 완성도 Level", "Level 3 (MVP): 시뮬레이션에서 End-to-End 동작과 정량 채점 완료. 실사 검증 전"],
         ["소스코드 / 저장소", f"{REPO} (실행: scripts/run_patrol.py, 평가: scripts/eval_patrol.py, README 에 설치·실행법)"],
-        ["정보출처 및 기타", "고용노동부 「2025년 산업재해 현황」, NVIDIA Isaac Sim 문서·에셋, Poly Haven (CC0), YCB Object Set, Ultralytics YOLO (AGPL-3.0). "
+        ["정보출처 및 기타", "고용노동부 「2025년 산업재해 현황」, NVIDIA Isaac Sim 문서·에셋, Poly Haven (CC0), YCB Object Set, Ultralytics YOLO (AGPL-3.0), "
+                          "Google MediaPipe (Apache-2.0), Qwen2.5-7B-Instruct (Apache-2.0)·Ollama·LangGraph (MIT), edge-tts. "
                           "AI 코딩 도구 Anthropic Claude Code 로 코드·문서 작성 보조. 실제 개인정보·현장 영상 사용 없음"],
     ]
     table(d, rows, [3.6, 14.6], header=False, size=7.4, first_col_shade=True)

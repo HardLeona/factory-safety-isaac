@@ -36,10 +36,16 @@ parser.add_argument("--headless", action="store_true")
 parser.add_argument("--sound", default="auto", help="음성 경고 소리: auto (창이 있을 때만), on, off")
 parser.add_argument("--gestures", default="off", help="작업자 손동작 명령: off | demo (시연 순서대로 손가락 1~5 를 보임) | watch (손 인식만)")
 parser.add_argument("--lang", default=None, help="작업자 언어 ko/en/zh/ja (쉼표로 여러 개면 명령마다 돌아가며). 기본 zh,en,ja, --story 면 en")
+parser.add_argument("--llm", default="qwen2.5:7b", help="손동작 명령을 판단할 로컬 LLM (Ollama 모델 이름), off 면 규칙만")
+parser.add_argument("--voice-max", type=int, default=None, help="음성 경고 최대 횟수 (--story 는 1)")
 parser.add_argument("--story", action="store_true", help="시연 이야기: TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 한 바퀴 뒤 관리자 호출 (factory_safety/story.py)")
 args, _ = parser.parse_known_args()
-if args.story and args.gestures == "off":
-    args.gestures = "watch"
+if args.story:
+    args.no_cctv = True                 # 시연: CCTV 없이 바디캠만
+    if args.voice_max is None:
+        args.voice_max = 1              # 시연: 음성 경고는 한 번만
+    if args.gestures == "off":
+        args.gestures = "watch"
 if args.lang is None:
     args.lang = "en" if args.story else "zh,en,ja"
 
@@ -93,6 +99,7 @@ if args.story:
     story.build(scene)          # 카트, 팔레트, 상자 (첫 렌더 전에)
 cctv_names = [] if args.no_cctv else [c[0] for c in W.CCTVS]
 agent = SafetyAgent(IMG_W, IMG_H, cctv_names)
+agent.voice_max = args.voice_max
 if args.no_recheck:
     agent.JOB_DELAY_S = 1e9
 for n, pose in agent.cctvs.items():
@@ -135,8 +142,10 @@ if args.gestures != "off":
     client = AssistantClient()
     if client.ok:
         assistant = SiteAssistant(agent, langs=[v.strip() for v in args.lang.split(",") if v.strip()])
+        if args.llm != "off":
+            assistant.planner = lambda snap: client.agent(snap, args.llm)       # LangGraph + 로컬 LLM 이 판단
         demo = DemoScript() if args.gestures == "demo" else None
-        print(f"[손동작] 손 인식 + 다국어 안내 켬 (작업자 언어 {args.lang})")
+        print(f"[손동작] 손 인식 + 다국어 안내 켬 (작업자 언어 {args.lang}, 판단 {args.llm if args.llm != 'off' else '규칙'})")
     else:
         print(f"[손동작] 도우미를 못 띄워서 끔: {client.error}")
 gest = {"pending": None, "n_ev": 0, "pts": None, "count": 0, "region": None, "t_hand": -1e9}

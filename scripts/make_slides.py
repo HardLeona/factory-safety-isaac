@@ -17,7 +17,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from make_docs import DATA, G_DEMO, G_LANGS, G_TEST, MEMBERS, REPO, SUBTITLE, TEAM, TITLE, YOLO, agg, load_results, pct  # noqa: E402
 
-VIDEO_LEN = os.environ.get("VIDEO_LEN", "약 2분")
+VIDEO_LEN = os.environ.get("VIDEO_LEN", "2분 40초")
 DEMO_SEED = os.environ.get("DEMO_SEED", "5")
 
 FIG = os.path.join(ROOT, "docs")
@@ -181,7 +181,7 @@ def build(template, out):
     pic(s, os.path.join(FIG, "workflow.png"), 0.6, 2.25, w=12.1)
     feats = [("① 판정", "위험/안전 상태\n공구 이름 8종", BLUE), ("② 확대 재확인", "CCTV 선택 → PTZ\n재시도 → 현장 확인", ORANGE),
              ("③ 위험 영역", "라바콘·DANGER 표지\n스스로 판단한 주변", RED), ("④ 음성 경고", "\"경고 경고 위험\n요소가 식별되었습니다\"", RGBColor(0x9B, 0x4D, 0xCA)),
-             ("⑤ 손동작 명령", "손가락 1~5\n중·영·일 음성 안내", RGBColor(0x0A, 0x7C, 0xC4)), ("⑥ 조치 지시서", "우선순위·위치\n영역 지도와 기록", GREEN)]
+             ("⑤ 손동작 명령", "손가락 1~5 → LLM 판단\n중·영·일 음성 안내",RGBColor(0x0A, 0x7C, 0xC4)), ("⑥ 조치 지시서", "우선순위·위치\n영역 지도와 기록", GREEN)]
     for k, (h, body, col) in enumerate(feats):
         tb(s, 0.6 + k * 2.04, 4.5, 1.94, 1.9, [(h, 15, col, True), (body, 12, INK)], fill=LIGHT, align=PP_ALIGN.CENTER)
     tb(s, 0.6, 6.5, 12.1, 0.4, "로봇 없이 바디캠(스피커)과 기존 CCTV(PTZ) 만으로 동작 · 위험 데이터는 디지털 트윈에서 합성", 13, GRAY, align=PP_ALIGN.CENTER)
@@ -191,7 +191,7 @@ def build(template, out):
     pic(s, os.path.join(FIG, "architecture.png"), 0.5, 1.2, w=12.3)
     table(s, [["Goal", "Planning", "Reasoning", "Tool Use", "Memory", "Feedback"],
               ["판정, 위험 영역, 경고, 작업자 요청 응답, 조치 지시서", "도면으로 점검표 8곳, 지점별 CCTV 계산", "재확인 대상, 공구 자리, 영역 설정, 경고 시점, 손동작 → 명령",
-               "바디캠·CCTV·PTZ 명령·스피커, 손 인식, 다국어 음성", "위험물 대장, 위험 영역, 경고·요청 기록", "판정 수정, 재시도, 현장 확인"]],
+               "바디캠·CCTV·PTZ, 손 인식, LLM(Qwen2.5-7B)이 부르는 도구, 음성", "위험물 대장, 위험 영역, 경고·요청 기록", "판정 수정, 재시도, 현장 확인"]],
           0.5, 5.85, 12.3, [2.05] * 6, size=11, row_h=0.5)
 
     # 5. 디지털 트윈과 데이터
@@ -232,11 +232,12 @@ def build(template, out):
     s = content_slide(prs, "7. 핵심 구현 ③  손동작 명령 → 작업자 언어 안내", L_BODY)
     pic(s, os.path.join(FIG, "fig_gestures.jpg"), 0.5, 1.2, w=12.3)
     pic(s, os.path.join(FIG, "fig_gesture.jpg"), 0.5, 3.75, w=5.0)
-    tb(s, 5.75, 3.7, 3.6, 2.95, [("어떻게 알아듣나", 15, BLUE, True), "• MediaPipe 손 관절 21점 → 손가락마다 곧은지·손목에서 먼지, 엄지는 약지 뿌리까지 거리",
-                                  "• 같은 수가 3번 연속이면 명령 (손을 내려야 다시)", "• 안내는 검수한 4개 언어 문장 틀 + 현장 용어집 (번역기는 '안전화→seat belt' 처럼 틀려서 안 씀)"], 11, fill=LIGHT)
+    tb(s, 5.75, 3.7, 3.6, 2.95, [("어떻게 처리하나", 15, BLUE, True), "• MediaPipe 손 관절 21점 → 손가락 1~5, 멈춘 손에서 3번 연속이면 명령",
+                                  "• LangGraph + 로컬 Qwen2.5-7B 가 도구 (화면 물체, 장비 정보, 위험물 대장, TBM) 로 보고 무엇을 말할지·근거 결정",
+                                  "• 말은 검수한 4개 언어 문장 틀 (번역기는 '안전화→seat belt' 처럼 틀림)"], 11, fill=LIGHT)
     tb(s, 9.55, 3.7, 3.25, 2.95, [("결과", 15, BLUE, True), (f"{G_TEST['ok']}/{G_TEST['trials']}", 30, INK, True),
                                    (f"경로 8곳·조명 바꿔 손가락 1~5, 다른 명령 {G_TEST['wrong']}번, 움직이는 손 잘못 실행 0", 11, GRAY),
-                                   (f"시연 {G_DEMO['recognized']}/{G_DEMO['shown']} · {', '.join(G_LANGS) or '중·영·일'}", 12, INK)], fill=LIGHT)
+                                   (f"시연 {G_DEMO['recognized']}/{G_DEMO['shown']} · {', '.join(G_LANGS) or '중·영·일'} · LLM 결정 {G_DEMO.get('llm', 0)}/{G_DEMO.get('requests', 0)}", 12, INK)], fill=LIGHT)
     tb(s, 0.5, 6.7, 12.3, 0.35, f"시연 영상 ({VIDEO_LEN}): TBM(3) → 순찰·판정 → 운반 카트 설명(1) → 상자 싣고 끌기 → 공장 위험 스캔(2) → 관리자 호출(4) → 조치 지시서",
        12, GRAY, align=PP_ALIGN.CENTER)
 
@@ -286,7 +287,9 @@ def build(template, out):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--template", default=os.environ.get("SLIDE_TEMPLATE"), help="제목/제목+내용 레이아웃이 있는 pptx 양식")
+    team_tpl = os.path.join(os.path.dirname(ROOT), "조현준_IBDPppt양식.pptx")      # 팀 양식 (저장소 밖, 있으면 기본으로)
+    p.add_argument("--template", default=os.environ.get("SLIDE_TEMPLATE") or (team_tpl if os.path.exists(team_tpl) else None),
+                   help="제목/제목+내용 레이아웃이 있는 pptx 양식")
     p.add_argument("--out", default=os.path.join(ROOT, "submission", "발표자료.pptx"))
     a = p.parse_args()
     os.makedirs(os.path.dirname(a.out), exist_ok=True)

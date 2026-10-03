@@ -59,6 +59,12 @@ class AssistantClient:
         res = self.call(op="tts", text=text, lang=lang)
         return res.get("wav"), float(res.get("dur", 0.0) or 0.0)
 
+    def agent(self, snapshot, model=None):
+        """LLM 에이전트 결정 (LangGraph + 로컬 Qwen). 실패하면 {"llm": False, "error"}."""
+        if not self.ok:
+            return {"llm": False, "error": "도우미 없음"}
+        return self.call(op="agent", snapshot=snapshot, model=model)
+
     def close(self):
         if self.proc is not None and self.proc.poll() is None:
             try:
