@@ -139,7 +139,31 @@ if args.gestures != "off":
         print(f"[손동작] 손 인식 + 다국어 안내 켬 (작업자 언어 {args.lang})")
     else:
         print(f"[손동작] 도우미를 못 띄워서 끔: {client.error}")
-gest = {"pending": None, "n_ev": 0, "pts": None, "count": 0}
+gest = {"pending": None, "n_ev": 0, "pts": None, "count": 0, "region": None, "t_hand": -1e9}
+HAND_HOLD_S = 1.0       # 손이 사라진 뒤에도 이 시간 동안은 손·팔 자리의 YOLO 박스를 판정에서 뺌 (손을 내리는 중)
+
+
+def hand_region(pts):
+    """손 관절로 손·팔이 가리는 화면 영역: 손 박스를 넓히고 손목 쪽 (팔이 들어오는 쪽) 은 화면 끝까지."""
+    p = np.asarray(pts, float)
+    x0, y0 = p.min(axis=0)
+    x1, y1 = p.max(axis=0)
+    m = 0.35 * max(x1 - x0, y1 - y0)
+    x0, y0, x1, y1 = x0 - m, y0 - m, x1 + m, y1 + m
+    wx = p[0, 0]
+    if wx > (x0 + x1) / 2:
+        x1 = IMG_W
+    else:
+        x0 = 0.0
+    return (x0, y0, x1, y1)
+
+
+def covered(b, r, frac=0.5):
+    """박스 b 가 영역 r 에 frac 이상 들어가면 True."""
+    ix = max(0.0, min(b[2], r[2]) - max(b[0], r[0]))
+    iy = max(0.0, min(b[3], r[3]) - max(b[1], r[1]))
+    area = max(1.0, (b[2] - b[0]) * (b[3] - b[1]))
+    return ix * iy / area >= frac
 
 
 def speak(t, ev):
@@ -176,7 +200,7 @@ def record_state(k, t, x, y, yaw, cam, ptz, sosv=None):
                    "finding": agent.job["finding"].fid if agent.job["finding"] else None,
                    "checkpoint": agent.job["checkpoint"].cid if agent.job["checkpoint"] else None} if ptz and agent.job else
                   {"cam": sosv[0], "vfov": sosv[1].vfov, "sos": sosv[2] == "SOS", "label": sosv[2],
-                   "finding": None, "checkpoint": None} if sosv else None),
+                   "target": [float(v) for v in sosv[3]], "finding": None, "checkpoint": None} if sosv else None),
           "story": story.label if story else None,
           "n_timeline": len(agent.timeline),
           "hand": {"alpha": round(walker.gesture_alpha, 2), "shown": walker.gesture["count"] if walker.gesture else 0,
@@ -248,11 +272,17 @@ try:
         agent.log_worker(t_sim, (x, y))
         if img is not None:
             dets, res = yolo.track(img, "bodycam")
+            if assistant:
+                # 작업자 자기 손·팔은 YOLO 판정에서 뺌 (손을 물체로 잘못 볼 수 있어서)
+                gest["count"], gest["pts"] = client.hand(img)
+                if gest["pts"]:
+                    gest["region"], gest["t_hand"] = hand_region(gest["pts"]), t_sim
+                if gest["region"] is not None and t_sim - gest["t_hand"] <= HAND_HOLD_S:
+                    dets = [d for d in dets if not covered(d[2], gest["region"])]
             agent.on_bodycam(t_sim, cam, dets, worker_xy=(x, y), gt=parse_bboxes(a_box.get_data(), CLASSES, with_paths=True))
             if assistant:
                 if walker.gesture is None:
                     assistant.observe(t_sim, cam, dets)       # 손으로 가린 화면은 장비·위험 안내에 안 씀
-                gest["count"], gest["pts"] = client.hand(img)
                 ev = assistant.on_hand(t_sim, gest["count"], cam, (x, y), yaw, gest["pts"])
                 if ev:
                     speak(t_sim, ev)

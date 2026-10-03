@@ -175,7 +175,7 @@ def build(template, out):
 
     # 3. 해결 방안
     X = A["x"]
-    s = content_slide(prs, "2. 해결: 순찰하며 판정하고, 소리로 경고하고, 작업자 언어로 답하는 AI 에이전트", L_BODY)
+    s = content_slide(prs, "2. 해결: 판정·경고하고 작업자 언어로 답하는 AI 에이전트", L_BODY)
     tb(s, 0.6, 1.3, 12.1, 0.9, [("바디캠과 CCTV 로 위험/안전과 **공구 이름**을 판정하고, 애매한 것은 **CCTV 를 골라 확대해 다시 확인**한다. "
                                  "**위험 영역**에 닿기 직전이면 **음성으로 경고**하고, 작업자가 **손가락 1~5개**를 보이면 **작업자 언어**로 안내·호출·SOS 를 처리한다", 15, INK)])
     pic(s, os.path.join(FIG, "workflow.png"), 0.6, 2.25, w=12.1)
@@ -235,7 +235,7 @@ def build(template, out):
     tb(s, 5.75, 3.7, 3.6, 2.95, [("어떻게 알아듣나", 15, BLUE, True), "• MediaPipe 손 관절 21점 → 손가락마다 곧은지·손목에서 먼지, 엄지는 약지 뿌리까지 거리",
                                   "• 같은 수가 3번 연속이면 명령 (손을 내려야 다시)", "• 안내는 검수한 4개 언어 문장 틀 + 현장 용어집 (번역기는 '안전화→seat belt' 처럼 틀려서 안 씀)"], 11, fill=LIGHT)
     tb(s, 9.55, 3.7, 3.25, 2.95, [("결과", 15, BLUE, True), (f"{G_TEST['ok']}/{G_TEST['trials']}", 30, INK, True),
-                                   (f"경로 여러 곳·조명 바꿔 손가락 1~5 인식, 올리는 중간 화면 오인식 {G_TEST['mid_false']}", 11, GRAY),
+                                   (f"경로 8곳·조명 바꿔 손가락 1~5, 다른 명령 {G_TEST['wrong']}번, 움직이는 손 잘못 실행 0", 11, GRAY),
                                    (f"시연 {G_DEMO['recognized']}/{G_DEMO['shown']} · {', '.join(G_LANGS) or '중·영·일'}", 12, INK)], fill=LIGHT)
     tb(s, 0.5, 6.7, 12.3, 0.35, f"시연 영상 ({VIDEO_LEN}): TBM(3) → 순찰·판정 → 운반 카트 설명(1) → 상자 싣고 끌기 → 공장 위험 스캔(2) → 관리자 호출(4) → 조치 지시서",
        12, GRAY, align=PP_ALIGN.CENTER)

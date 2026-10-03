@@ -103,8 +103,10 @@ class SiteAssistant:
                 dist = float(np.linalg.norm(xy - ctx["xy"]))
                 key = ("t", tid) if tid is not None else (name, round(float(xy[0]) / 1.5), round(float(xy[1]) / 1.5))
                 cx = ((xyxy[0] + xyxy[2]) / 2 - self.w / 2) / (self.w / 2)      # 바닥 물체는 원래 화면 아래쪽이라 가로만 봄
-                o = objs.setdefault(key, {"cls": name, "tool": tool, "conf": 0.0, "n": 0, "center": 9.0})
+                o = objs.setdefault(key, {"cls": name, "tool": tool, "conf": 0.0, "n": 0, "center": 9.0, "votes": {}})
                 o.update(xy=xy, dist=dist, t=t)
+                o["votes"][name] = o["votes"].get(name, 0.0) + float(conf)     # 같은 추적 번호도 판정이 바뀔 수 있어서 투표
+                o["cls"] = max(o["votes"], key=o["votes"].get)
                 o["conf"] = max(o["conf"], float(conf))
                 o["n"] += 1
                 o["center"] = min(o["center"], abs(cx))
@@ -219,16 +221,16 @@ class SiteAssistant:
         return s["cam"], self.agent.aim(s["cam"], s["target"], self.SOS_WINDOW_M)
 
     def ptz_view(self, t):
-        """지금 비서가 쓰는 CCTV 확대: (이름, 카메라 자세, 무엇) 또는 None. SOS 가 먼저, 다음은 공장 스캔."""
+        """지금 비서가 쓰는 CCTV 확대: (이름, 카메라 자세, 무엇, 목표점) 또는 None. SOS 가 먼저, 다음은 공장 스캔."""
         v = self.sos_view(t)
         if v:
-            return v[0], v[1], "SOS"
+            return v[0], v[1], "SOS", self.sos["target"]
         sc = self.scan
         if sc and sc["shots"]:
             k = int((t - sc["t0"]) // self.SCAN_DWELL_S)
             if 0 <= k < len(sc["shots"]):
                 cam, target, fid = sc["shots"][k]
-                return cam, self.agent.aim(cam, target, self.SCAN_WINDOW_M), f"스캔 {fid}"
+                return cam, self.agent.aim(cam, target, self.SCAN_WINDOW_M), f"스캔 {fid}", target
         return None
 
     def report(self):

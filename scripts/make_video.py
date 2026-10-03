@@ -27,7 +27,16 @@ from factory_safety.config import CLASS_KO, HAZARD  # noqa: E402
 from factory_safety.report import clock  # noqa: E402
 
 FPS = 30
-YOLO_MAP50 = os.environ.get("YOLO_MAP50", "0.923")
+def _yolo_map50():
+    """학습한 YOLO 검증 mAP50 (scripts/val_yolo.py 가 만든 metrics.json, 새 모델부터)."""
+    for name in ("warehouse_v3", "warehouse_v2", "warehouse"):
+        path = os.path.join(ROOT, "outputs", "yolo", name, "metrics.json")
+        if os.path.exists(path):
+            return f"{json.load(open(path, encoding='utf-8'))['map50']:.3f}"
+    return "-"
+
+
+YOLO_MAP50 = os.environ.get("YOLO_MAP50") or _yolo_map50()
 WIDTH, HEIGHT = 1920, 1080
 FONT = "C:/Windows/Fonts/malgun.ttf"
 FONT_B = "C:/Windows/Fonts/malgunbd.ttf"
@@ -141,9 +150,17 @@ def draw_map(d, ox, oy, st, alerts, path_pts):
     ptz = st.get("ptz")
     if ptz:
         cam = next(c for c in W.CCTVS if c[0] == ptz["cam"])
-        d.line([mp(cam[1], cam[2], ox, oy), mp(ptz["target"][0], ptz["target"][1], ox, oy)], fill=ORANGE, width=3)
-        tx, ty = mp(ptz["target"][0], ptz["target"][1], ox, oy)
-        d.ellipse([tx - 13, ty - 13, tx + 13, ty + 13], outline=ORANGE, width=3)
+        tgt = ptz.get("target")
+        if tgt is None and str(ptz.get("label", "")).startswith("스캔"):
+            f = next((f for f in st["findings"] if f["id"] == ptz["label"][3:]), None)
+            tgt = (f["x"], f["y"]) if f else None
+        if tgt is None and ptz.get("sos"):
+            tgt = st["worker"][:2]
+        if tgt is not None:
+            col = RED if ptz.get("sos") else (120, 220, 255) if ptz.get("label") else ORANGE
+            d.line([mp(cam[1], cam[2], ox, oy), mp(tgt[0], tgt[1], ox, oy)], fill=col, width=3)
+            tx, ty = mp(tgt[0], tgt[1], ox, oy)
+            d.ellipse([tx - 13, ty - 13, tx + 13, ty + 13], outline=col, width=3)
     for zz in st.get("zones", []):
         poly = [mp(a, b, ox, oy) for a, b in zz["poly"]]
         col = (220, 50, 50) if zz["source"] != "agent" else (230, 120, 30)
@@ -608,8 +625,8 @@ def assist_caption(im, ev, progress):
     l1 = lines_of(cur, f_lang, 920, 2)
     l2 = lines_of(cur_ko, f_ko, 920, 2)
     h = 44 + 34 * len(l1) + 30 * len(l2) + 12
-    top = 609 - h
-    d.rectangle([0, top, 959, 609], fill=(0, 40, 80, 215))
+    top = min(609 - h, 609 - 140)          # 아래 에이전트 자막을 다 덮게
+    d.rectangle([0, top, 959, 609], fill=(0, 34, 70, 250))
     d.rectangle([0, top, 959, top + 4], fill=(0, 160, 240))
     text(d, (14, top + 10), head, 22, (120, 220, 255), True)
     y = top + 44

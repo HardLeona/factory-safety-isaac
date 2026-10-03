@@ -198,6 +198,8 @@ class SafetyAgent:
         self._last_voice = -1e9
         self._warned = {}
         self.worker_log = []     # 채점용 실제 작업자 위치 (판정에는 안 씀)
+        self.equip_tids = set()  # 운반 카트처럼 장비로 본 추적 번호 (그 번호로는 위험/안전 판정을 안 함)
+        self._t = 0.0
 
     # ------------------------------------------------------------ 기록
     def say(self, t, kind, text):
@@ -322,7 +324,11 @@ class SafetyAgent:
         """YOLO 결과 -> (상태 관찰 [(상태, 신뢰도, xyxy, 추적 번호, 공구 종류)], 라바콘·표지 [(이름, 신뢰도, xyxy)])."""
         obs, marks = [], []
         for name, conf, xyxy, tid, *_ in dets:
-            if name == "worker" or name in EQUIPMENT:       # 작업자, 운반 카트는 위험/안전 판정 대상이 아님
+            if name in EQUIPMENT:                           # 운반 카트는 위험/안전 판정 대상이 아님
+                if tid is not None:
+                    self._equipment_track(tid)
+                continue
+            if name == "worker" or (tid is not None and tid in self.equip_tids):
                 continue
             if name in ("cone", "danger_sign"):
                 marks.append((name, conf, xyxy))
@@ -333,6 +339,19 @@ class SafetyAgent:
             obs.append((name, conf, xyxy, tid, tool))
         return obs, marks
 
+    def _equipment_track(self, tid):
+        """이 추적 번호를 장비로 봄. 앞서 이 번호로만 (바디캠에서) 만든 판정이 있으면 장비를 잘못 본 것으로 뺌
+        (카트를 돌아보는 중에 화면 가장자리에서 잠깐 적재로 잡히는 경우)."""
+        if tid in self.equip_tids:
+            return
+        self.equip_tids.add(tid)
+        tr = self.tracks.get(tid)
+        f = tr["finding"] if tr else None
+        if f is not None and f.status in ACTIVE and f.n_ptz == 0 and f.n_body <= tr["n"] + 1:
+            f.status = "기각"
+            self.stats["equip_rejected"] += 1
+            self.say(self._t, "판정 수정", f"{f.fid} 같은 물체를 가까이서 보니 운반 카트 (장비) → {CLASS_KO[f.cls]} 판정을 대장에서 뺌")
+
     def _label(self, f):
         names = [TOOL_KO[t] for t in f.tool_names] if KIND.get(f.cls) == "tool" else []
         return verdict(f.cls) + (f" ({', '.join(names)})" if names else "")
@@ -340,6 +359,7 @@ class SafetyAgent:
     def on_bodycam(self, t, cam, dets, worker_xy=None, gt=None):
         """dets: [(클래스, 신뢰도, xyxy, 추적 번호)]. worker_xy: 작업자 위치 (바디캠 위치 추적, 없으면 카메라 위치).
         gt: 채점용 정답 박스 (판정에는 안 씀)."""
+        self._t = t
         obs, marks = self._normalize(cam, dets)
         if gt is not None:
             self.scorer.score_frame([(n, c, b, tid) for n, c, b, tid, _ in obs], gt)

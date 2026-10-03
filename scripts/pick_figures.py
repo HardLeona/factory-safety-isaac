@@ -85,7 +85,7 @@ def main():
         im.crop((0, 70, 960, 610)).save(os.path.join(DOCS, "fig_gesture.jpg"), quality=92)
     # 손가락 1~5 와 명령 (scripts/test_gestures.py --save 로 찍은 화면)
     gdir = os.path.join(ROOT, "outputs", "eval", "gesture_frames")
-    names = {1: "장비 설명", 2: "위험 요소 안내", 3: "오늘의 TBM", 4: "관리자 호출", 5: "SOS 신고"}
+    names = {1: "장비 설명", 2: "공장 위험 스캔", 3: "오늘의 TBM", 4: "관리자 호출", 5: "SOS 신고"}
     shots = [os.path.join(gdir, f"spot0_g{c}.jpg") for c in range(1, 6)]
     if all(os.path.exists(f) for f in shots):
         from PIL import ImageDraw

@@ -552,6 +552,7 @@ def test_assistant_commands():
     for k in range(3):
         s2.observe(5.0 + 0.1 * k, cam, cart)
         s2.agent.on_bodycam(5.0 + 0.1 * k, cam, cart, worker_xy=(-4.5, -2.3))
+    s2.observe(4.9, cam, [("stack_unstable", 0.6, cart[0][2], 9)])       # 같은 추적 번호가 잠깐 적재로 보였어도 투표로 카트
     ev = s2.run(5.5, 1, cam, (-4.5, -2.3), math.pi / 2)
     assert "hand cart" in ev["text"] and ev["items"][0]["cls"] == "cart" and all(f.group != "cart" for f in s2.agent.findings)
     # 시연 순서와 인식 채점
@@ -650,6 +651,22 @@ def test_story():
     assert [c for _, c in st.shown] == [3, 1, 2, 4]
     assert states[:8] == ["start", "tbm", "walk", "look", "look_ask", "load", "attach", "pull"] and "scan" in states
     assert 60 < t < 110          # 시연 길이 (초)
+
+
+def test_agent_equipment_track():
+    """카트를 돌아보다 잠깐 적재로 잡혀 대장에 오른 것은, 같은 추적 번호가 운반 카트로 보이면 뺀다."""
+    a = _agent()
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [-4.2, 0.5, 0.0], 90, 160, flat=False)
+    for k in range(3):
+        a.on_bodycam(0.1 * k, cam, [("stack_unstable", 0.7, box, 5)], worker_xy=(-4.5, -2.3))
+    f = next(f for f in a.findings if f.group == "stack")
+    assert f.status == "확정"
+    for k in range(3):
+        a.on_bodycam(0.5 + 0.1 * k, cam, [("cart", 0.9, box, 5)], worker_xy=(-4.5, -2.3))
+    assert f.status == "기각" and 5 in a.equip_tids
+    a.on_bodycam(1.0, cam, [("stack_unstable", 0.7, box, 5)], worker_xy=(-4.5, -2.3))
+    assert all(x.status == "기각" for x in a.findings if x.group == "stack")
 
 
 if __name__ == "__main__":

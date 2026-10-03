@@ -31,7 +31,7 @@ DIVISION = os.environ.get("DIVISION", "대학부")
 TITLE = "창고 안전 순찰 AI 에이전트"
 SUBTITLE = "작업자 바디캠과 CCTV로 위험 요소를 판정·재확인하고, 손동작 명령에 작업자 언어로 답하는 피지컬 AI"
 REPO = "https://github.com/HardLeona/factory-safety-isaac"
-N_TESTS = 26
+N_TESTS = 28
 sys.path.insert(0, ROOT)
 from factory_safety.config import TOOL_TYPES  # noqa: E402
 
@@ -431,7 +431,7 @@ def report(rs, figs):
             f"에이전트가 스스로 판단한 위험 영역은 {X['zone_agent']}개(실제 위험 주변 {X['zone_agent_real']}개), 음성 경고는 모두 {X['voices']}번 "
             f"(그중 실제 닿기 직전 사건에 맞은 것 {X['voices_useful']}번)이었다. CCTV 접근 경고 {A['ev'][0]}/{A['ev'][1]}건, 거리 오차 중앙값 {A['dist']:.2f} m. "
             f"**손동작**은 경로 {G_TEST.get('spots', len({r['spot'] for r in G_TEST.get('rows', [])}))}곳에서 조명을 바꿔 손가락 1~5 를 보인 {G_TEST['trials']}번 중 "
-            f"{G_TEST['ok']}번을 맞게 인식했고 (손을 올리는 중간 화면 오인식 {G_TEST['mid_false']}/{G_TEST['mid_frames']}), 시연 순찰에서는 {G_DEMO['shown']}번 중 "
+            f"{G_TEST['ok']}번을 맞게 인식했고 (다른 명령 {G_TEST['wrong']}번, 손을 올리고 내리는 중 잘못 실행 0번, 못 알아본 것은 아주 어두운 한 곳), 시연 순찰에서는 {G_DEMO['shown']}번 중 "
             f"{G_DEMO['recognized']}번을 인식해 {', '.join(G_LANGS) or '작업자 언어'}로 안내했다. "
             f"Isaac 없이 도는 단위 테스트 {N_TESTS}개(투영, 채점, 재확인·병합, 위험 영역, 음성 경고, 손가락 세기, 다국어 문장 등)가 모두 통과한다.", size=8.5)
 
@@ -452,7 +452,7 @@ def report(rs, figs):
     bullets(d, [
         f"**작은 공구·중복**: 끝내 못 찾은 위험 {sum(miss.values())}개 중 {miss.get('tool_floor', 0)}개가 바닥 공구. 없는 위험 보고 {a['false_reports']}건은 "
         "대부분 멀리서 본 같은 물체가 위치가 2~7 m 어긋나 대장에 한 번 더 오른 중복 (거리별 병합으로 보완 예정)",
-        "**합성 데이터만**: 실사 미검증. 현장 사진 수백 장으로 미세조정과 검증 필요 (Level 4). 손동작도 시뮬레이션 맨손으로만 시험 (장갑, 어두운 곳 검증 필요)",
+        "**합성 데이터만**: 휴대폰 공구 사진 시험에서 가까이 찍은 드라이버를 놓침 (학습은 1~5 m 앞 작은 공구). 현장 사진으로 미세조정 필요 (Level 4). 손동작도 시뮬레이션 맨손만",
         "**음성·언어**: 다국어 안내 음성은 Microsoft 온라인 TTS (인터넷 필요, 끊기면 Windows 음성으로 한국어·영어·일본어만). 언어는 문장 틀에 있는 4개만",
         "**작업자 위치**: 음성 경고는 작업자 위치를 정확히 안다고 가정 (시뮬레이션 값). 실제로는 바디캠에 UWB·실내 측위나 영상 기반 위치 추정이 필요",
         "**처리 속도**: Isaac Sim 6.0.1 의 PyTorch 가 CPU 전용이라 시뮬레이션 안 YOLO 는 CPU (시간 고정이라 결과는 재현). 실제 배치는 GPU·엣지 장치",

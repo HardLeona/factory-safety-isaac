@@ -18,9 +18,11 @@ STATION_XY = (-0.3, 15.6)               # 작업자가 멈추는 경로 위 자�
 CART_PARK = (-1.05, 16.75, math.pi)     # 카트를 세워 둔 자리 (손잡이가 남쪽, 작업자 쪽)
 PALLET_XY = (0.6, 16.9)                 # 실을 상자가 놓인 팔레트
 PALLET_TOP = 0.21
-BOX = "box_c"
+BOX = "box_c"                           # 카트에 싣는 상자 (팔레트 위층)
+BASE_BOX = "box_b"                      # 팔레트 아래층에 남는 상자 (반듯한 2단 적재로 보이게)
 N_BOXES = 4
 BOX_GRID = [(-0.27, -0.25), (0.27, -0.25), (-0.27, 0.25), (0.27, 0.25)]
+LOAD_Z = PALLET_TOP + 0.5               # 실을 상자는 아래층 (0.5 m) 위에
 SCAN_XY = (4.5, 4.0)                    # 공장 스캔을 하는 곳 (동쪽 통로 중간)
 FOLLOW_M = 1.25                         # 카트 바퀴 축은 작업자 뒤 이만큼 (경로를 따라)
 PULL_TILT = 40.0                        # 끌 때 카트 기울기 (도)
@@ -30,7 +32,7 @@ LOAD_EACH_S = 1.0                       # 상자 하나 싣는 시간
 ATTACH_S = 1.2                          # 카트를 끄는 자세로 잡는 시간
 HOLD = 2.0                              # 손을 들고 있는 시간
 GAP_S = 0.5
-LABELS = {"tbm": "TBM 듣기", "walk": "순찰", "look": "운반 카트 확인", "load": "상자 싣기", "attach": "카트 잡기",
+LABELS = {"start": "준비", "tbm": "TBM 듣기", "walk": "순찰", "look": "운반 카트 확인", "load": "상자 싣기", "attach": "카트 잡기", "pull2": "카트 끌며 순찰",
           "pull": "카트 끌며 순찰", "scan": "공장 위험 스캔", "end": "순찰 끝", "call": "관리자 호출", "done": "끝"}
 
 
@@ -57,7 +59,7 @@ class Story:
         self.pending = None             # 지금 보이는 손동작 (수, 시작 시각)
         self.cart = (CART_PARK[0], CART_PARK[1], CART_PARK[2], 0.0)
         self.cart_from = None
-        self.box_pos = [np.array([PALLET_XY[0] + dx, PALLET_XY[1] + dy, PALLET_TOP]) for dx, dy in BOX_GRID]
+        self.box_pos = [np.array([PALLET_XY[0] + dx, PALLET_XY[1] + dy, LOAD_Z]) for dx, dy in BOX_GRID]
         self.loaded = 0
         self.lap_done = False           # run_patrol 이 보고 에이전트 finish_patrol 을 부름
         self.done = False
@@ -72,6 +74,8 @@ class Story:
         self.scene = scene
         scene.add_cart(self.prefix + "/Cart", *self.cart)
         scene._ref(self.prefix + "/Pallet", ASSETS["pallet"], (PALLET_XY[0], PALLET_XY[1], 0.0))
+        for k, (dx, dy) in enumerate(BOX_GRID):
+            scene._ref(f"{self.prefix}/Base{k}", ASSETS[BASE_BOX], (PALLET_XY[0] + dx, PALLET_XY[1] + dy, PALLET_TOP))
         self.boxes = [scene.add_box(f"{self.prefix}/Box{k}", BOX) for k in range(N_BOXES)]
         self.apply()
 
@@ -163,7 +167,7 @@ class Story:
             k = int(e // LOAD_EACH_S)
             u = (e - k * LOAD_EACH_S) / (LOAD_EACH_S * 0.85)
             if k < N_BOXES:
-                start = np.array([PALLET_XY[0] + BOX_GRID[k][0], PALLET_XY[1] + BOX_GRID[k][1], PALLET_TOP])
+                start = np.array([PALLET_XY[0] + BOX_GRID[k][0], PALLET_XY[1] + BOX_GRID[k][1], LOAD_Z])
                 end = self._slot_world(k)
                 q = _ease(u)
                 self.box_pos[k] = start + (end - start) * q + np.array([0.0, 0.0, 0.55 * math.sin(math.pi * min(u, 1.0))])
