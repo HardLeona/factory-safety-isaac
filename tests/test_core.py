@@ -12,14 +12,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from factory_safety import warehouse as W  # noqa: E402
-from factory_safety.config import CLASSES, HAZARD, KIND  # noqa: E402
+from factory_safety.config import CLASSES, HAZARD, KIND, STATES, TOOL_TYPES  # noqa: E402
 from factory_safety.geometry import CameraPose, Projector  # noqa: E402
 from factory_safety.scenario import sample_scenario  # noqa: E402
 from factory_safety.walker import PathWalker, cctv_pose  # noqa: E402
 
 
 def test_scenario_and_answer_key():
-    kinds_seen = set()
+    kinds_seen, tools_seen = set(), set()
     for seed in range(30):
         sc = sample_scenario(seed)
         key = sc.answer_key()
@@ -30,12 +30,22 @@ def test_scenario_and_answer_key():
             cnt[o.kind] = cnt.get(o.kind, 0) + 1
             kinds_seen.add(o.cls)
             assert -10.5 < o.x < 10.0 and -12.0 < o.y < 18.0
-            assert o.cls in CLASSES and HAZARD[o.cls] == o.hazard
+            assert o.cls in STATES and HAZARD[o.cls] == o.hazard
+            if o.kind == "tool":
+                assert o.tools and all(t in TOOL_TYPES for t in o.tools)
+                tools_seen.update(o.tools)
         assert cnt["spill"] == 3 and cnt["stack"] == 4 and cnt["ext"] == len(W.EXT_MOUNTS)
         assert 2 + len(W.TABLES) <= cnt["tool"] <= 3 + len(W.TABLES)
         assert all(set(o) >= {"id", "class", "hazard", "x", "y", "zone"} for o in key["objects"])
-    # 30 개 시나리오에서 위험/안전 상태가 모두 나와야 한다
-    assert kinds_seen == set(CLASSES) - {"worker"}
+        # 위험 영역 2곳 (라바콘 또는 DANGER 표지), 다른 물체와 겹치지 않게
+        assert len(key["zones"]) == 2 and all(z["n_cones"] >= 4 or z["sign"] for z in key["zones"])
+        for z in sc.zones:
+            assert all(math.hypot(o.x - z.x, o.y - z.y) > z.radius + 0.3 for o in sc.objects if o.kind != "ext")
+        # 경로 바로 옆 (1 m 안) 위험물이 하나 이상 (작업자가 닿기 직전까지 다가감)
+        path = W.PatrolPath()
+        assert any(np.min(np.hypot(path.pts[:, 0] - o.x, path.pts[:, 1] - o.y)) < 1.0 for o in sc.hazards)
+    # 30 개 시나리오에서 위험/안전 상태와 공구 종류가 모두 나와야 한다
+    assert kinds_seen == set(STATES) and tools_seen == set(TOOL_TYPES)
 
 
 def test_patrol_path():
@@ -86,10 +96,10 @@ def test_bodycam_scoring():
     sc = sample_scenario(0)
     key = sc.answer_key()
     ins = BodycamInspector(960, 540)
-    hz = next(o for o in sc.objects if o.hazard)
-    sf = next(o for o in sc.objects if not o.hazard)
+    hz = next(o for o in sc.objects if o.hazard and o.kind != "tool")
+    sf = next(o for o in sc.objects if not o.hazard and o.kind != "tool")
     path = lambda o: f"/World/Scn000/{o.id}_{o.cls}"   # noqa: E731
-    gt = [(hz.cls_id, 100, 100, 200, 200, 0.0, path(hz)), (sf.cls_id, 400, 100, 500, 220, 0.0, path(sf))]
+    gt = [(CLASSES.index(hz.cls), 100, 100, 200, 200, 0.0, path(hz)), (CLASSES.index(sf.cls), 400, 100, 500, 220, 0.0, path(sf))]
     for k in range(4):
         dets = [(hz.cls, 0.8, [102, 98, 199, 203], 1), (sf.cls, 0.7, [398, 104, 502, 218], 2)]
         if k == 0:
@@ -101,7 +111,7 @@ def test_bodycam_scoring():
     assert s["hazard_found"] == 1 and s["safe_ok"] == 1 and s["false_hazard_boxes"] == 1
     # 같은 종류의 다른 상태로 판정하면 위험 여부 기준으로 채점
     ins2 = BodycamInspector(960, 540)
-    safe_twin = next(c for c in CLASSES if KIND.get(c) == hz.kind and c != "worker" and not HAZARD[c])
+    safe_twin = next(c for c in STATES if KIND.get(c) == hz.kind and not HAZARD[c])
     for _ in range(3):
         ins2.score_frame([(safe_twin, 0.9, [100, 100, 200, 200], 1)], gt[:1])
     rows2, s2 = ins2.report(key)
@@ -372,6 +382,48 @@ def test_agent_regroup_and_low_confidence():
     assert n_cams >= 2 and cp.status == "현장 확인 필요" and a.stats["recheck_retry"] == n_cams - 1
 
 
+def test_zones_build():
+    from factory_safety import zones as Z
+    ring = [(f"K{k}", (2.0 + 1.2 * math.cos(a), 1.0 + 1.2 * math.sin(a))) for k, a in enumerate(np.linspace(0, 6, 5))]
+    out = Z.build(ring, [("S1", (2.3, 1.1))], [("F1", "spill", (2.1, 0.9)), ("F2", "stack_unstable", (-5.0, 3.0)),
+                                                 ("F3", "spill", (-4.0, 4.5)), ("F4", "tool_floor", (8.0, 8.0))])
+    src = sorted(o[1] for o in out)
+    assert src == ["agent", "cone"]                          # 표지는 라바콘 영역에 합쳐지고, 링 안 유출은 따로 안 만듦
+    cone = next(o for o in out if o[1] == "cone")
+    assert Z.inside((2.0, 1.0), cone[2]) and cone[6] and cone[5] == 5
+    agent = next(o for o in out if o[1] == "agent")
+    assert agent[4] == ["F2", "F3"] and "2개" in agent[3]   # 3 m 안에 모인 위험물은 한 영역
+    assert Z.distance((2.0, 1.0), cone[2]) == 0.0 and Z.distance((6.0, 1.0), cone[2]) > 2.0
+    lone = Z.build([], [("S1", (0.0, 0.0))], [])
+    assert lone[0][1] == "sign" and Z.inside((0.5, 0.5), lone[0][2])
+
+
+def test_agent_zone_voice_and_tools():
+    """화면의 라바콘을 영역으로 묶고, 작업자가 영역에 다가가면 음성 경고. 공구는 놓인 자리로 위험/안전."""
+    a = _agent()
+    heard = []
+    a.on_voice = heard.append
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    ring = [(-6.2 + 1.2 * math.cos(q), 2.6 + 1.2 * math.sin(q)) for q in np.linspace(0, 5.5, 5)]
+    for k in range(3):
+        dets = [("cone", 0.9, _box_at(cam, [x, y, 0.0], 30, 50, flat=False), 100 + i) for i, (x, y) in enumerate(ring)]
+        a.on_bodycam(0.2 * k, cam, dets, worker_xy=(-4.5, -2.0))
+    zl = list(a.zones.values())
+    assert len(zl) == 1 and zl[0].source == "cone" and zl[0].n_cones == 5 and not heard
+    a.on_bodycam(1.0, cam, [], worker_xy=(-4.85, 2.6))           # 링 경계 0.5 m 안
+    assert len(heard) == 1 and a.voice_events[0]["target"] == "Z:Z1"
+    a.on_bodycam(2.0, cam, [], worker_xy=(-4.9, 2.6))
+    assert len(heard) == 1                                       # 같은 영역은 바로 다시 안 울림
+    # 공구 종류: 작업대 위 / 통로 바닥
+    top = CameraPose(pos=np.array([-6.0, -9.5, 1.6]), yaw=-math.pi / 2, pitch=-0.6, vfov=60)
+    assert a._tool_state(top, _box_at(top, [-6.0, -11.4, W.TABLE_TOP], 40, 20, flat=False)) == "tool_stored"
+    assert a._tool_state(top, _box_at(top, [-5.0, -10.4, 0.0], 40, 20, flat=False)) == "tool_floor"
+    for k in range(3):
+        a.on_bodycam(5.0 + 0.2 * k, cam, [("hammer", 0.8, _box_at(cam, [-3.8, 1.5, 0.0], 40, 20, flat=False), 7)])
+    f = next(f for f in a.findings if f.group == "tool_floor")
+    assert f.tool_names == ["hammer"] and "망치" in a.report()["findings"][0]["label"] or any("망치" in r["label"] for r in a.report()["findings"])
+
+
 def test_dashboard():
     import tempfile
     from factory_safety.dashboard import write_dashboard
@@ -396,12 +448,208 @@ def test_usd_build():
     scene.add_scenario(sc1)
     i2 = scene.add_scenario(sc2)
     scene.show_scenario(i2)
+    def label(prim):
+        v = [a.Get() for a in prim.GetAttributes() if a.GetName().startswith("semantics:labels")]
+        return list(v[0]) if v else None
     for o in sc2.objects:
         prim = stage.GetPrimAtPath(scene.object_path(o, i2))
         assert prim, o.id
-        labels = [a.Get() for a in prim.GetAttributes() if a.GetName().startswith("semantics:labels")]
-        assert labels and list(labels[0]) == [o.cls]
+        if o.kind == "tool":                     # 공구는 묶음이 아니라 하나씩 종류 라벨
+            assert label(prim) is None
+            assert sorted(label(c)[0] for c in prim.GetChildren()) == sorted(o.tools)
+        else:
+            assert label(prim) == [o.cls]
+    root = scene.object_path(sc2.objects[0], i2).rsplit("/", 1)[0]
+    for z in sc2.zones:
+        zp = stage.GetPrimAtPath(f"{root}/{z.id}_zone")
+        names = sorted(label(c)[0] for c in zp.GetChildren() if label(c))
+        assert names.count("cone") == len(z.params["cones"]) and names.count("danger_sign") == int(z.params["sign"])
     assert stage.GetPrimAtPath(scene.cam_path) and len(scene.cctv_paths) == len(W.CCTVS)
+
+
+def _hand_pts(fingers, thumb):
+    """가로로 내민 오른손 (손가락이 화면 왼쪽) 21점. fingers: 검지~새끼 편 여부, thumb: 엄지 편 여부."""
+    p = np.zeros((21, 2))
+    p[0] = (0, 0)
+    for k, (y, on) in enumerate(zip((-30, -10, 10, 30), fingers)):
+        m = 5 + 4 * k
+        p[m] = (-80, y)
+        p[m + 1:m + 4] = [(-120, y), (-145, y), (-165, y)] if on else [(-108, y + 5), (-96, y + 18), (-86, y + 22)]
+    p[1:4] = [(-15, -25), (-35, -45), (-50, -60)]
+    p[4] = (-60, -80) if thumb else (-76, 6)
+    return p
+
+
+def test_hand_count():
+    from factory_safety.hand_count import GestureFilter, count_fingers
+    cases = {1: ((1, 0, 0, 0), False), 2: ((1, 1, 0, 0), False), 3: ((1, 1, 1, 0), False), 4: ((1, 1, 1, 1), False),
+             5: ((1, 1, 1, 1), True)}
+    for want, (fingers, thumb) in cases.items():
+        assert count_fingers(_hand_pts(fingers, thumb)) == want, want
+    assert count_fingers(_hand_pts((1, 0, 0, 1), False)) == 0          # 정해진 모양 아님
+    assert count_fingers(_hand_pts((0, 0, 0, 0), False)) == 0          # 주먹
+    # 화면에서 돌려도 (손을 세워도) 같은 수
+    rot = np.array([[0, -1], [1, 0]])
+    assert count_fingers(_hand_pts((1, 1, 0, 0), False) @ rot.T) == 2
+    f = GestureFilter(need=3, cooldown=4.0)
+    assert [f.update(0.1 * k, c) for k, c in enumerate([2, 2, 3, 3, 3, 3, 3])] == [0, 0, 0, 0, 3, 0, 0]
+    assert [f.update(5.0 + 0.1 * k, 3) for k in range(4)] == [0, 0, 0, 0]        # 손을 계속 들고 있으면 다시 안 함
+    assert f.update(5.5, 0) == 0 and [f.update(5.6 + 0.1 * k, 3) for k in range(3)] == [0, 0, 3]   # 내렸다 다시 올리면
+    assert [f.update(6.0 + 0.1 * k, 4) for k in range(3)] == [0, 0, 0]          # 4초 안에는 다른 명령도 안 받음
+    # 손이 움직이는 중 (올리는 중) 에는 같은 수가 이어져도 안 셈, 멈추면 셈
+    f = GestureFilter(need=3)
+    base = _hand_pts((1, 1, 0, 0), False)
+    moving = [f.update(0.1 * k, 2, base + [0, 30 * k]) for k in range(5)]
+    still = [f.update(0.5 + 0.1 * k, 2, base + [0, 150]) for k in range(4)]
+    assert moving == [0] * 5 and still == [0, 0, 0, 2]           # 멈춘 뒤 3번 연속
+
+
+def test_i18n_templates():
+    from factory_safety import i18n
+    langs = ("ko", "en", "zh", "ja")
+    for table in (i18n.NAMES, i18n.INFO, i18n.TBM_ITEMS, i18n.ACTIONS, i18n.COMMANDS, i18n.DIRS, i18n.ZONE_KIND, i18n.CAMS, i18n.T):
+        for k, v in table.items():
+            assert all(v.get(lg) for lg in langs), (k, v)
+    for v in i18n.ZONES.values():
+        assert all(v.get(lg) for lg in ("en", "zh", "ja"))
+    for t in TOOL_TYPES:
+        assert t in i18n.NAMES and t in i18n.INFO
+    for c in STATES:
+        assert c in i18n.NAMES and (c in i18n.INFO or KIND[c] == "tool")
+    assert i18n.direction(math.pi / 2, (0, 0), (0, 3)) == "front" and i18n.direction(math.pi / 2, (0, 0), (-3, 0.5)) == "left"
+    assert i18n.direction(math.pi / 2, (0, 0), (3, 0.5)) == "right" and i18n.direction(math.pi / 2, (0, 0), (0, -3)) == "back"
+    assert i18n.date_text("2026-10-03", "en") == "October 3" and i18n.date_text("2026-10-03", "zh") == "10月3日"
+
+
+def test_assistant_commands():
+    from factory_safety.assistant import DemoScript, SiteAssistant, gesture_eval
+    a = _agent()
+    tbm = {"date": "2026-10-03", "work": ["work_receive"], "risks": ["risk_slip"], "rules": ["rule_ppe"],
+           "todo": [{"cls": "spill", "zone": "남쪽 작업 구역"}]}
+    s = SiteAssistant(a, langs=["zh", "en", "ja"], tbm=tbm)
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    dets = [("hammer", 0.85, _box_at(cam, [-4.5, 0.2, 0.0], 50, 22, flat=False), 1),
+            ("spill", 0.8, _box_at(cam, [-3.6, 2.5, 0.0], 160, 40), 2)]
+    for k in range(4):
+        s.observe(0.1 * k, cam, dets)
+        a.on_bodycam(0.1 * k, cam, dets, worker_xy=(-4.5, -2.3))
+    ev = s.run(1.0, 1, cam, (-4.5, -2.3), math.pi / 2)            # 중국어
+    assert ev["lang"] == "zh" and "锤子" in ev["text"] and "망치" in ev["text_ko"] and ev["items"][0]["tool"] == "hammer"
+    ev = s.run(1.1, 2, cam, (-4.5, -2.3), math.pi / 2)            # 영어: 공장 전체 스캔 (위험물 대장)
+    assert ev["lang"] == "en" and ev["n_hazards"] == 2 and "spill" in ev["text"] and "hammer" in ev["text"] and "west aisle" in ev["text"]
+    assert s.ptz_view(1.2)[2].startswith("스캔") and s.ptz_view(30.0) is None
+    ev = s.run(1.2, 3, cam, (-4.5, -2.3), math.pi / 2)            # 일본어
+    assert ev["lang"] == "ja" and "TBM" in ev["text"] and "南側作業エリア" in ev["text"] and "남쪽 작업 구역" in ev["text_ko"]
+    ev = s.run(1.3, 4, cam, (-4.5, -2.3), math.pi / 2, lang="ko")
+    assert "서쪽 통로" in ev["text"] and any(e["kind"] == "관리자 호출" for e in a.timeline)
+    ev = s.run(2.0, 5, cam, (-4.5, -2.3), math.pi / 2, lang="en")
+    assert ev["cctv"] and s.sos_view(3.0)[0] == ev["cctv"] and s.sos_view(20.0) is None
+    assert any(e["kind"] == "SOS" for e in a.timeline)
+    s2 = SiteAssistant(_agent(), langs=["en"], tbm=tbm)
+    assert "No hazards" in s2.run(0.0, 2, cam, (-4.5, -2.3), math.pi / 2)["text"]
+    # 운반 카트: 장비를 먼저 고름, 에이전트 대장에는 안 들어감
+    cart = [("cart", 0.9, _box_at(cam, [-4.2, 0.5, 0.0], 90, 160, flat=False), 9)] + dets
+    for k in range(3):
+        s2.observe(5.0 + 0.1 * k, cam, cart)
+        s2.agent.on_bodycam(5.0 + 0.1 * k, cam, cart, worker_xy=(-4.5, -2.3))
+    ev = s2.run(5.5, 1, cam, (-4.5, -2.3), math.pi / 2)
+    assert "hand cart" in ev["text"] and ev["items"][0]["cls"] == "cart" and all(f.group != "cart" for f in s2.agent.findings)
+    # 시연 순서와 인식 채점
+    d = DemoScript()
+    assert d.next(0.5, 0.0, a, cam, [], (-4.5, -2.3), True) is None and d.next(1.0, 0.0, a, cam, [], (-4.5, -2.3), True) == 3
+    assert d.next(2.0, 0.1, a, cam, [], (-4.5, -2.3), True) is None       # 안내가 끝나기 전
+    d.said(2.0, 3.0, 3)
+    assert d.next(6.5, 0.1, a, cam, dets, (-4.5, -2.3), True) == 1          # 망치가 화면 가운데 2 m
+    d.missed(7.0)
+    assert d.next(8.5, 0.1, a, cam, dets, (-4.5, -2.3), True) == 1          # 인식이 안 되면 한 번 더
+    d.missed(9.0)
+    assert d.next(10.5, 0.7, a, cam, [], (-4.5, -2.3), True) == 2           # 두 번 안 되면 다음으로
+    g = gesture_eval([(1.0, 3), (6.5, 1), (20.0, 2)], [{"t": 1.5, "count": 3}, {"t": 7.0, "count": 4}, {"t": 40.0, "count": 5}])
+    assert g == {"shown": 3, "recognized": 1, "wrong": 1, "missed": 1, "extra": 1}
+
+
+def test_walker_gesture():
+    w = PathWalker(seed=0)
+    for _ in range(30):
+        w.step(1 / 30)
+    s0, ahead0 = w.s, np.linalg.norm(w.camera().pos[:2] - np.array(w.base_pose[:2]))
+    w.start_gesture(3, hold=1.0)
+    for _ in range(20):
+        w.step(1 / 30)
+    assert w.s == s0 and w.gesture_count == 3 and w.base_pose[3] > 30          # 멈춰 서서 손동작 클립
+    cam = w.camera()
+    assert np.linalg.norm(cam.pos[:2] - np.array(w.base_pose[:2])) < ahead0 - 0.1 and abs(cam.yaw - w.base_pose[2]) < 1e-6
+    for _ in range(45):
+        w.step(1 / 30)
+    assert w.gesture is None and w.s > s0
+
+
+def _arm_skeleton():
+    """오른팔 + 손가락만 있는 T 자세 뼈대 (회전 없음, 부모 기준 위치)."""
+    j = [("Hips", (0, 0, 0.95)), ("Hips/Spine", (0, 0, 0.45)), ("Hips/Spine/R_Clavicle", (-0.07, 0.03, 0.02)),
+         ("Hips/Spine/R_Clavicle/R_Upperarm", (-0.14, 0.045, 0)), ("Hips/Spine/R_Clavicle/R_Upperarm/R_Forearm", (-0.284, 0, 0)),
+         ("Hips/Spine/R_Clavicle/R_Upperarm/R_Forearm/R_Hand", (-0.216, 0, 0))]
+    hand = "Hips/Spine/R_Clavicle/R_Upperarm/R_Forearm/R_Hand"
+    for name, y in (("Index", -0.045), ("Mid", -0.02), ("Ring", 0.0), ("Pinky", 0.02)):
+        j += [(f"{hand}/R_{name}1", (-0.10, y, 0)), (f"{hand}/R_{name}1/R_{name}2", (-0.045, 0, 0)),
+              (f"{hand}/R_{name}1/R_{name}2/R_{name}3", (-0.03, 0, 0))]
+    j += [(f"{hand}/R_Thumb1", (-0.02, -0.03, -0.005)), (f"{hand}/R_Thumb1/R_Thumb2", (-0.05, -0.05, 0)),
+          (f"{hand}/R_Thumb1/R_Thumb2/R_Thumb3", (-0.03, -0.01, 0))]
+    rest = []
+    for _, t in j:
+        m = np.eye(4)
+        m[:3, 3] = t
+        rest.append(m)
+    return [n for n, _ in j], rest
+
+
+def test_gesture_rig():
+    from factory_safety.walk_anim import GESTURE_CAM_AHEAD, Rig, _quat, _rot_between
+    r = _rot_between(np.array([1.0, 0, 0]), np.array([-1.0, 0, 0]))       # 정반대 방향도 제대로
+    assert np.allclose(r @ [1, 0, 0], [-1, 0, 0]) and np.isclose(np.linalg.det(r), 1.0)
+    assert np.allclose(_quat(np.eye(3)), [1, 0, 0, 0])
+    joints, rest = _arm_skeleton()
+    rig = Rig(joints, rest)
+    for c in range(1, 6):
+        _, world = rig.solve(*rig.gesture(c))
+        pos = {n: world[i][:3, 3] for i, n in enumerate(rig.names)}
+        assert pos["R_Hand"][1] < -GESTURE_CAM_AHEAD - 0.1                  # 손은 바디캠 앞
+        assert pos["R_Index3"][0] - pos["R_Index1"][0] > 0.05               # 검지는 펴서 왼쪽(+X)
+        for k, name in enumerate(("Mid", "Ring", "Pinky")):
+            reach = np.linalg.norm(pos[f"R_{name}3"] - pos["R_Hand"])
+            assert (reach > 0.16) == (c >= k + 2 or c == 5), (c, name, reach)
+        thumb_out = np.linalg.norm(pos["R_Thumb3"] - pos["R_Ring1"])
+        assert (thumb_out > 0.07) == (c == 5), (c, thumb_out)
+
+
+def test_story():
+    """시연 이야기: TBM(3) → 카트 보고 설명(1) → 상자 4개 싣고 끌기 → 공장 스캔(2) → 한 바퀴 뒤 관리자 호출(4) → 끝."""
+    from factory_safety.story import FOLLOW_M, N_BOXES, Story
+
+    class FakeScene:
+        @staticmethod
+        def cart_slot(k, box="box_c"):
+            return (0.0, -0.30, 0.03 + 0.25 * k)
+
+    w = PathWalker(seed=0)
+    st = Story(w)
+    st.scene = FakeScene()
+    t, dt, states = 0.0, 1 / 30, []
+    while not st.done and t < 200:
+        t += dt
+        w.step(dt)
+        st.update(t)
+        if w.gesture_count and (not st.pending or st.pending[0] not in st.heard) and t - w.gesture["t0"] > 1.0:
+            st.said(t, 6.0, w.gesture["count"])          # 비서가 알아듣고 6초 안내했다고 침
+        if not states or states[-1] != st.state:
+            states.append(st.state)
+        if st.state == "pull" and "attach" in states:
+            x, y = w.path.point_at(w.s)
+            assert abs(math.hypot(st.cart[0] - x, st.cart[1] - y) - FOLLOW_M) < 0.3      # 카트는 작업자 뒤
+    assert st.done and st.lap_done and st.loaded == N_BOXES and w.pulling
+    assert [c for _, c in st.shown] == [3, 1, 2, 4]
+    assert states[:8] == ["start", "tbm", "walk", "look", "look_ask", "load", "attach", "pull"] and "scan" in states
+    assert 60 < t < 110          # 시연 길이 (초)
 
 
 if __name__ == "__main__":

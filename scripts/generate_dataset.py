@@ -28,6 +28,9 @@ parser.add_argument("--no-light-random", action="store_true", help="조명 무�
 parser.add_argument("--no-post", action="store_true", help="흔들림 블러, 노이즈 끄기")
 parser.add_argument("--max-occlusion", type=float, default=0.85)
 parser.add_argument("--gui", action="store_true", help="창을 띄워서 보면서 생성")
+parser.add_argument("--focus", default=None, help="tools: 공구를 가까이서만 찍기 (작은 공구 보강용), cart: 운반 카트 보강")
+parser.add_argument("--carts", type=int, default=0, help="배치마다 운반 카트 수")
+parser.add_argument("--prefix", default="wh", help="파일 이름 앞부분 (데이터셋을 합칠 때 겹치지 않게)")
 args, _ = parser.parse_known_args()
 
 from factory_safety.isaac_utils import make_app  # noqa: E402
@@ -59,7 +62,7 @@ n_scen = (args.num + args.scenario_every - 1) // args.scenario_every
 print(f"[준비] 작업자 걷기 애니메이션 {'있음' if scene.has_walk else '없음'}, 창고 소화기 자리 {len(scene.ext_mats)}개", flush=True)
 print(f"[준비] 배치 {n_scen}개를 미리 만들어요...", flush=True)
 for _ in range(n_scen):
-    scene.add_scenario(sample_scenario(int(rng.integers(1 << 30))))
+    scene.add_scenario(sample_scenario(int(rng.integers(1 << 30)), n_cart=args.carts))
 scene.show_scenario(0)
 
 rp = rep.create.render_product(scene.cam_path, (args.width, args.height))
@@ -73,7 +76,7 @@ for split in ("train", "val"):
 
 path = PatrolPath()
 counts = [0] * len(CLASSES)
-kinds = {"bodycam": 0, "cctv": 0, "free": 0}
+kinds = {"bodycam": 0, "cctv": 0, "free": 0, "tool": 0, "cart": 0}
 n_train = n_val = empties = 0
 t0 = time.time()
 for _ in range(3):      # 셰이더와 텍스처가 다 올라오게
@@ -86,7 +89,7 @@ for i in range(args.num):
             rep.orchestrator.step(delta_time=0.0, rt_subframes=4)
     if not args.no_light_random:
         scene.randomize_lighting(rng)
-    pose, (wx, wy, wyaw, wt, wvis), kind = sample_capture(rng, scene.scenario, path)
+    pose, (wx, wy, wyaw, wt, wvis), kind = sample_capture(rng, scene.scenario, path, focus=args.focus)
     kinds[kind] += 1
     scene.set_worker(wx, wy, wyaw, wt, visible=wvis)
     scene.set_camera(pose, args.width, args.height)
@@ -103,7 +106,7 @@ for i in range(args.num):
     split = "val" if i % args.val_every == args.val_every // 2 else "train"
     n_val += split == "val"
     n_train += split == "train"
-    name = f"wh_{i + 1:05d}"
+    name = f"{args.prefix}_{i + 1:05d}"
     Image.fromarray(img).save(os.path.join(args.out, "images", split, name + ".jpg"), quality=90)
     with open(os.path.join(args.out, "labels", split, name + ".txt"), "w", encoding="utf-8") as f:
         for cls, x0, y0, x1, y1 in boxes:

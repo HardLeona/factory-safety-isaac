@@ -10,7 +10,9 @@
   4. 도구 선택  : 그 자리를 볼 수 있는 CCTV 를 고르고 (거리, 랙에 가리는지), 그 CCTV 의 PTZ 를 돌려 확대해서 YOLO 로 다시 판정.
                  못 찾으면 다음 CCTV 로 다시 하고, 다 안 되면 사람에게 "현장 확인" 을 넘긴다.
   5. 결과 반영  : 재확인 판정을 대장에 합치고 판정이 바뀌면 기록한다. CCTV 접근 경고는 그 위험물의 우선순위를 올린다.
-  6. 보고      : 위험물마다 조치 방법, 우선순위, 위치를 담은 조치 지시서.
+  6. 위험 영역  : 라바콘으로 둘러친 곳, DANGER 표지가 선 곳, 스스로 판단한 위험 주변(유출, 무너질 듯한 적재)을 영역으로 설정.
+  7. 음성 경고  : 작업자가 위험물에 1 m 안으로 다가가거나 위험 영역 0.5 m 안에 들어서면 "경고 경고 위험 요소가 식별되었습니다".
+  8. 보고      : 위험물마다 조치 방법, 우선순위, 위치(공구는 이름까지)를 담은 조치 지시서.
 
 채점(evaluate)에서만 정답표를 쓴다: 바디캠만 썼을 때(before)와 에이전트 최종 대장(after)을 창고 전체 물체와 비교.
 """
@@ -21,7 +23,8 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import warehouse as W
-from .config import CLASS_KO, HAZARD, KIND
+from . import zones as Z
+from .config import CLASS_KO, EQUIPMENT, HAZARD, KIND, TOOL_KO, TOOL_TYPES, TOUCH_WARN_M
 from .geometry import CameraPose, Projector, segments_blocked
 from .inspection import BodycamInspector, CCTVProximity, floor_point
 from .report import clock
@@ -33,7 +36,7 @@ ACTIONS = {
     "stack_unstable": ("기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한", 3),
     "ext_blocked": ("소화기 앞 적재물 치우기 (소화기 앞 통로 확보)", 2),
     "ext_fallen": ("소화기를 제자리에 다시 걸고 압력계, 안전핀 점검", 2),
-    "tool_floor": ("통로 바닥의 공구·자재를 작업대로 회수", 2),
+    "tool_floor": ("통로 바닥의 공구를 작업대로 회수", 2),
 }
 SAFE_NOTES = {
     "spill_marked": "표지 조치됨. 청소가 끝나면 표지 회수",
@@ -110,6 +113,7 @@ class Finding:
     changed_by_recheck: bool = False
     checkpoint: str = None
     n_xy: float = 1.0
+    types: dict = field(default_factory=lambda: defaultdict(float))   # 공구 종류별 YOLO 신뢰도 합
 
     PTZ_W = 2.0
     CCTV_W = 0.5
@@ -136,6 +140,14 @@ class Finding:
         tot = sum(v.values())
         return max(v.values()) / tot if tot > 0 else 0.0
 
+    @property
+    def tool_names(self):
+        """많이 보인 공구 종류 (1등의 35% 이상)."""
+        if not self.types:
+            return []
+        top = max(self.types.values())
+        return [t for t, v in sorted(self.types.items(), key=lambda kv: -kv[1]) if v >= 0.35 * top]
+
     def move_to(self, xy, w=1.0):
         self.xy = (self.xy * self.n_xy + np.asarray(xy, float) * w) / (self.n_xy + w)
         self.n_xy += w
@@ -160,6 +172,11 @@ class SafetyAgent:
     EXT_REGROUP_M = 6.0      # 다른 종류로 잡혔다가 소화기로 바뀐 항목을 가장 가까운 소화기 자리에 붙이는 거리
     STACK_H = 1.7            # 대장에 있는 적재물을 CCTV 시야 가림으로 볼 때 높이 (팔레트 + 상자 3단)
     STACK_CLEAR_M = 1.2      # 목표점에서 이보다 가까운 적재물은 가림으로 안 봄 (소화기를 막은 상자 자체일 수 있음)
+    ZONE_WARN_M = 0.5        # 위험 영역 경계에서 이 거리 안이면 음성 경고
+    VOICE_GAP_S = 5.5        # 음성 경고끼리 최소 간격 (음성 길이)
+    WARN_REPEAT_S = 12.0     # 같은 위험물·영역은 이 간격으로만 다시 경고
+    MARKER_MIN = 2           # 라바콘·표지는 이만큼 여러 번 보여야 영역 계산에 씀
+    MARKER_RANGE = 15.0      # CCTV 에서 라바콘·표지 위치를 쓰는 최대 거리
 
     def __init__(self, img_w, img_h, cctv_names, log=print):
         self.w, self.h = img_w, img_h
@@ -174,6 +191,13 @@ class SafetyAgent:
         self.stats = defaultdict(int)
         self.scorer = BodycamInspector(img_w, img_h)   # 채점용 (판정에는 안 씀)
         self.prox = CCTVProximity(img_w, img_h)
+        self.markers = []        # 라바콘, DANGER 표지: {"mid", "kind", "xy", "w", "n"}
+        self.zones = {}          # key -> Zone
+        self.voice_events = []   # 음성 경고 기록
+        self.on_voice = None     # 음성 경고 때 부를 함수 (순찰 화면에서 소리 재생)
+        self._last_voice = -1e9
+        self._warned = {}
+        self.worker_log = []     # 채점용 실제 작업자 위치 (판정에는 안 씀)
 
     # ------------------------------------------------------------ 기록
     def say(self, t, kind, text):
@@ -285,17 +309,54 @@ class SafetyAgent:
         p = np.array([p for p, _ in tr["xy"]])
         return (p * w[:, None]).sum(axis=0) / w.sum(), float(w.sum())
 
-    def on_bodycam(self, t, cam, dets):
-        """dets: [(클래스, 신뢰도, xyxy, 추적 번호)]."""
+    def _tool_state(self, cam, xyxy):
+        """공구 박스 아래쪽을 작업대 윗면 높이로 투영해서 작업대 위면 정리된 공구, 아니면 통로 바닥에 방치된 공구."""
+        p = floor_point(cam, xyxy, "tool", self.w, self.h, z=W.TABLE_TOP)
+        if p is not None:
+            for tx, ty, _ in W.TABLES:
+                if abs(p[0] - tx) < W.TABLE_HALF[0] + 0.15 and abs(p[1] - ty) < W.TABLE_HALF[1] + 0.15:
+                    return "tool_stored"
+        return "tool_floor"
+
+    def _normalize(self, cam, dets):
+        """YOLO 결과 -> (상태 관찰 [(상태, 신뢰도, xyxy, 추적 번호, 공구 종류)], 라바콘·표지 [(이름, 신뢰도, xyxy)])."""
+        obs, marks = [], []
+        for name, conf, xyxy, tid, *_ in dets:
+            if name == "worker" or name in EQUIPMENT:       # 작업자, 운반 카트는 위험/안전 판정 대상이 아님
+                continue
+            if name in ("cone", "danger_sign"):
+                marks.append((name, conf, xyxy))
+                continue
+            tool = None
+            if name in TOOL_TYPES:
+                tool, name = name, self._tool_state(cam, xyxy)
+            obs.append((name, conf, xyxy, tid, tool))
+        return obs, marks
+
+    def _label(self, f):
+        names = [TOOL_KO[t] for t in f.tool_names] if KIND.get(f.cls) == "tool" else []
+        return verdict(f.cls) + (f" ({', '.join(names)})" if names else "")
+
+    def on_bodycam(self, t, cam, dets, worker_xy=None, gt=None):
+        """dets: [(클래스, 신뢰도, xyxy, 추적 번호)]. worker_xy: 작업자 위치 (바디캠 위치 추적, 없으면 카메라 위치).
+        gt: 채점용 정답 박스 (판정에는 안 씀)."""
+        obs, marks = self._normalize(cam, dets)
+        if gt is not None:
+            self.scorer.score_frame([(n, c, b, tid) for n, c, b, tid, _ in obs], gt)
+        for name, conf, xyxy in marks:
+            self._on_marker(t, cam, name, xyxy, 25.0)
         seen = set()
-        for name, conf, xyxy, tid in dets:
-            if name == "worker" or tid is None:
+        for name, conf, xyxy, tid, tool in obs:
+            if tid is None:
                 continue
             seen.add(tid)
             tr = self.tracks.get(tid)
             if tr is None:
-                tr = self.tracks[tid] = {"votes": defaultdict(float), "n": 0, "xy": [], "rng": 1e9, "finding": None, "last": t}
+                tr = self.tracks[tid] = {"votes": defaultdict(float), "types": defaultdict(float), "n": 0, "xy": [],
+                                         "rng": 1e9, "finding": None, "last": t}
             tr["votes"][name] += conf
+            if tool:
+                tr["types"][tool] += conf
             tr["n"] += 1
             tr["last"] = t
             xy, rng = self._locate(cam, xyxy, name)
@@ -307,6 +368,8 @@ class SafetyAgent:
                 before = f.cls
                 f.body[name] += conf
                 f.n_body += 1
+                if tool:
+                    f.types[tool] += conf
                 if xy is not None and f.group not in ("ext", "tool_stored") and group_of(name) == f.group:
                     f.move_to(xy, self._weight(rng))
                 if f.cls != before:
@@ -317,10 +380,15 @@ class SafetyAgent:
         for tid in [k for k, tr in self.tracks.items() if k not in seen and t - tr["last"] >= self.TRACK_LOST_S]:
             self._end_track(t, self.tracks.pop(tid))
         self._tick_checkpoints(t)
+        self._update_zones(t)
+        wxy = np.asarray(worker_xy if worker_xy is not None else cam.pos[:2], float)
+        self._check_warnings(t, wxy, cam, obs)
 
     def _add_track_votes(self, f, tr):
         for c, s in tr["votes"].items():
             f.body[c] += s
+        for c, s in tr.get("types", {}).items():
+            f.types[c] += s
         f.n_body += tr["n"]
 
     def _confirm_track(self, t, tr):
@@ -340,7 +408,7 @@ class SafetyAgent:
             self._cancel_jobs(t, f)
         if new or not was:
             conf = tr["votes"][best] / tr["n"]
-            self.say(t, "판정", f"바디캠 {verdict(f.cls)}  |  {W.zone_name(*f.xy)}  |  YOLO {conf * 100:.0f}%  → 대장 {f.fid}")
+            self.say(t, "판정", f"바디캠 {self._label(f)}  |  {W.zone_name(*f.xy)}  |  YOLO {conf * 100:.0f}%  → 대장 {f.fid}")
         elif before and f.cls != before:
             self.say(t, "판정 수정", f"{f.fid} 다시 보니 {CLASS_KO[before]} → {verdict(f.cls)}")
         tr["finding"] = self._regroup(t, f)
@@ -425,7 +493,7 @@ class SafetyAgent:
 
     def _merge(self, t, f, other):
         """f 를 other 에 합친다 (같은 물체를 두 번 올린 경우). other 를 돌려준다."""
-        for src, dst in ((f.body, other.body), (f.ptz, other.ptz), (f.cctv, other.cctv)):
+        for src, dst in ((f.body, other.body), (f.ptz, other.ptz), (f.cctv, other.cctv), (f.types, other.types)):
             for k, v in src.items():
                 dst[k] += v
         other.n_body += f.n_body
@@ -526,6 +594,8 @@ class SafetyAgent:
         j = self.job
         if j is None:
             return
+        obs, _ = self._normalize(j["pose"], [(n, c, b, None) for n, c, b, *_ in dets])
+        dets = [(n, c, b, tool) for n, c, b, _, tool in obs]
         P = Projector(self.w, self.h)
         P.set_pose(j["pose"])
         uv, _ = P.project(j["target"][None])
@@ -533,7 +603,7 @@ class SafetyAgent:
         want = "ext" if j["checkpoint"] is not None and j["checkpoint"].group == "ext" else (
             "tool" if j["checkpoint"] is not None else kind_of(j["finding"].group))
         best, other = None, None
-        for name, conf, xyxy, *_ in dets:
+        for name, conf, xyxy, tool in dets:
             if name == "worker":
                 continue
             cx, cy = (xyxy[0] + xyxy[2]) / 2, (xyxy[1] + xyxy[3]) / 2
@@ -544,12 +614,14 @@ class SafetyAgent:
                 # 목표점에 가장 가까운 것 (박스 안에 목표점이 있으면 우선). 옆에 있는 다른 물체를 고르지 않게
                 rank = (0 if inside else 1, math.hypot(cx - u, cy - v))
                 if best is None or rank < best[2]:
-                    best = (name, float(conf), rank, xyxy)
+                    best = (name, float(conf), rank, xyxy, tool)
             elif other is None or conf > other[1]:
                 other = (name, float(conf))
         j["shot"] += 1
         if best:
             j["dets"].append(best[:2])
+            if best[4]:
+                j.setdefault("types", defaultdict(float))[best[4]] += best[1]
             z = W.TABLE_TOP if best[0] == "tool_stored" else 0.0
             xy = None if KIND[best[0]] == "ext" else floor_point(j["pose"], best[3], best[0], self.w, self.h, max_range=40.0, z=z)
             if xy is not None and self._sanitize(xy) is not None:
@@ -594,6 +666,8 @@ class SafetyAgent:
         before = f.cls
         for c, s in j["dets"]:
             f.ptz[c] += s
+        for c, s in j.get("types", {}).items():
+            f.types[c] += 2.0 * s
         f.n_ptz += len(j["dets"])
         f.rechecked = True
         if j.get("xys") and f.group not in ("ext", "tool_stored") and cp is None:
@@ -621,7 +695,7 @@ class SafetyAgent:
             self.say(t, "판정 수정", f"{f.fid} {j['cam']} 확대 결과 {CLASS_KO[f.cls]} {conf * 100:.0f}% → "
                                      f"{CLASS_KO[before]} 에서 {verdict(f.cls)} 로 고침")
         else:
-            self.say(t, "재확인", f"{f.fid} {j['cam']} 확대 결과 {verdict(f.cls)} {conf * 100:.0f}% 확인")
+            self.say(t, "재확인", f"{f.fid} {j['cam']} 확대 결과 {self._label(f)} {conf * 100:.0f}% 확인")
         if cp is not None:
             cp.status, cp.finding, f.checkpoint = "CCTV 확대 확인", f.fid, cp.cid
             self.say(t, "점검표", f"{cp.cid} {cp.name} 확인: {verdict(f.cls)} (대장 {f.fid})")
@@ -653,6 +727,10 @@ class SafetyAgent:
 
     # ------------------------------------------------------------ CCTV 접근 경고
     def on_cctv(self, t, name, cam, dets):
+        obs, marks = self._normalize(cam, dets)
+        for mname, conf, xyxy in marks:
+            self._on_marker(t, cam, mname, xyxy, self.MARKER_RANGE)
+        dets = [d for d in dets if d[0] == "worker"] + [(n, c, b, tid) for n, c, b, tid, _ in obs]
         events, meas = self.prox.update(t, name, cam, dets)
         for _, cname, cls, d, hp in events:
             cand = [(float(np.linalg.norm(f.xy - hp)), k, f) for k, f in enumerate(self.findings)
@@ -669,6 +747,87 @@ class SafetyAgent:
             f.near_miss += 1
             self.say(t, "접근 경고", f"{cname}: 작업자 ↔ {CLASS_KO[cls]} {d:.1f} m  |  {W.zone_name(*hp)} → 대장 {f.fid} 우선순위 올림")
         return events, meas
+
+    # ------------------------------------------------------------ 6. 위험 영역
+    def _on_marker(self, t, cam, name, xyxy, max_range):
+        """라바콘, DANGER 표지의 바닥 위치를 모은다 (같은 자리면 하나로)."""
+        xy = floor_point(cam, xyxy, name, self.w, self.h, max_range=max_range)
+        if xy is None or self._sanitize(xy) is None:
+            return
+        xy = self._sanitize(xy)
+        rng = float(np.linalg.norm(xy - np.asarray(cam.pos[:2], float)))
+        w = self._weight(rng)
+        same = 0.6 if name == "cone" else 1.0
+        best = min((m for m in self.markers if m["kind"] == name), key=lambda m: np.linalg.norm(m["xy"] - xy), default=None)
+        if best is not None and np.linalg.norm(best["xy"] - xy) < max(same, 0.12 * rng):
+            best["xy"] = (best["xy"] * best["w"] + xy * w) / (best["w"] + w)
+            best["w"] += w
+            best["n"] += 1
+            return
+        self.markers.append({"mid": f"{'K' if name == 'cone' else 'S'}{len(self.markers) + 1:02d}", "kind": name,
+                             "xy": xy, "w": w, "n": 1, "t0": float(t)})
+
+    def _update_zones(self, t):
+        cones = [(m["mid"], m["xy"]) for m in self.markers if m["kind"] == "cone" and m["n"] >= self.MARKER_MIN]
+        signs = [(m["mid"], m["xy"]) for m in self.markers if m["kind"] == "danger_sign" and m["n"] >= self.MARKER_MIN]
+        hazards = [(f.fid, f.cls, f.xy) for f in self.findings if f.status in ACTIVE and f.cls and HAZARD.get(f.cls)]
+        alive = set()
+        for key, source, poly, reason, members, n_cones, sign in Z.build(cones, signs, hazards):
+            alive.add(key)
+            z = self.zones.get(key)
+            if z is None:
+                z = Z.Zone(f"Z{len(self.zones) + 1}", source, key, poly, reason, members, float(t), n_cones, sign)
+                self.zones[key] = z
+                self.stats["zones"] += 1
+                why = {"cone": "라바콘 표시를 알아봄", "sign": "DANGER 표지를 알아봄", "agent": "에이전트가 영역으로 판단"}[source]
+                self.say(t, "위험 영역", f"{z.zid} {reason} ({W.zone_name(*z.center)}, 반지름 약 {z.radius:.1f} m) → {why}, 위험 영역으로 설정")
+            else:
+                if n_cones > z.n_cones or (sign and not z.has_sign):
+                    self.say(t, "위험 영역", f"{z.zid} 갱신: {reason}")
+                z.poly, z.reason, z.members, z.n_cones, z.has_sign = poly, reason, members, n_cones, sign
+        # 위험물이 정리돼 근거가 사라진 에이전트 영역은 지운다 (라바콘·표지 영역은 한 번 보면 유지)
+        for key in [k for k, z in self.zones.items() if z.source == "agent" and k not in alive]:
+            self.zones.pop(key)
+
+    # ------------------------------------------------------------ 7. 음성 경고
+    def log_worker(self, t, xy):
+        """채점용 실제 작업자 위치 (판정에는 안 씀)."""
+        self.worker_log.append((float(t), float(xy[0]), float(xy[1])))
+
+    def _check_warnings(self, t, wxy, cam, obs):
+        """작업자가 위험물 1 m 안, 위험 영역 0.5 m 안이면 음성 경고. 대장 (기억) 과 지금 화면 둘 다 본다."""
+        cands = []
+        for f in self.findings:
+            if f.status in ACTIVE and f.cls and HAZARD.get(f.cls):
+                d = float(np.linalg.norm(f.xy - wxy))
+                if d < TOUCH_WARN_M:
+                    cands.append((d, f"F:{f.fid}", f"{f.fid} {self._label(f)} {d:.1f} m"))
+        for z in self.zones.values():
+            d = Z.distance(wxy, z.poly)
+            if d < self.ZONE_WARN_M:
+                cands.append((d, f"Z:{z.zid}", f"위험 영역 {z.zid} ({z.reason}) " + ("안" if d == 0 else f"{d:.1f} m")))
+        for name, conf, xyxy, tid, tool in obs:
+            if not HAZARD.get(name) or conf < 0.5:
+                continue
+            xy, _ = self._locate(cam, xyxy, name)
+            if xy is not None and np.linalg.norm(xy - wxy) < TOUCH_WARN_M * 0.8:
+                d = float(np.linalg.norm(xy - wxy))
+                lab = CLASS_KO[name] + (f" ({TOOL_KO[tool]})" if tool else "")
+                cands.append((d, f"D:{name}:{int(xy[0] * 2)}:{int(xy[1] * 2)}", f"화면의 {lab} {d:.1f} m"))
+        cands = [c for c in cands if t - self._warned.get(c[1], -1e9) >= self.WARN_REPEAT_S]
+        if not cands:
+            return
+        for _, key, _ in cands:
+            self._warned[key] = t
+        if t - self._last_voice < self.VOICE_GAP_S:
+            return
+        d, key, what = min(cands)
+        self._last_voice = t
+        self.voice_events.append({"t": float(t), "target": key, "dist": round(d, 2), "what": what})
+        self.stats["voice"] += 1
+        self.say(t, "음성 경고", f"\"경고 경고 위험 요소가 식별되었습니다\" ← 작업자 ↔ {what}")
+        if self.on_voice:
+            self.on_voice(t)
 
     # ------------------------------------------------------------ 순찰 끝
     def finish_patrol(self, t):
@@ -701,7 +860,10 @@ class SafetyAgent:
             score = sev + 2 * f.near_miss if sev else 0
             level = "긴급" if score >= 5 else "높음" if score >= 3 else "보통" if score >= 1 else "-"
             state = "확인 필요" if f.status == "현장 확인 필요" else ("위험" if HAZARD[c] else "안전")
-            items.append({"id": f.fid, "class": c, "label": CLASS_KO[c], "state": state, "hazard": bool(HAZARD[c]),
+            tools = [TOOL_KO[x] for x in f.tool_names] if KIND[c] == "tool" else []
+            items.append({"id": f.fid, "class": c, "label": CLASS_KO[c] + (f" ({', '.join(tools)})" if tools else ""),
+                          "tools": tools, "tool_types": f.tool_names if KIND[c] == "tool" else [],
+                          "state": state, "hazard": bool(HAZARD[c]),
                           "status": f.status, "zone": W.zone_name(*f.xy), "x": round(float(f.xy[0]), 2),
                           "y": round(float(f.xy[1]), 2), "confidence": round(f.share, 2), "n_body": f.n_body,
                           "n_ptz": f.n_ptz, "near_miss": f.near_miss, "source": f.source, "rechecked": f.rechecked,
@@ -728,8 +890,14 @@ class SafetyAgent:
                    "urgent": sum(1 for r in items if r["priority"] == "긴급"),
                    "checkpoints_done": sum(1 for c in self.checkpoints if c.status in ("바디캠 확인", "CCTV 확대 확인")),
                    "checkpoints": len(self.checkpoints)}
-        return {"summary": summary, "findings": items, "checkpoints": cps, "stats": dict(self.stats),
-                "timeline": self.timeline}
+        summary["zones"] = len(self.zones)
+        summary["voice"] = len(self.voice_events)
+        zones = [{"id": z.zid, "source": z.source, "reason": z.reason, "zone": W.zone_name(*z.center),
+                  "x": round(float(z.center[0]), 2), "y": round(float(z.center[1]), 2), "radius": round(z.radius, 2),
+                  "poly": [[round(float(a), 2), round(float(b), 2)] for a, b in z.poly], "members": z.members,
+                  "n_cones": z.n_cones, "sign": z.has_sign} for z in sorted(self.zones.values(), key=lambda z: z.zid)]
+        return {"summary": summary, "findings": items, "checkpoints": cps, "zones": zones, "voice": self.voice_events,
+                "stats": dict(self.stats), "timeline": self.timeline}
 
     # ------------------------------------------------------------ 채점 (정답표, 판정에는 안 씀)
     def evaluate(self, answer_key, match_m=2.0):
@@ -792,7 +960,50 @@ class SafetyAgent:
                 "recheck": {**{k: self.stats.get(k, 0) for k in ("recheck_requested", "recheck_run", "recheck_found",
                                                                   "recheck_changed", "recheck_retry", "recheck_escalated",
                                                                   "recheck_rejected", "recheck_canceled")},
-                            "changed_correct": fix_ok}}
+                            "changed_correct": fix_ok},
+                **self._evaluate_extra(answer_key, pa)}
+
+    def _evaluate_extra(self, answer_key, pa):
+        """공구 이름, 위험 영역, 음성 경고 채점."""
+        from .inspection import _runs
+        objs = answer_key["objects"]
+        # 공구 이름: 정답 공구 묶음과 짝지어진 대장 항목이 알아본 공구 종류
+        t_total = t_hit = 0
+        for o in objs:
+            if not o.get("tools"):
+                continue
+            gt = set(o["tools"])
+            f = next((x for x in self.findings if x.fid == pa[o["id"]][1]), None)
+            t_total += len(gt)
+            t_hit += len(gt & set(f.tool_names)) if f is not None else 0
+        # 위험 영역: 정답 영역 (라바콘 링, DANGER 표지) 을 알아봤는지, 엉뚱한 곳에 영역을 만들었는지
+        gz = answer_key.get("zones", [])
+        zl = list(self.zones.values())
+        marked = [o for o in objs if o["class"] == "spill_marked"]
+
+        def near(z, x, y, r):
+            return float(np.linalg.norm(z.center - np.array([x, y]))) < r
+        zone_found = sum(1 for g in gz if any(z.source in ("cone", "sign") and near(z, g["x"], g["y"], g["radius"] + 1.0) for z in zl))
+        marked_zone = sum(1 for z in zl if z.source in ("cone", "sign") and not any(near(z, g["x"], g["y"], g["radius"] + 1.0) for g in gz)
+                          and any(near(z, m["x"], m["y"], 1.8) for m in marked))
+        false_zone = sum(1 for z in zl if z.source in ("cone", "sign") and not any(near(z, g["x"], g["y"], g["radius"] + 1.0) for g in gz)
+                         and not any(near(z, m["x"], m["y"], 1.8) for m in marked))
+        agent_z = [z for z in zl if z.source == "agent"]
+        agent_ok = sum(1 for z in agent_z if any(o["class"] in Z.AGENT_RADIUS and Z.distance((o["x"], o["y"]), z.poly) < 1.0 for o in objs))
+        # 음성 경고: 실제 작업자 위치가 정답 위험물 1 m 안, 또는 정답 위험 영역 경계 0.5 m 안이었던 사건
+        hz = [(o["x"], o["y"]) for o in objs if o["hazard"]]
+        # 정답 위험 영역: 라바콘 링·표지 + 라바콘을 둘러친 조치된 유출 (라바콘 바깥까지)
+        zpolys = [Z.circle((g["x"], g["y"]), g["radius"] + 0.3) for g in gz] +                  [Z.circle((m["x"], m["y"]), m.get("radius", 0.6) * 1.3 + 0.5) for m in marked]
+        near_t = [t for t, x, y in self.worker_log
+                  if any(math.hypot(x - hx, y - hy) < TOUCH_WARN_M for hx, hy in hz) or any(Z.distance((x, y), p) < self.ZONE_WARN_M for p in zpolys)]
+        groups = _runs(near_t, 1.0)
+        vts = [v["t"] for v in self.voice_events]
+        hit = sum(1 for g in groups if any(g[0] - 3.0 <= v <= g[-1] + 0.5 for v in vts))
+        useful = sum(1 for v in vts if any(g[0] - 3.0 <= v <= g[-1] + 0.5 for g in groups))
+        return {"tools": {"total": t_total, "named": t_hit},
+                "zones": {"gt": len(gz), "found": zone_found, "marked_spill": marked_zone, "false": false_zone,
+                          "agent": len(agent_z), "agent_real": agent_ok},
+                "voice": {"events": len(groups), "warned": hit, "voices": len(vts), "useful": useful}}
 
 
 def evaluation_summary(ev):

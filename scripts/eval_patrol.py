@@ -27,10 +27,35 @@ def checkpoint_checks(r):
     return len(cps), real
 
 
+def extra_lines(results):
+    """위험 영역, 음성 경고, 공구 이름 표 (새 기능, 예전 결과에는 없음)."""
+    ex = [r["agent"]["evaluation"] for r in results if r.get("agent") and "zones" in r["agent"]["evaluation"]]
+    if not ex:
+        return []
+
+    def z(k):
+        return sum(e["zones"][k] for e in ex)
+
+    def v(k):
+        return sum(e["voice"][k] for e in ex)
+
+    def t(k):
+        return sum(e["tools"][k] for e in ex)
+    return ["## 위험 영역, 음성 경고, 공구 이름", "",
+            "| 항목 | 결과 |", "|---|:-:|",
+            f"| 위험 영역 (라바콘 링, DANGER 표지) 알아봄 | {z('found')}/{z('gt')} |",
+            f"| 라바콘이 놓인 조치된 유출을 영역으로 | {z('marked_spill')} |",
+            f"| 엉뚱한 곳에 만든 표시 영역 | {z('false')} |",
+            f"| 에이전트가 스스로 판단한 위험 영역 (실제 위험 주변인 것) | {z('agent')} ({z('agent_real')}) |",
+            f"| 작업자가 닿기 직전 (위험물 1 m, 영역 0.5 m) 사건에 음성 경고 | {v('warned')}/{v('events')} |",
+            f"| 음성 경고 중 실제 사건에 맞은 것 | {v('useful')}/{v('voices')} |",
+            f"| 공구 이름 맞힘 (정답 공구 종류 중) | {t('named')}/{t('total')} |", ""]
+
+
 def main():
     p = argparse.ArgumentParser(description="Isaac 순찰 여러 시나리오 평가")
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 4])
-    p.add_argument("--weights", default=os.path.join(ROOT, "outputs", "yolo", "warehouse", "weights", "best.pt"))
+    p.add_argument("--weights", default=os.path.join(ROOT, "outputs", "yolo", "warehouse_v3", "weights", "best.pt"))
     p.add_argument("--laps", type=float, default=1.0)
     p.add_argument("--sim-dt", type=float, default=1 / 30)
     p.add_argument("--report-only", action="store_true", help="순찰은 다시 안 돌리고 저장된 결과로 표만 다시 만들기")
@@ -105,6 +130,7 @@ def main():
              f"재확인 {rc('recheck_run')}건 실행 (요청 {rc('recheck_requested')}, 기다리는 동안 바디캠이 확정해서 취소 {rc('recheck_canceled')}): "
              f"찾음 {rc('recheck_found')}, 판정 고침 {rc('recheck_changed')} (맞게 고침 {rc('changed_correct')}), "
              f"다른 CCTV 로 재시도 {rc('recheck_retry')}, 현장 확인 {rc('recheck_escalated')}, 오검출로 뺌 {rc('recheck_rejected')}", "",
+             *extra_lines(results),
              "## 바디캠 YOLO 판정 (정답표와 비교, 경로에서 보인 물체만)", "",
              "| 항목 | 결과 |", "|---|:-:|",
              f"| 위험 물체를 위험으로 판정 | {tot('hazard_found')}/{hz} ({100 * tot('hazard_found') / max(1, hz):.0f}%) |",

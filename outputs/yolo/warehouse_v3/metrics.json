@@ -1,0 +1,27 @@
+{
+ "map50": 0.898,
+ "map5095": 0.689,
+ "precision": 0.92,
+ "recall": 0.827,
+ "per_class": {
+  "spill": 0.92,
+  "spill_marked": 0.937,
+  "stack_unstable": 0.957,
+  "stack_stable": 0.96,
+  "ext_fallen": 0.907,
+  "ext_blocked": 0.909,
+  "ext_ok": 0.938,
+  "worker": 0.95,
+  "cone": 0.976,
+  "danger_sign": 0.95,
+  "hammer": 0.862,
+  "screwdriver": 0.828,
+  "saw": 0.806,
+  "power_saw": 0.901,
+  "pickaxe": 0.845,
+  "shovel": 0.819,
+  "wrench": 0.887,
+  "drill": 0.915,
+  "cart": 0.794
+ }
+}

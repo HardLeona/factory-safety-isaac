@@ -1,0 +1,16 @@
+{
+  "_설명": "오늘 아침 TBM (작업 전 안전 회의). 관리자가 항목 키를 고르면 작업자 언어로 바꿔 읽어 줌 (factory_safety/i18n.py 의 TBM_ITEMS, ACTIONS). todo 는 지난 순찰 조치 지시서에서 남은 일",
+  "date": "2026-10-03",
+  "work": [
+    "work_move_boxes"
+  ],
+  "risks": [
+    "risk_slip",
+    "risk_falling"
+  ],
+  "rules": [
+    "rule_ppe",
+    "rule_zone"
+  ],
+  "todo": []
+}

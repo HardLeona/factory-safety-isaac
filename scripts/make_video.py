@@ -4,7 +4,8 @@
 
 화면 구성: 위쪽 바디캠(입력, YOLO 판정) | CCTV 3대 + 확대(PTZ) 화면(도구)
           아래쪽 평면도(작업자 위치, 위험물 대장) | 위험물 대장 | 에이전트 기록(계획, 판정, 재확인, 경고)
-앞뒤로 제목, 문제와 구조, 점검 계획, 조치 지시서 화면, 평가 결과를 붙인다. 소리는 없음.
+앞뒤로 제목, 문제와 구조, 점검 계획, 조치 지시서 화면, 평가 결과를 붙인다.
+음성 경고가 난 시각에는 "경고 경고 위험 요소가 식별되었습니다" 음성을 소리 트랙에 넣는다.
 """
 import argparse
 import glob
@@ -26,6 +27,7 @@ from factory_safety.config import CLASS_KO, HAZARD  # noqa: E402
 from factory_safety.report import clock  # noqa: E402
 
 FPS = 30
+YOLO_MAP50 = os.environ.get("YOLO_MAP50", "0.923")
 WIDTH, HEIGHT = 1920, 1080
 FONT = "C:/Windows/Fonts/malgun.ttf"
 FONT_B = "C:/Windows/Fonts/malgunbd.ttf"
@@ -35,13 +37,30 @@ FG = (232, 236, 242)
 MUTED = (150, 160, 178)
 RED, GREEN, AMBER, BLUE, ORANGE, PURPLE = (232, 72, 72), (60, 184, 110), (240, 170, 40), (80, 150, 240), (255, 140, 40), (170, 110, 230)
 KIND_COLOR = {"계획": BLUE, "판정": (110, 200, 255), "판정 수정": PURPLE, "재확인 계획": AMBER, "CCTV 선택": AMBER,
-              "재확인": AMBER, "재시도": AMBER, "재확인 취소": MUTED, "현장 확인": RED, "접근 경고": RED, "점검표": GREEN}
+              "재확인": AMBER, "재시도": AMBER, "재확인 취소": MUTED, "현장 확인": RED, "접근 경고": RED, "점검표": GREEN,
+              "위험 영역": (255, 110, 110), "음성 경고": (255, 80, 200), "위치 보정": AMBER,
+              "손동작": (120, 220, 255), "관리자 호출": AMBER, "SOS": RED}
 # 영상에서 잠깐 멈춰 보여줄 행동
-HOLD_KINDS = ("판정 수정", "재확인", "현장 확인", "재확인 취소", "위치 보정")
+HOLD_KINDS = ("판정 수정", "재확인", "현장 확인", "재확인 취소", "위치 보정", "위험 영역", "음성 경고")
 HOLD_S = 1.5
 # 자막으로 보여줄 행동 (앞에 있을수록 우선)
-CAPTION_KINDS = ["판정 수정", "접근 경고", "현장 확인", "재확인", "재시도", "CCTV 선택", "재확인 계획", "재확인 취소", "점검표", "판정"]
+CAPTION_KINDS = ["음성 경고", "위험 영역", "판정 수정", "접근 경고", "현장 확인", "재확인", "재시도", "CCTV 선택", "재확인 계획", "재확인 취소", "점검표", "판정"]
 _fonts = {}
+
+
+LANG_FONT = {"zh": ("C:/Windows/Fonts/msyh.ttc", "C:/Windows/Fonts/msyhbd.ttc"), "ja": ("C:/Windows/Fonts/YuGothM.ttc", "C:/Windows/Fonts/YuGothB.ttc")}
+_lang_fonts = {}
+
+
+def lang_font(lang, size, bold=False):
+    """중국어·일본어 자막 글꼴 (맑은 고딕에 없는 글자가 있어서)."""
+    if lang not in LANG_FONT:
+        return font(size, bold)
+    key = (lang, size, bold)
+    if key not in _lang_fonts:
+        path = LANG_FONT[lang][1 if bold else 0]
+        _lang_fonts[key] = ImageFont.truetype(path, size) if os.path.exists(path) else font(size, bold)
+    return _lang_fonts[key]
 
 
 def font(size, bold=False):
@@ -125,6 +144,13 @@ def draw_map(d, ox, oy, st, alerts, path_pts):
         d.line([mp(cam[1], cam[2], ox, oy), mp(ptz["target"][0], ptz["target"][1], ox, oy)], fill=ORANGE, width=3)
         tx, ty = mp(ptz["target"][0], ptz["target"][1], ox, oy)
         d.ellipse([tx - 13, ty - 13, tx + 13, ty + 13], outline=ORANGE, width=3)
+    for zz in st.get("zones", []):
+        poly = [mp(a, b, ox, oy) for a, b in zz["poly"]]
+        col = (220, 50, 50) if zz["source"] != "agent" else (230, 120, 30)
+        d.polygon(poly, fill=col + (55,), outline=col + (255,))
+        cx = sum(q[0] for q in poly) / len(poly)
+        cy = min(q[1] for q in poly)
+        text(d, (cx, cy - 15), zz["id"], 13, col, True, anchor="ma")
     wx, wy, wyaw = st["worker"]
     for fx, fy in alerts:
         d.line([mp(wx, wy, ox, oy), mp(fx, fy, ox, oy)], fill=RED, width=4)
@@ -179,7 +205,8 @@ def compose(rec, st, tl, last_ptz, path_pts, cache):
     recent = [e for e in tl[:st["n_timeline"]] if e["kind"] != "계획" or e["t"] > 0]
     window = [e for e in recent if t - e["t"] <= 2.0]
     alerting = [e for e in window if e["kind"] == "접근 경고"]
-    if st.get("ptz") or alerting or any(e["kind"] in ("재확인", "CCTV 선택", "재시도", "재확인 계획", "현장 확인") for e in window):
+    if st.get("ptz") or alerting or any(e["kind"] in ("재확인", "CCTV 선택", "재시도", "재확인 계획", "현장 확인", "음성 경고", "위험 영역")
+                                         for e in window):
         stage = 2
     elif any(e["kind"] in ("판정", "판정 수정") for e in window):
         stage = 1
@@ -192,6 +219,8 @@ def compose(rec, st, tl, last_ptz, path_pts, cache):
     if os.path.exists(body_path):
         im.paste(load(body_path, (960, 540)), (0, 70))
         panel_label(d, 8, 78, "작업자 바디캠 + YOLO 판정")
+        if st.get("story"):
+            panel_label(d, 8, 112, f"작업자: {st['story']}", (120, 220, 255))
         cache["body"] = body_path
     elif st.get("ptz") and os.path.exists(os.path.join(rec, f"ptz_{k:05d}.jpg")):
         im.paste(load(os.path.join(rec, f"ptz_{k:05d}.jpg"), (960, 540)), (0, 70))
@@ -234,7 +263,13 @@ def compose(rec, st, tl, last_ptz, path_pts, cache):
     else:
         d.rectangle([px, py, px + 477, py + 269], fill=PANEL)
         text(d, (px + 239, py + 135), "확대 재확인 대기", 22, MUTED, anchor="mm")
-    if st.get("ptz"):
+    if st.get("ptz") and st["ptz"].get("sos"):
+        d.rectangle([px, py, px + 477, py + 269], outline=RED, width=6)
+        panel_label(d, px + 6, py + 6, f"SOS · CCTV {st['ptz']['cam'].split('_')[1]} 가 작업자를 확대", RED)
+    elif st.get("ptz") and str(st["ptz"].get("label", "")).startswith("스캔"):
+        d.rectangle([px, py, px + 477, py + 269], outline=(120, 220, 255), width=6)
+        panel_label(d, px + 6, py + 6, f"공장 스캔 · CCTV {st['ptz']['cam'].split('_')[1]} 확대 → {st['ptz']['label'][3:]}", (120, 220, 255))
+    elif st.get("ptz"):
         d.rectangle([px, py, px + 477, py + 269], outline=ORANGE, width=5)
         what = st["ptz"]["finding"] or st["ptz"]["checkpoint"]
         panel_label(d, px + 6, py + 6, f"CCTV {st['ptz']['cam'].split('_')[1]} 확대 → {what}", ORANGE)
@@ -310,9 +345,9 @@ def workflow_card():
     d = ImageDraw.Draw(im)
     text(d, (WIDTH // 2, 70), "문제와 에이전트 구조", 46, bold=True, anchor="mt")
     text(d, (WIDTH // 2, 150), "창고 순찰 점검은 사람이 눈으로 확인해서 놓치기 쉽고, 무엇을 어디서 봤는지 기록이 남지 않습니다", 26, MUTED, anchor="mt")
-    boxes = [("입력", "작업자 가슴 바디캠\nCCTV 3대", BLUE), ("판단", "YOLO26 위험/안전 판정\n(10개 클래스)", (110, 200, 255)),
-             ("계획·도구", "애매하면 CCTV 선택\nPTZ 확대로 재확인\n작업자 접근 경고", AMBER),
-             ("기억·평가", "위험물 대장\n판정 수정, 재시도\n현장 확인 요청", PURPLE), ("결과", "조치 지시서\n우선순위·위치·조치", GREEN)]
+    boxes = [("입력", "작업자 가슴 바디캠\nCCTV 3대", BLUE), ("판단", "YOLO26 위험/안전 판정\n공구 이름 8종\n라바콘·DANGER 표지", (110, 200, 255)),
+             ("계획·도구", "애매하면 CCTV 선택\nPTZ 확대로 재확인\n위험 영역 자동 설정", AMBER),
+             ("기억·경고", "위험물 대장, 영역\n닿기 직전 음성 경고\n손동작 명령 1~5", PURPLE), ("결과", "조치 지시서\n다국어 음성 안내", GREEN)]
     bw, gap = 300, 50
     x = (WIDTH - (bw * 5 + gap * 4)) // 2
     for i, (h, body, col) in enumerate(boxes):
@@ -323,9 +358,10 @@ def workflow_card():
         if i < 4:
             d.polygon([(x + bw + 10, 450), (x + bw + gap - 10, 460), (x + bw + 10, 470)], fill=MUTED)
         x += bw + gap
-    lines = ["위험 요소 4종: 바닥 유출 · 방치된 공구 · 불안정 적재 · 소화기 상태 (같은 종류의 안전한 상태와 함께 배치)",
+    lines = ["위험 요소: 바닥 유출 · 방치된 공구(망치·드라이버·톱·전동톱·곡괭이·삽·렌치·드릴) · 불안정 적재 · 소화기 · 라바콘/DANGER 표지 영역",
              "정답표를 미리 만들어 두고 에이전트 판정을 채점 (판정에는 정답표를 쓰지 않음)",
-             "NVIDIA Isaac Sim 6.0 실사 창고 · 합성 데이터 4000장으로 학습 · 실제 사진 없음"]
+             "작업자 손동작 (손가락 1~5): 장비 설명 · 공장 위험 스캔 · 오늘의 TBM · 관리자 호출 · SOS → 작업자 언어 음성 (중·영·일·한)",
+             "NVIDIA Isaac Sim 6.0 실사 창고 · 합성 데이터 7700장으로 학습 · 실제 사진 없음"]
     for j, ln in enumerate(lines):
         text(d, (WIDTH // 2, 720 + j * 56), ln, 26, FG if j == 0 else MUTED, anchor="mt")
     return im
@@ -367,7 +403,7 @@ def dashboard_frames(png):
         yield im
 
 
-def results_card(eval_dir):
+def results_card(eval_dir, gestures=None, langs=None):
     files = sorted(glob.glob(os.path.join(eval_dir, "inspection_seed*.json")))
     rs = [json.load(open(f, encoding="utf-8")) for f in files]
     rs = [r for r in rs if r.get("agent")]
@@ -401,13 +437,26 @@ def results_card(eval_dir):
     y += 30
     text(d, (WIDTH // 2, y), f"CCTV 확대 재확인 {rc}건 (판정 고침 {ch}건) · CCTV 접근 경고 {ev[0]}/{ev[1]}건 · 오경보 {ev[2]}번", 28,
          AMBER, anchor="mt")
-    text(d, (WIDTH // 2, y + 60), "YOLO26s 검증 mAP50 0.923 · 합성 데이터만으로 학습, 실제 현장 적용 전 실사 검증 필요", 24, MUTED, anchor="mt")
+    ex = [r["agent"]["evaluation"] for r in rs if "zones" in r["agent"]["evaluation"]]
+    if ex:
+        zs = lambda k: sum(e["zones"][k] for e in ex)   # noqa: E731
+        vs = lambda k: sum(e["voice"][k] for e in ex)   # noqa: E731
+        ts = lambda k: sum(e["tools"][k] for e in ex)   # noqa: E731
+        text(d, (WIDTH // 2, y + 60), f"위험 영역 (라바콘·DANGER 표지) 알아봄 {zs('found')}/{zs('gt')} · 에이전트 판단 영역 {zs('agent')}개 · "
+                                      f"닿기 직전 음성 경고 {vs('warned')}/{vs('events')} · 공구 이름 {ts('named')}/{ts('total')}", 26, (255, 120, 200),
+             anchor="mt")
+        y += 60
+    if gestures:
+        text(d, (WIDTH // 2, y + 60), f"시연 손동작 명령 {gestures['recognized']}/{gestures['shown']} 인식 (잘못 실행 {gestures['extra']}) · "
+                                      f"안내 언어 {', '.join(langs or [])}", 26, (120, 220, 255), anchor="mt")
+        y += 60
+    text(d, (WIDTH // 2, y + 60), f"YOLO26s 검증 mAP50 {YOLO_MAP50} · 합성 데이터만으로 학습, 실제 현장 적용 전 실사 검증 필요", 24, MUTED, anchor="mt")
     return im
 
 
 def main():
     p = argparse.ArgumentParser(description="시연 영상 합치기")
-    p.add_argument("--record", default=os.path.join(ROOT, "outputs", "record", "seed1"))
+    p.add_argument("--record", default=os.path.join(ROOT, "outputs", "record", "seed5"))
     p.add_argument("--out", default=os.path.join(ROOT, "outputs", "video", "demo.mp4"))
     p.add_argument("--eval-dir", default=os.path.join(ROOT, "outputs", "eval"))
     p.add_argument("--team", default="IBDP 팀 (문상균, 이승혜, 조현준)")
@@ -442,6 +491,7 @@ def main():
     emit(card([(a.team, 30, FG, True), ("제4회 경남AI·SW경진대회 · 제조·피지컬 AI Agent", 26, MUTED, False), ("", 20, FG, False),
                ("작업자 바디캠과 CCTV 로 창고를 순찰하며 위험/안전을 판정하고,", 28, FG, False),
                ("애매한 것은 CCTV 를 골라 확대해 다시 확인한 뒤 조치 지시서를 만드는 AI 에이전트", 28, FG, False),
+               ("작업자가 손가락 1~5 를 보이면 작업자 언어로 장비 설명·공장 위험 스캔·TBM 을 안내하고 호출·SOS 를 처리", 26, (120, 220, 255), False),
                ("", 20, FG, False), (f"NVIDIA Isaac Sim 6.0 디지털 트윈 · YOLO26 · 시나리오 {seed}", 24, MUTED, False)],
               title="창고 안전 순찰 AI 에이전트"), 5)
     emit(workflow_card(), 8)
@@ -450,18 +500,47 @@ def main():
     cache = {}
     walk = [s for s in states]
     prev_n, alerted = 0, False
+    sys.path.insert(0, ROOT)
+    from factory_safety.voice import VOICE_WAV, duration, ensure_voice
+    ensure_voice()
+    vdur = duration(VOICE_WAV)
+    voice_marks, voice_end = [], -1.0
+    assist = final["report"].get("assistant", [])
+    clips, speaking = [], None          # 손동작 안내 음성 (영상 시각, wav), 지금 나오는 안내 (사건, 시작 시각)
+    n_assist = 0
     for i, st in enumerate(walk):
         nxt = walk[i + 1]["t"] if i + 1 < len(walk) else st["t"] + 0.4
         dt = max(0.0, nxt - st["t"])
         if st.get("ptz") and i > 0 and st["t"] == walk[i - 1]["t"]:
             dt = 0.6
         im = compose(rec, st, tl, last_ptz, path_pts, cache)
+        new_ev = assist[n_assist:st.get("n_assist", 0)]
+        n_assist = max(n_assist, st.get("n_assist", 0))
+        for ev in new_ev:
+            speaking = (ev, n[0] / FPS)
+            if ev.get("wav") and os.path.exists(ev["wav"]):
+                clips.append((n[0] / FPS, ev["wav"]))
+        if speaking and n[0] / FPS > speaking[1] + speaking[0].get("dur", 0) + 0.5:
+            speaking = None
+        if speaking:
+            assist_caption(im, speaking[0], (n[0] / FPS - speaking[1]) / max(speaking[0].get("dur", 1.0), 1.0))
+        if st.get("voice"):
+            voice_marks.append(n[0] / FPS)
+            voice_end = n[0] / FPS + vdur
+        if n[0] / FPS < voice_end:
+            voice_banner(im)
         emit(im, frames=max(1, int(round(max(dt, 0.6 if st.get("ptz") and dt < 0.05 else dt) * FPS))))
         # 주요 장면 (판정 수정, 재확인 결과, 현장 확인, 첫 접근 경고) 은 1.5초 멈춰서 읽을 수 있게
         new = tl[prev_n:st["n_timeline"]]
         prev_n = st["n_timeline"]
         key = [e for e in new if e["kind"] in HOLD_KINDS or (e["kind"] == "접근 경고" and not alerted)]
-        if key and dt < 0.3:
+        if new_ev:
+            # 손동작 인식 순간: 손 관절과 명령이 보이게 잠깐 멈춤
+            d = ImageDraw.Draw(im)
+            d.rounded_rectangle([700, 78, 952, 112], 8, fill=(0, 140, 220))
+            text(d, (826, 95), "손동작 명령 인식 · 잠깐 멈춤", 18, (255, 255, 255), True, anchor="mm")
+            emit(im, 1.2)
+        elif key and dt < 0.3:
             alerted |= any(e["kind"] == "접근 경고" for e in key)
             d = ImageDraw.Draw(im)
             d.rounded_rectangle([730, 78, 952, 112], 8, fill=ORANGE)
@@ -472,11 +551,109 @@ def main():
     if png:
         for im in dashboard_frames(png):
             emit(im, frames=1)
-    res = results_card(a.eval_dir)
+    res = results_card(a.eval_dir, final.get("evaluation", {}).get("gestures"), list(dict.fromkeys(e["lang_name"] for e in assist)))
     if res:
         emit(res, 10)
     writer.close()
-    print(f"[완료] {a.out}  ({n[0] / FPS:.0f}초)")
+    clips += [(m, VOICE_WAV) for m in voice_marks]
+    if clips:
+        add_audio(a.out, clips, n[0] / FPS)
+    print(f"[완료] {a.out}  ({n[0] / FPS:.0f}초, 음성 경고 {len(voice_marks)}번, 손동작 안내 {len(assist)}번)")
+
+
+def voice_banner(im):
+    """음성 경고가 나오는 동안 바디캠 화면 위쪽에 빨간 띠."""
+    d = ImageDraw.Draw(im, "RGBA")
+    d.rectangle([0, 112, 959, 176], fill=(200, 20, 30, 225))
+    text(d, (480, 144), "음성 경고  \"경고! 경고! 위험 요소가 식별되었습니다\"", 28, (255, 255, 255), True, anchor="mm")
+
+
+def _sentences(s):
+    """자막을 문장 단위로 (음성 진행에 맞춰 차례로 보여 줌)."""
+    import re
+    parts = [p.strip() for p in re.split(r"(?<=[.!?。！？])\s*", s) if p.strip()]
+    return parts or [s]
+
+
+def assist_caption(im, ev, progress):
+    """손동작 안내 자막: 명령, 작업자 언어 문장 (음성 진행에 맞춰), 한국어 번역."""
+    d = ImageDraw.Draw(im, "RGBA")
+    lang = ev["lang"]
+
+    def current(s):
+        sents = _sentences(s)
+        total = sum(len(x) for x in sents)
+        acc = 0
+        for x in sents:
+            acc += len(x)
+            if acc / total >= min(max(progress, 0.0), 1.0) - 1e-6:
+                return x
+        return sents[-1]
+
+    f_lang, f_ko = lang_font(lang, 25, True), font(21)
+    head = f"손가락 {ev['count']} → {ev['cmd']}  ·  {ev['lang_name']} 안내"
+    cur = current(ev["text"])
+    cur_ko = current(ev["text_ko"])
+
+    def lines_of(s, f, width, n):
+        out, line = [], ""
+        for ch in s:
+            if d.textlength(line + ch, font=f) > width:
+                out.append(line)
+                line = ch
+            else:
+                line += ch
+        out.append(line)
+        return out[:n]
+    l1 = lines_of(cur, f_lang, 920, 2)
+    l2 = lines_of(cur_ko, f_ko, 920, 2)
+    h = 44 + 34 * len(l1) + 30 * len(l2) + 12
+    top = 609 - h
+    d.rectangle([0, top, 959, 609], fill=(0, 40, 80, 215))
+    d.rectangle([0, top, 959, top + 4], fill=(0, 160, 240))
+    text(d, (14, top + 10), head, 22, (120, 220, 255), True)
+    y = top + 44
+    for ln in l1:
+        d.text((14, y), ln, font=f_lang, fill=(255, 255, 255))
+        y += 34
+    for ln in l2:
+        d.text((14, y), ln, font=f_ko, fill=(190, 200, 215))
+        y += 30
+
+
+def add_audio(video, clips, total_s):
+    """무음 트랙에 음성 (경고, 손동작 안내) 을 시각마다 얹고 영상과 합친다. clips: [(시각 초, wav)]."""
+    import struct
+    import wave
+    import imageio_ffmpeg
+    rate, cache = 22050, {}
+    track = np.zeros(int(total_s * rate) + rate, np.int32)
+    for m, wav in clips:
+        if wav not in cache:
+            with wave.open(wav, "rb") as w:
+                data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.int32)
+                if w.getframerate() != rate:
+                    idx = np.arange(0, len(data), w.getframerate() / rate).astype(int)
+                    data = data[idx[idx < len(data)]]
+            cache[wav] = data
+        voice = cache[wav]
+        i = int(m * rate)
+        j = min(len(track), i + len(voice))
+        if j > i:
+            track[i:j] += voice[:j - i]
+    track = np.clip(track, -32768, 32767).astype(np.int16)
+    tmp_wav = video + ".audio.wav"
+    with wave.open(tmp_wav, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(track.tobytes())
+    tmp_mp4 = video + ".tmp.mp4"
+    os.replace(video, tmp_mp4)
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-loglevel", "error", "-y", "-i", tmp_mp4, "-i", tmp_wav, "-c:v", "copy",
+                    "-c:a", "aac", "-b:a", "128k", "-shortest", video], check=True)
+    os.remove(tmp_mp4)
+    os.remove(tmp_wav)
 
 
 if __name__ == "__main__":

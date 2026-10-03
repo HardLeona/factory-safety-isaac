@@ -10,3 +10,9 @@ outputs/eval/*.txt
 .venv-isaac/
 *.zip
 ~$*
+assets/polyhaven/*/
+.venv-assistant/
+assets/generated/
+assets/models/
+outputs/eval/gesture_frames/
+outputs/eval/gesture_raw/

@@ -27,11 +27,12 @@ def frame_at(states, t, need=None):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--record", default=os.path.join(ROOT, "outputs", "record", "seed1"))
+    p.add_argument("--record", default=os.path.join(ROOT, "outputs", "record", "seed5"))
     p.add_argument("--body", type=int, default=None)
     p.add_argument("--ptz", type=int, default=None)
     p.add_argument("--cctv", default=None, help="이름:장면번호 (예 cctv_east:150)")
     p.add_argument("--video", type=int, default=None)
+    p.add_argument("--zone", type=int, default=None, help="위험 영역 장면 번호")
     a = p.parse_args()
     rec = a.record
     states = [json.loads(ln) for ln in open(os.path.join(rec, "state.jsonl"), encoding="utf-8") if ln.strip()]
@@ -60,6 +61,41 @@ def main():
         cam, k = a.cctv.split(":")
         k = int(k)
     shutil.copy(os.path.join(rec, f"{cam}_{k:05d}.jpg"), os.path.join(DOCS, "fig_cctv.jpg"))
+    # 위험 영역: 라바콘·표지 영역을 처음 알아본 순간의 바디캠 (없으면 아무 영역)
+    if a.zone is None:
+        ev = next((e for e in tl if e["kind"] == "위험 영역" and ("라바콘" in e["text"] or "DANGER" in e["text"])), None) or             next((e for e in tl if e["kind"] == "위험 영역"), None)
+        a.zone = frame_at(states, ev["t"] - 0.2, has("body")) if ev else a.body
+    shutil.copy(os.path.join(rec, f"body_{a.zone:05d}.jpg"), os.path.join(DOCS, "fig_zone.jpg"))
+    # 음성 경고 순간의 영상 화면 (빨간 띠 포함)
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import make_video as MV
+    vst = next((s for s in states if s.get("voice")), None)
+    if vst is not None:
+        im = MV.compose(rec, vst, tl, [None, None], MV.W.PatrolPath().pts[::3], {})
+        MV.voice_banner(im)
+        im.save(os.path.join(DOCS, "fig_zone_map.png"))
+    # 손동작 명령: 명령을 알아본 순간의 바디캠 (손 관절 + 명령) 과 작업자 언어 자막 (장비 설명을 먼저)
+    assist = final["report"].get("assistant", [])
+    if assist:
+        i = next((k for k, e in enumerate(assist) if e["count"] == 1), 0)
+        gst = next(s for s in states if s.get("n_assist", 0) >= i + 1 and has("body")(s))
+        im = Image.new("RGB", (MV.WIDTH, MV.HEIGHT))
+        im.paste(Image.open(os.path.join(rec, f"body_{gst['k']:05d}.jpg")).convert("RGB").resize((960, 540)), (0, 70))
+        MV.assist_caption(im, assist[i], 0.2)
+        im.crop((0, 70, 960, 610)).save(os.path.join(DOCS, "fig_gesture.jpg"), quality=92)
+    # 손가락 1~5 와 명령 (scripts/test_gestures.py --save 로 찍은 화면)
+    gdir = os.path.join(ROOT, "outputs", "eval", "gesture_frames")
+    names = {1: "장비 설명", 2: "위험 요소 안내", 3: "오늘의 TBM", 4: "관리자 호출", 5: "SOS 신고"}
+    shots = [os.path.join(gdir, f"spot0_g{c}.jpg") for c in range(1, 6)]
+    if all(os.path.exists(f) for f in shots):
+        from PIL import ImageDraw
+        w, h = 480, 270
+        sheet = Image.new("RGB", (w * 5, h + 56), (18, 24, 34))
+        d = ImageDraw.Draw(sheet)
+        for c, f in enumerate(shots, 1):
+            sheet.paste(Image.open(f).convert("RGB").resize((w, h)), ((c - 1) * w, 0))
+            MV.text(d, ((c - 1) * w + w // 2, h + 28), f"손가락 {c} · {names[c]}", 26, (255, 255, 255), True, anchor="mm")
+        sheet.save(os.path.join(DOCS, "fig_gestures.jpg"), quality=90)
     # 창고 전경 (서쪽 CCTV 첫 화면)
     k0 = next(s["k"] for s in states if has("cctv_west")(s))
     shutil.copy(os.path.join(rec, f"cctv_west_{k0:05d}.jpg"), os.path.join(DOCS, "fig_cctv_raw.jpg"))

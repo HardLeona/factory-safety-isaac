@@ -3,13 +3,14 @@
  "objects": [
   {
    "id": "O00",
-   "class": "spill_marked",
+   "class": "spill",
    "kind": "spill",
-   "hazard": false,
-   "label": "조치된 유출 (표지판, 라바콘)",
-   "x": 5.96,
-   "y": 9.33,
-   "zone": "동쪽 통로"
+   "hazard": true,
+   "label": "방치된 유출 (기름/물)",
+   "x": -3.93,
+   "y": -2.15,
+   "zone": "서쪽 통로",
+   "radius": 0.63
   },
   {
    "id": "O01",
@@ -17,49 +18,71 @@
    "kind": "spill",
    "hazard": true,
    "label": "방치된 유출 (기름/물)",
-   "x": 0.16,
-   "y": 16.97,
-   "zone": "북쪽 구역"
+   "x": 0.38,
+   "y": 16.83,
+   "zone": "북쪽 구역",
+   "radius": 0.62
   },
   {
    "id": "O02",
-   "class": "spill",
+   "class": "spill_marked",
    "kind": "spill",
-   "hazard": true,
-   "label": "방치된 유출 (기름/물)",
-   "x": 2.72,
-   "y": -4.63,
-   "zone": "남쪽 작업 구역"
+   "hazard": false,
+   "label": "조치된 유출 (표지판, 라바콘)",
+   "x": -3.02,
+   "y": 7.91,
+   "zone": "서쪽 통로",
+   "radius": 0.58
   },
   {
    "id": "O03",
    "class": "tool_floor",
    "kind": "tool",
    "hazard": true,
-   "label": "통로에 방치된 공구·자재",
-   "x": 6.41,
-   "y": -8.92,
-   "zone": "남쪽 작업 구역"
+   "label": "통로에 방치된 공구",
+   "x": 6.35,
+   "y": -8.9,
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "drill"
+   ],
+   "tools_ko": [
+    "전동 드릴"
+   ]
   },
   {
    "id": "O04",
    "class": "tool_floor",
    "kind": "tool",
    "hazard": true,
-   "label": "통로에 방치된 공구·자재",
-   "x": -1.69,
-   "y": 10.59,
-   "zone": "서쪽 통로"
+   "label": "통로에 방치된 공구",
+   "x": -6.26,
+   "y": -9.41,
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "shovel",
+    "power_saw"
+   ],
+   "tools_ko": [
+    "삽",
+    "전동톱"
+   ]
   },
   {
    "id": "O05",
    "class": "tool_floor",
    "kind": "tool",
    "hazard": true,
-   "label": "통로에 방치된 공구·자재",
-   "x": -5.92,
-   "y": -9.37,
-   "zone": "남쪽 작업 구역"
+   "label": "통로에 방치된 공구",
+   "x": -7.34,
+   "y": 4.75,
+   "zone": "서쪽 통로",
+   "tools": [
+    "screwdriver"
+   ],
+   "tools_ko": [
+    "드라이버"
+   ]
   },
   {
    "id": "O06",
@@ -69,7 +92,13 @@
    "label": "작업대에 정리된 공구",
    "x": -6.0,
    "y": -11.45,
-   "zone": "남쪽 작업 구역"
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "saw"
+   ],
+   "tools_ko": [
+    "톱"
+   ]
   },
   {
    "id": "O07",
@@ -79,7 +108,17 @@
    "label": "작업대에 정리된 공구",
    "x": 6.0,
    "y": -11.45,
-   "zone": "남쪽 작업 구역"
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "wrench",
+    "hammer",
+    "saw"
+   ],
+   "tools_ko": [
+    "렌치",
+    "망치",
+    "톱"
+   ]
   },
   {
    "id": "O08",
@@ -93,33 +132,33 @@
   },
   {
    "id": "O09",
-   "class": "stack_unstable",
-   "kind": "stack",
-   "hazard": true,
-   "label": "무너질 듯한 적재",
-   "x": -7.3,
-   "y": -5.4,
-   "zone": "남쪽 작업 구역"
-  },
-  {
-   "id": "O10",
    "class": "stack_stable",
    "kind": "stack",
    "hazard": false,
    "label": "반듯한 적재",
+   "x": 1.8,
+   "y": -10.9,
+   "zone": "남쪽 작업 구역"
+  },
+  {
+   "id": "O10",
+   "class": "stack_unstable",
+   "kind": "stack",
+   "hazard": true,
+   "label": "무너질 듯한 적재",
    "x": -1.6,
    "y": -10.7,
    "zone": "남쪽 작업 구역"
   },
   {
    "id": "O11",
-   "class": "stack_unstable",
+   "class": "stack_stable",
    "kind": "stack",
-   "hazard": true,
-   "label": "무너질 듯한 적재",
-   "x": -7.6,
-   "y": 16.6,
-   "zone": "북쪽 구역"
+   "hazard": false,
+   "label": "반듯한 적재",
+   "x": -7.3,
+   "y": -5.4,
+   "zone": "남쪽 작업 구역"
   },
   {
    "id": "O12",
@@ -143,12 +182,12 @@
   },
   {
    "id": "O14",
-   "class": "ext_blocked",
+   "class": "ext_ok",
    "kind": "ext",
-   "hazard": true,
-   "label": "앞이 가로막힌 소화기",
+   "hazard": false,
+   "label": "정상 비치 소화기",
    "x": 0.14,
-   "y": 13.05,
+   "y": 12.45,
    "zone": "북쪽 구역"
   },
   {
@@ -173,12 +212,36 @@
   },
   {
    "id": "O17",
-   "class": "ext_ok",
+   "class": "ext_blocked",
    "kind": "ext",
-   "hazard": false,
-   "label": "정상 비치 소화기",
+   "hazard": true,
+   "label": "앞이 가로막힌 소화기",
    "x": 9.09,
-   "y": -3.81,
+   "y": -4.41,
+   "zone": "남쪽 작업 구역"
+  }
+ ],
+ "zones": [
+  {
+   "id": "Z1",
+   "type": "sign",
+   "x": -2.2,
+   "y": 13.8,
+   "radius": 1.0,
+   "sign": true,
+   "n_cones": 0,
+   "inner": "pit",
+   "zone": "북쪽 구역"
+  },
+  {
+   "id": "Z2",
+   "type": "cone",
+   "x": -2.5,
+   "y": -5.6,
+   "radius": 1.0,
+   "sign": false,
+   "n_cones": 5,
+   "inner": "none",
    "zone": "남쪽 작업 구역"
   }
  ]

@@ -3,53 +3,72 @@
  "objects": [
   {
    "id": "O00",
-   "class": "spill_marked",
-   "kind": "spill",
-   "hazard": false,
-   "label": "조치된 유출 (표지판, 라바콘)",
-   "x": -3.04,
-   "y": 7.94,
-   "zone": "서쪽 통로"
-  },
-  {
-   "id": "O01",
-   "class": "spill_marked",
-   "kind": "spill",
-   "hazard": false,
-   "label": "조치된 유출 (표지판, 라바콘)",
-   "x": -5.94,
-   "y": 0.6,
-   "zone": "서쪽 통로"
-  },
-  {
-   "id": "O02",
-   "class": "spill_marked",
-   "kind": "spill",
-   "hazard": false,
-   "label": "조치된 유출 (표지판, 라바콘)",
-   "x": -2.49,
-   "y": -9.29,
-   "zone": "남쪽 작업 구역"
-  },
-  {
-   "id": "O03",
    "class": "tool_floor",
    "kind": "tool",
    "hazard": true,
-   "label": "통로에 방치된 공구·자재",
-   "x": 6.96,
-   "y": 6.22,
-   "zone": "동쪽 통로"
+   "label": "통로에 방치된 공구",
+   "x": -4.08,
+   "y": 5.86,
+   "zone": "서쪽 통로",
+   "tools": [
+    "shovel",
+    "shovel"
+   ],
+   "tools_ko": [
+    "삽",
+    "삽"
+   ]
+  },
+  {
+   "id": "O01",
+   "class": "spill",
+   "kind": "spill",
+   "hazard": true,
+   "label": "방치된 유출 (기름/물)",
+   "x": 3.03,
+   "y": 2.37,
+   "zone": "동쪽 통로",
+   "radius": 0.49
+  },
+  {
+   "id": "O02",
+   "class": "spill",
+   "kind": "spill",
+   "hazard": true,
+   "label": "방치된 유출 (기름/물)",
+   "x": -2.33,
+   "y": -9.16,
+   "zone": "남쪽 작업 구역",
+   "radius": 0.63
+  },
+  {
+   "id": "O03",
+   "class": "spill_marked",
+   "kind": "spill",
+   "hazard": false,
+   "label": "조치된 유출 (표지판, 라바콘)",
+   "x": 2.76,
+   "y": -4.85,
+   "zone": "남쪽 작업 구역",
+   "radius": 0.69
   },
   {
    "id": "O04",
    "class": "tool_floor",
    "kind": "tool",
    "hazard": true,
-   "label": "통로에 방치된 공구·자재",
-   "x": -6.19,
-   "y": -9.54,
-   "zone": "남쪽 작업 구역"
+   "label": "통로에 방치된 공구",
+   "x": 1.79,
+   "y": -1.76,
+   "zone": "동쪽 통로",
+   "tools": [
+    "shovel",
+    "power_saw"
+   ],
+   "tools_ko": [
+    "삽",
+    "전동톱"
+   ]
   },
   {
    "id": "O05",
@@ -59,7 +78,15 @@
    "label": "작업대에 정리된 공구",
    "x": -6.0,
    "y": -11.45,
-   "zone": "남쪽 작업 구역"
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "wrench",
+    "wrench"
+   ],
+   "tools_ko": [
+    "렌치",
+    "렌치"
+   ]
   },
   {
    "id": "O06",
@@ -69,20 +96,18 @@
    "label": "작업대에 정리된 공구",
    "x": 6.0,
    "y": -11.45,
-   "zone": "남쪽 작업 구역"
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "hammer",
+    "saw"
+   ],
+   "tools_ko": [
+    "망치",
+    "톱"
+   ]
   },
   {
    "id": "O07",
-   "class": "stack_stable",
-   "kind": "stack",
-   "hazard": false,
-   "label": "반듯한 적재",
-   "x": -7.3,
-   "y": -5.4,
-   "zone": "남쪽 작업 구역"
-  },
-  {
-   "id": "O08",
    "class": "stack_stable",
    "kind": "stack",
    "hazard": false,
@@ -92,14 +117,24 @@
    "zone": "남쪽 작업 구역"
   },
   {
-   "id": "O09",
+   "id": "O08",
    "class": "stack_stable",
    "kind": "stack",
    "hazard": false,
    "label": "반듯한 적재",
-   "x": 7.4,
-   "y": 16.7,
-   "zone": "북쪽 구역"
+   "x": 7.2,
+   "y": -5.6,
+   "zone": "남쪽 작업 구역"
+  },
+  {
+   "id": "O09",
+   "class": "stack_unstable",
+   "kind": "stack",
+   "hazard": true,
+   "label": "무너질 듯한 적재",
+   "x": -7.3,
+   "y": -5.4,
+   "zone": "남쪽 작업 구역"
   },
   {
    "id": "O10",
@@ -107,9 +142,9 @@
    "kind": "stack",
    "hazard": true,
    "label": "무너질 듯한 적재",
-   "x": 7.2,
-   "y": -5.6,
-   "zone": "남쪽 작업 구역"
+   "x": 7.4,
+   "y": 16.7,
+   "zone": "북쪽 구역"
   },
   {
    "id": "O11",
@@ -123,32 +158,32 @@
   },
   {
    "id": "O12",
-   "class": "ext_blocked",
-   "kind": "ext",
-   "hazard": true,
-   "label": "앞이 가로막힌 소화기",
-   "x": -8.91,
-   "y": -4.41,
-   "zone": "남쪽 작업 구역"
-  },
-  {
-   "id": "O13",
-   "class": "ext_blocked",
-   "kind": "ext",
-   "hazard": true,
-   "label": "앞이 가로막힌 소화기",
-   "x": 0.14,
-   "y": 13.05,
-   "zone": "북쪽 구역"
-  },
-  {
-   "id": "O14",
    "class": "ext_ok",
    "kind": "ext",
    "hazard": false,
    "label": "정상 비치 소화기",
-   "x": 0.09,
+   "x": -8.91,
    "y": -3.81,
+   "zone": "남쪽 작업 구역"
+  },
+  {
+   "id": "O13",
+   "class": "ext_ok",
+   "kind": "ext",
+   "hazard": false,
+   "label": "정상 비치 소화기",
+   "x": 0.14,
+   "y": 12.45,
+   "zone": "북쪽 구역"
+  },
+  {
+   "id": "O14",
+   "class": "ext_fallen",
+   "kind": "ext",
+   "hazard": true,
+   "label": "쓰러진 소화기",
+   "x": 0.09,
+   "y": -4.26,
    "zone": "남쪽 작업 구역"
   },
   {
@@ -163,13 +198,37 @@
   },
   {
    "id": "O16",
-   "class": "ext_ok",
+   "class": "ext_blocked",
    "kind": "ext",
-   "hazard": false,
-   "label": "정상 비치 소화기",
+   "hazard": true,
+   "label": "앞이 가로막힌 소화기",
    "x": 9.09,
-   "y": -3.81,
+   "y": -4.41,
    "zone": "남쪽 작업 구역"
+  }
+ ],
+ "zones": [
+  {
+   "id": "Z1",
+   "type": "sign",
+   "x": 6.2,
+   "y": 0.5,
+   "radius": 1.2,
+   "sign": true,
+   "n_cones": 0,
+   "inner": "pit",
+   "zone": "동쪽 통로"
+  },
+  {
+   "id": "Z2",
+   "type": "sign",
+   "x": -2.2,
+   "y": 13.8,
+   "radius": 1.0,
+   "sign": true,
+   "n_cones": 0,
+   "inner": "pit",
+   "zone": "북쪽 구역"
   }
  ]
 }

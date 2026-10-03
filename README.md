@@ -3,8 +3,12 @@
 > 작업자가 정해진 경로를 걸으며 **가슴 바디캠**으로 찍으면, **YOLO** 가 물체마다 **진짜 위험한지 아닌지** 판정하고,
 > **안전 에이전트**가 판정을 위험물 대장에 모아 애매한 것은 **볼 수 있는 CCTV 를 골라 확대(PTZ)해서 다시 확인**합니다.
 > CCTV 3대는 작업자와 위험물 사이 거리를 재서 가까워지면 경고하고, 순찰이 끝나면 **조치 지시서**(우선순위, 위치, 조치 방법)를 만듭니다.
+> **라바콘으로 둘러친 곳, DANGER 표지가 선 곳, 스스로 위험하다고 판단한 주변은 위험 영역**으로 잡고,
+> 작업자가 위험물에 닿기 직전이거나 영역에 들어서면 **"경고 경고 위험 요소가 식별되었습니다"** 하고 소리로 알립니다.
+> 공구는 **망치, 드라이버, 톱, 전동톱, 곡괭이, 삽, 렌치, 전동 드릴** 중 무엇인지까지 알아봅니다.
+> 작업자가 바디캠 앞에 **손가락 1~5개**를 보이면 장비 설명, 공장 위험 스캔, 오늘의 TBM, 관리자 호출, SOS 를 **작업자 언어 (중국어·영어·일본어·한국어)** 음성으로 처리합니다.
 > 물체마다 위험/안전 **정답표를 미리 만들어 두고** 판정 결과를 채점합니다 (판정에는 안 씀).
-> 환경과 물체는 **NVIDIA 실사 에셋** (창고, 상자, 팔레트, 소화기, 표지판, 공구 실물 스캔, 작업자) 을 씁니다.
+> 환경과 물체는 **NVIDIA 실사 에셋** (창고, 상자, 팔레트, 소화기, 표지판, 라바콘, 작업자) 과 **Poly Haven 공구 실물 스캔** (CC0) 을 씁니다.
 
 <p align="center"><img src="docs/architecture.png" width="900" alt="에이전트 구조"></p>
 
@@ -16,13 +20,15 @@
 
 | | 기능 | 스크립트 | 실행 환경 |
 |---|---|---|---|
+| 📥 | **공구 모델 받기**: Poly Haven 실물 스캔 공구 (망치, 드라이버, 톱, 곡괭이, 삽, 렌치) | `get_assets.py` | 일반 파이썬 |
 | 🏗 | **장면 만들기**: NVIDIA 창고 + 위험/안전 물체 + 걷는 작업자, 정답표 저장 | `build_scene.py` | Isaac Sim |
 | 📸 | **학습 데이터 자동 생성**: 바디캠, CCTV, 자유 시점에서 촬영 + 정답 박스 자동 계산 | `generate_dataset.py` | Isaac Sim |
-| 🧠 | **YOLO 학습**: 위험한 상태와 안전한 상태를 따로 가르쳐서 YOLO 가 직접 구분 | `train_yolo.py` | 일반 파이썬 |
-| 🤖 | **순찰 + 에이전트**: 바디캠 판정, CCTV 접근 경고, CCTV 확대 재확인, 조치 지시서, 정답표 채점 | `run_patrol.py` | Isaac Sim |
+| 🧠 | **YOLO 학습**: 위험한 상태와 안전한 상태를 따로 가르쳐서 YOLO 가 직접 구분, 공구는 종류별로 | `train_yolo.py`, `val_yolo.py` | 일반 파이썬 |
+| 🤖 | **순찰 + 에이전트**: 바디캠 판정, CCTV 접근 경고, CCTV 확대 재확인, 위험 영역, 음성 경고, 조치 지시서, 정답표 채점 | `run_patrol.py` | Isaac Sim |
+| ✋ | **손동작 명령**: 손가락 1~5 → 장비 설명, 공장 위험 스캔, TBM, 관리자 호출, SOS (작업자 언어 음성) | `run_patrol.py --story`, `test_gestures.py` | Isaac Sim + `.venv-assistant` |
 | 📊 | **여러 시나리오 평가**: 순찰을 시드별로 돌려 채점 표 (바디캠만 vs 에이전트) | `eval_patrol.py` | 일반 파이썬 (내부에서 Isaac) |
 | 🎬 | **시연 영상**: 녹화한 화면과 에이전트 기록을 1920x1080 영상으로 | `make_video.py` | 일반 파이썬 |
-| 📝 | **제출 문서**: 개발완료보고서, 기술설명서 (수치는 채점 결과에서) | `make_docs.py` | 일반 파이썬 |
+| 📝 | **제출 문서**: 개발완료보고서, 기술설명서, 발표자료 (수치는 채점 결과에서) | `make_docs.py`, `make_slides.py` | 일반 파이썬 |
 | 🖥 | **전체 시연**: Isaac 창을 단계별로 띄워 보여주고 조치 지시서를 엶 | `demo_all.py` | 일반 파이썬 (내부에서 Isaac) |
 
 ---
@@ -30,7 +36,7 @@
 ## 🔁 전체 흐름
 
 ```
- ① 장면 + 정답표 ──► ② 학습 데이터 (4000장) ──► ③ YOLO 학습 ──► ④ 순찰 + 에이전트 ──► ⑤ 조치 지시서 + 정답표 채점
+ ① 장면 + 정답표 ──► ② 학습 데이터 (7700장) ──► ③ YOLO 학습 ──► ④ 순찰 + 에이전트 ──► ⑤ 조치 지시서 + 정답표 채점
    build_scene        generate_dataset            train_yolo       run_patrol              eval_patrol
 ```
 
@@ -65,7 +71,46 @@
 [00:47] <재확인> F17 cctv_east 확대 결과 위험 쓰러진 소화기 91% 확인
 ```
 
-**조치 지시서** (`outputs/agent/dashboard_seed<시드>.html`): 평면도(번호 = 우선순위), 조치 목록 (긴급/높음/보통, 위치, 조치 방법, 근거), 점검표, 에이전트 기록. 우선순위 점수 = 위험 종류별 심각도 + 접근 경고 횟수 × 2.
+**위험 영역** (`factory_safety/zones.py`)
+
+| 근거 | 영역 |
+|---|---|
+| 라바콘 | 바닥 위치가 3 m 안으로 이어진 라바콘 2개 이상을 한 영역 (볼록 다각형 + 0.3 m). 라바콘을 둘러친 조치된 유출도 영역이 됨 |
+| DANGER 표지 | 표지 주변 1.2 m (라바콘 영역 근처면 그 영역에 합침) |
+| 에이전트 판단 | 물건이 아니라 주변이 위험한 것: 방치된 유출 (미끄럼 1.3 m), 무너질 듯한 적재 (붕괴 1.6 m). 3 m 안에 모인 위험물은 한 영역. 라바콘·표지 영역 안이면 따로 안 만듦 |
+
+**음성 경고** (`factory_safety/voice.py`): 작업자가 위험물 1 m 안 (닿기 직전) 이나 위험 영역 경계 0.5 m 안에 들어서면
+경보음 + "경고! 경고! 위험 요소가 식별되었습니다." (Windows 한국어 음성 Heami). 대장에 기억한 위험물과 지금 바디캠 화면을 둘 다 보고,
+같은 대상은 12초, 경고끼리는 5.5초 간격. Isaac 창으로 순찰하면 소리가 바로 나고, 시연 영상에는 소리 트랙으로 들어갑니다.
+
+**공구 이름**: YOLO 가 공구를 종류별(8종)로 알아보고, 위험/안전은 **놓인 자리**로 에이전트가 판단합니다.
+공구 박스 아래쪽을 작업대 윗면 높이로 투영해 작업대 위면 "정리된 공구", 아니면 "통로에 방치된 공구". 조치 지시서에는 "통로에 방치된 공구 (망치, 삽)" 처럼 이름까지 나옵니다.
+
+**손동작 명령** (`factory_safety/assistant.py`, `hand_count.py`, `i18n.py`): 작업자가 멈춰 서서 오른손을 바디캠 앞에 가로로 내밀고 손가락을 폅니다.
+
+| 손가락 | 명령 | 에이전트가 하는 일 |
+|:-:|---|---|
+| 1 (검지) | 장비 설명 | 바로 전 바디캠 화면 가운데의 장비 (운반 카트, 공구, 소화기 등) 가 무엇인지, 안전하게 쓰는 법, 지금 상태 (바닥에 있으면 작업대로) |
+| 2 (+중지) | 공장 위험 스캔 | CCTV 3대와 위험물 대장으로 공장 전체의 위험을 우선순위 순으로 (같은 종류·구역은 한 번), 위험 영역 수. 말하는 동안 CCTV 확대가 그 위험들을 차례로 비춤 |
+| 3 (+약지) | 오늘의 TBM | 아침 작업 전 안전 회의 (`data/tbm_today.json`: 오늘 작업, 주의할 위험, 지킬 것, 지난 순찰 조치) |
+| 4 (+새끼) | 관리자 호출 | 작업자 위치·언어와 바디캠 화면을 조치 지시서 알림으로 |
+| 5 (손바닥) | SOS 신고 | 경보음 + 위치 알림, **작업자를 볼 수 있는 CCTV 를 골라 PTZ 로 작업자를 확대** |
+
+- **인식**: MediaPipe Hands 로 손 관절 21점 → 손가락마다 마디가 곧은지 (각도) 와 손목에서 먼지, 엄지는 약지 뿌리까지 거리로 수를 셈. 손을 가로로 내밀어도 되게 화면 방향은 안 씀. 같은 수가 3번 연속이면 명령, 손을 내려야 다시 받음
+- **언어**: 안내 문장은 사람이 검수한 4개 언어 문장 틀 + 현장 용어집으로 만듭니다. 번역 모델 (NLLB-200) 을 시험했더니 "안전화 → seat belt", "지게차 → parking lot" 처럼 현장 용어를 틀려서 안전 안내에는 쓰지 않습니다. 관리자에게는 한국어로 같이 남김
+- **음성**: edge-tts (Microsoft 온라인 신경망 음성, 인터넷 필요). 안 되면 Windows 음성 (한국어·영어·일본어). 만든 음성은 문장별로 저장해 다시 씀
+- **시뮬레이션**: 작업자 뼈대에 손가락 1~5 자세를 직접 만들고 (`walk_anim.py`, 아래팔·손은 손바닥이 카메라를 보게 두 벡터로 회전), 시연에서는 `DemoScript` 가 작업자 역할로 순서대로 손동작을 함. Isaac Sim 파이썬과 MediaPipe 가 같이 안 깔려서 손 인식·음성은 따로 띄운 프로세스 (`scripts/assistant_worker.py`) 가 맡음
+
+**시연 이야기** (`factory_safety/story.py`, `run_patrol.py --story`, 작업자 언어 영어): 작업자 역할만 정해 두고 에이전트는 바디캠·CCTV 화면과 손동작으로만 압니다.
+
+1. 시작하자마자 손가락 3 → 오늘의 TBM ("카트로 상자 4개를 북쪽 보관 구역에서 남쪽 작업 구역으로", 주의할 위험, 지킬 것)
+2. 순찰하며 걷기 (에이전트가 위험/안전 판정, 위험 영역, 닿기 직전 음성 경고)
+3. 북쪽 보관 구역에서 운반 카트를 3초 보고 손가락 1 → YOLO 가 알아본 카트의 쓰는 법과 주의점
+4. 옆 팔레트의 상자 4개를 카트에 싣고 왼손으로 카트를 끌며 걷기 (오른손은 손동작)
+5. 동쪽 통로 중간에서 손가락 2 → 공장 전체 위험 스캔 (CCTV 확대가 위험을 차례로 비춤)
+6. 한 바퀴를 다 돌면 손가락 4 → 관리자 호출, 그동안 에이전트는 남은 점검 지점을 CCTV 확대로 확인하고 끝
+
+**조치 지시서** (`outputs/agent/dashboard_seed<시드>.html`): 평면도(번호 = 우선순위, 위험 영역), 조치 목록 (긴급/높음/보통, 위치, 조치 방법, 근거), 위험 영역, 음성 경고 기록, 점검표, 에이전트 기록. 우선순위 점수 = 위험 종류별 심각도 + 접근 경고 횟수 × 2.
 
 ---
 
@@ -76,12 +121,16 @@
 | 종류 | 위험 (🔴) | 안전 (🟢) | 실사 에셋 |
 |---|---|---|---|
 | 바닥 유출 | `spill` 기름/물 웅덩이 + 쓰러진 통·양동이, 아무 조치 없음 | `spill_marked` 같은 유출 + **미끄럼 주의 표지판, 라바콘** | 웅덩이는 직접 만든 광택 재질, 통·표지판·라바콘은 NVIDIA |
-| 공구·자재 | `tool_floor` 통로 바닥에 흩어진 드릴·클램프·가위·나무토막 | `tool_stored` **작업대 위**에 정리 | YCB 실물 스캔 공구, NVIDIA 작업대 |
+| 공구 | 통로 바닥에 방치 (`tool_floor`) | **작업대 위**에 정리 (`tool_stored`) | YOLO 는 종류 8개 (`hammer` `screwdriver` `saw` `power_saw` `pickaxe` `shovel` `wrench` `drill`) 로 알아보고 자리는 에이전트가 판단. Poly Haven 실물 스캔 (CC0), 전동톱은 직접 모델링, YCB 드릴 |
 | 적재 | `stack_unstable` 맨 위 층이 밀려나 기울고 팔레트 밖으로 삐져나옴 (상자가 떨어져 있기도) | `stack_stable` 반듯하게 쌓인 상자 | NVIDIA 팔레트, 골판지 상자 |
 | 소화기 | `ext_fallen` 바닥에 쓰러짐 · `ext_blocked` 앞을 상자가 가로막음 | `ext_ok` 랙 끝 제자리에 보이게 비치 | NVIDIA 소화기 |
 | 작업자 | `worker` (CCTV 거리 측정용) | | NVIDIA 건설 작업자 + 직접 만든 걷기 동작 |
+| 위험 영역 표시 | `cone` 라바콘, `danger_sign` DANGER 표지 (A자형, "위험 구역 출입 금지") | | NVIDIA 라바콘, 표지는 직접 모델링, 안쪽에 뚜껑 열린 바닥 구멍이 있기도 함 |
+| 장비 | | `cart` 운반 카트 (판정 대상 아님, 손동작 1 로 쓰는 법 안내) | Poly Haven 핸드트럭 (CC0, 세움·끄는 자세·상자 0~4개), 창고에 원래 있던 평판 카트 |
 
-**배치** (시나리오마다 무작위): 유출 7자리 중 3곳 (45% 조치됨), 통로 공구 6자리 중 2~3곳, 작업대 2개, 팔레트 6자리 중 4곳 (절반 불안정), 소화기 6곳 (정상 60%, 쓰러짐 20%, 가로막힘 20%). 한 시나리오에 물체 약 18개.
+**배치** (시나리오마다 무작위): 위험 영역 2곳 (라바콘 링 4~6개 60% / DANGER 표지만 40%, 경로에서 경계까지 0.4~0.9 m), 유출 3곳 (45% 조치됨),
+통로 공구 2~3곳 (1~3개씩, 종류 무작위), 작업대 2개, 팔레트 4곳 (절반 불안정), 소화기 6곳 (정상 60%, 쓰러짐 20%, 가로막힘 20%).
+경로 바로 옆 (0.4~0.5 m) 에 위험물 하나는 꼭 둡니다 (닿기 직전 음성 경고 시험). 공구 모델은 `python scripts/get_assets.py` 로 받습니다.
 
 ---
 
@@ -105,65 +154,89 @@
 
 ## 📊 결과
 
-### YOLO (YOLO26s, 960 px, 80 epoch, 합성 데이터 4000장, 학습 약 2.2시간)
+### YOLO (YOLO26s, 960 px, 18 클래스, 합성 데이터 6500장, 첫 모델에서 이어 40 epoch, 학습 1.8시간)
 
-데이터: 학습 3429장 + 검증 571장 (바디캠 2208, CCTV 1182, 자유 시점 610, 물체 없는 장면 263).
+데이터: 일반 촬영 5000장 (학습 4286 + 검증 714, 바디캠·CCTV·자유 시점·위험 영역) + 공구 가까이 1500장 (학습 1286 + 검증 214).
 
-| 클래스 | 위험 | mAP50 | | 클래스 | 위험 | mAP50 |
-|---|:-:|:-:|---|---|:-:|:-:|
-| `spill` | 🔴 | 0.884 | | `spill_marked` | 🟢 | 0.962 |
-| `tool_floor` | 🔴 | 0.865 | | `tool_stored` | 🟢 | 0.906 |
-| `stack_unstable` | 🔴 | 0.959 | | `stack_stable` | 🟢 | 0.954 |
-| `ext_fallen` | 🔴 | 0.912 | | `ext_ok` | 🟢 | 0.926 |
-| `ext_blocked` | 🔴 | 0.898 | | `worker` | | 0.965 |
+| 클래스 | mAP50 | | 클래스 | mAP50 | | 클래스 | mAP50 |
+|---|:-:|---|---|:-:|---|---|:-:|
+| 🔴 `spill` | 0.930 | | 🟢 `spill_marked` | 0.944 | | `worker` | 0.967 |
+| 🔴 `stack_unstable` | 0.962 | | 🟢 `stack_stable` | 0.961 | | `cone` | 0.971 |
+| 🔴 `ext_fallen` | 0.914 | | 🟢 `ext_ok` | 0.944 | | `danger_sign` | 0.951 |
+| 🔴 `ext_blocked` | 0.894 | | `hammer` | 0.871 | | `screwdriver` | 0.826 |
+| `saw` | 0.837 | | `power_saw` | 0.896 | | `pickaxe` | 0.860 |
+| `shovel` | 0.823 | | `wrench` | 0.878 | | `drill` | 0.936 |
 
-**전체 mAP50 0.923, mAP50-95 0.733.** 혼동 행렬에서 위험/안전 짝끼리 헷갈린 비율은 1~4% 이고, 틀린 것은 대부분 상태 혼동이 아니라 배경으로 놓친 경우입니다.
+**전체 mAP50 0.909, mAP50-95 0.707** (정밀도 0.924, 재현율 0.839). 공구 8종은 0.82~0.94 로 가장 약하고, 공구의 위험/안전은 YOLO 가 아니라 에이전트가 놓인 자리로 정합니다.
 
 <p align="center"><img src="docs/yolo_confusion.png" width="440" alt="정규화 혼동 행렬"> <img src="docs/yolo_training.png" width="440" alt="학습 곡선"></p>
 
-학습된 가중치는 `outputs/yolo/warehouse/weights/best.pt` 에 들어 있어서 데이터 생성과 학습 없이 바로 순찰을 돌릴 수 있습니다.
+학습된 가중치는 `outputs/yolo/warehouse_v3/weights/best.pt` 에 들어 있어서 데이터 생성과 학습 없이 바로 순찰을 돌릴 수 있습니다.
 
 ### 순찰 채점 (학습에 안 쓴 배치 10개, 한 바퀴씩, `eval_patrol.py --seeds 0 1 2 3 4 5 6 7 8 9`)
 
-**에이전트 최종 위험물 대장** (창고 전체 물체 174개, 경로에서 안 보이는 물체 포함)
+**에이전트 최종 위험물 대장** (창고 전체 물체 173개, 경로에서 안 보이는 물체 포함)
 
 | 항목 | 바디캠만 | 에이전트 (재확인 + 점검표) |
 |---|:-:|:-:|
-| 위험 물체를 위험으로 | 43/72 (60%) | **58/72 (81%)** |
-| 안전 물체를 안전으로 | 50/102 (49%) | **98/102 (96%)** |
+| 위험 물체를 위험으로 | 66/92 (72%) | **85/92 (92%)** |
+| 안전 물체를 안전으로 | 35/81 (43%) | **78/81 (96%)** |
 | 위험을 안전으로 / 안전을 위험으로 오판 | 0 / 0 | **0 / 0** |
-| 상태까지 정확 | 93/174 | **156/174** |
-| 없는 위험 보고 | 4 | 2 |
-| 현장 확인 요청 (그중 실제 물체) | - | 9 (5) |
+| 상태까지 정확 | 101/173 | **163/173** |
+| 없는 위험 보고 | 12 | 12 |
+| 현장 확인 요청 (그중 실제 물체) | - | 11 (7) |
 
 - **바디캠만**: 바디캠이 3프레임 이상 확정한 물체만, 바디캠 판정 그대로. **에이전트**: CCTV 확대 재확인, 점검표, 위치 보정·병합까지 거친 최종 대장
-- 재확인 105건 실행 (요청 136건 중 24건은 기다리는 동안 바디캠이 확정해서 취소): 다시 찾음 96, 판정 고침 2 (둘 다 정답과 맞게), 다른 CCTV 로 재시도 5, 현장 확인 15, 오검출로 뺌 5
-- 끝내 못 찾은 위험 14개 중 **12개가 통로 바닥의 작은 공구** (YOLO 에서 가장 약한 클래스). 바디캠에 한 번도 검출되지 않으면 재확인 대상에도 못 오름
-- 없는 위험 보고 2건은 남쪽 작업 구역에 붙어 있는 유출·적재물 사이에서 추적이 섞이거나 위치가 틀어져 적재물이 한 번 더 올라간 경우 (시드 5)
-- 동쪽 랙 남쪽 끝 소화기는 기둥과 적재물에 가려 CCTV 로 볼 수 없는 경우가 많아 현장 확인으로 넘어감 (정답표 확인 결과 실제 물체)
+- 재확인 128건 실행 (요청 150건 중 19건은 기다리는 동안 바디캠이 확정해서 취소): 다시 찾음 110, 판정 고침 2 (둘 다 정답과 맞게), 다른 CCTV 로 재시도 28, 현장 확인 21, 오검출로 뺌 4
+- 끝내 못 찾은 위험 7개: 통로 바닥 공구 4, 소화기 3 (기둥·적재물에 가려 CCTV 로 못 보고 현장 확인으로 넘어간 것 포함)
+- **없는 위험 보고 12건**: 정답과 안 맞는 대장 항목 23개를 보면 21개가 **중복**입니다. 이미 제자리에 잡힌 물체를 멀리서 다시 봐서 바닥 투영 위치가 2~7 m 어긋나고, 같은 물체로 묶이지 않아 대장에 한 번 더 올라간 것 (유출 10, 적재 8, 공구 3). 거리에 따라 묶는 범위를 넓히거나 먼 관찰은 새 항목을 만들지 않게 고칠 계획
+- 첫 모델 (10 클래스, 4000장) 과 비교: 에이전트 위험 판정 81% → **92%**, 바디캠 YOLO 위험 판정 92% → **100%**
 
-**바디캠 YOLO 판정** (경로에서 보인 물체 151개, 프레임 단위 채점)
+**위험 영역, 음성 경고, 공구 이름** (같은 10개 배치)
 
 | 항목 | 결과 |
 |---|:-:|
-| 위험 물체를 위험으로 판정 | **61/66 (92%)** |
-| 안전 물체를 안전으로 판정 | **82/85 (96%)** |
+| 위험 영역 (라바콘 링, DANGER 표지) 알아봄 | **20/20** |
+| 엉뚱한 곳에 만든 표시 영역 | 4 |
+| 에이전트가 스스로 판단한 위험 영역 (그중 실제 위험 주변) | 48 (42) |
+| 작업자가 닿기 직전 (위험물 1 m, 영역 0.5 m) 사건에 음성 경고 | **29/37** |
+| 음성 경고 중 실제 사건에 맞은 것 | 29/40 |
+| 공구 이름 맞힘 (정답 공구 중) | 42/75 |
+
+**바디캠 YOLO 판정** (경로에서 보인 물체 150개, 프레임 단위 채점)
+
+| 항목 | 결과 |
+|---|:-:|
+| 위험 물체를 위험으로 판정 | **89/89 (100%)** |
+| 안전 물체를 안전으로 판정 | **61/61 (100%)** |
 | 위험을 안전으로 / 안전을 위험으로 오판 | **0 / 0** |
-| 정답 없는 곳에 위험 박스 | 11 / 2340 프레임 |
+| 정답 없는 곳에 위험 박스 | 85 / 2340 프레임 |
 
 **CCTV 접근 경고** (2 m, CCTV 3대)
 
 | 항목 | 결과 |
 |---|:-:|
-| 작업자가 위험물 2 m 안으로 다가간 사건 | 12 |
-| 경고 성공 | **8/12** |
-| 오경보 | 4번 |
-| 작업자 위치 오차 / 거리 오차 (중앙값) | **0.30 m / 0.29 m** |
+| 작업자가 위험물 2 m 안으로 다가간 사건 | 27 |
+| 경고 성공 | **22/27** |
+| 오경보 (실제 3 m 넘는데 경고) | 10번 |
+| 작업자 위치 오차 / 거리 오차 (중앙값) | **0.28 m / 0.28 m** |
 
-- 놓친 접근 경고 4건은 모두 북쪽 끝 유출 자리: 그곳을 보는 CCTV 2대가 약 29 m 떨어져 작업자가 너무 작게 찍힘 (거리 계산은 20 m 안만). 북쪽 CCTV 를 더 두면 해결되는 배치 문제
+### 손동작 명령 (`test_gestures.py`, 경로 8곳 x 손가락 1~5, 곳마다 조명 무작위)
+
+순찰 때와 똑같이 손을 올리고 → 2초쯤 들고 → 내리는 동안의 바디캠 화면 (0.1초마다) 을 명령 확정 필터에 넣어 채점했습니다.
+
+| 항목 | 결과 |
+|---|:-:|
+| 보인 손가락 수대로 명령이 한 번 나옴 | **35/40** |
+| 다른 명령이 나옴 | 1 (손가락 3 → 4, 접은 새끼손가락을 MediaPipe 가 편 것으로 봄) |
+| 명령이 안 나옴 | 4 (모두 아주 어두운 북쪽 끝 한 곳, 화면 평균 밝기 9%) |
+| 손을 다 올린 화면 중 수를 맞힘 | 418/476 |
+| 손을 올리고 내리는 중 잘못 실행된 명령 | **0** (멈춘 손만 셈) |
+
+`score_gestures.py` 는 저장한 시험 화면 (`--raw`) 으로 Isaac 없이 다시 채점합니다 (손 인식 기준을 바꿀 때).
 
 시나리오별 표는 [`outputs/eval/patrol_results.md`](outputs/eval/patrol_results.md), 물체별 판정은 `outputs/eval/inspection_seed<시드>.json`, 조치 지시서는 `outputs/agent/dashboard_seed<시드>.html`.
-시드마다 약 4.3분 (Isaac 안 YOLO 는 CPU). RTX 렌더링이 매번 조금씩 달라서 같은 시드라도 결과가 한두 개 달라질 수 있습니다.
+시드마다 약 5분 (Isaac 안 YOLO 는 CPU). RTX 렌더링이 매번 조금씩 달라서 같은 시드라도 결과가 한두 개 달라질 수 있습니다.
 
 ---
 
@@ -175,14 +248,22 @@ factory-safety-isaac/
 ├── requirements.txt          일반 파이썬 패키지 (YOLO 학습, 평가, 테스트)
 ├── docs/                     구조도, 평면도, YOLO 혼동 행렬과 학습 곡선, 보고서 그림
 ├── factory_safety/           ── 핵심 패키지 ──
-│   ├── config.py             클래스 (위험/안전), 에셋 주소, 경고 거리
+│   ├── config.py             클래스 (위험/안전, 공구 8종, 라바콘·표지), 에셋 주소, 경고 거리
 │   ├── warehouse.py          ★ 창고 배치: 순찰 경로, 물체 자리, 작업대, CCTV 위치, 구역 이름
 │   ├── scenario.py           ★ 위험/안전 물체 무작위 배치 + 정답표
 │   ├── scene.py              USD 장면: 창고 참조, 물체 묶음 + 의미 라벨, 작업자, 카메라
-│   ├── walk_anim.py          작업자 걷기 동작 (뼈대에 직접 만듦)
+│   ├── walk_anim.py          작업자 걷기 동작과 손동작 자세 (뼈대에 직접 만듦)
 │   ├── walker.py             정해진 경로 걷기 + 가슴 바디캠 흔들림
 │   ├── agent.py              ★ 안전 에이전트: 점검표 계획, 위험물 대장, CCTV 선택·확대 재확인, 조치 지시서, 채점
-│   ├── dashboard.py          조치 지시서 HTML (평면도, 조치 목록, 점검표, 기록)
+│   ├── zones.py              위험 영역 (라바콘 묶음, DANGER 표지, 에이전트 판단)
+│   ├── voice.py              음성 경고 (경보음 + Windows 한국어 음성)
+│   ├── overlay.py            화면에 박스와 한국어 이름, 손 관절 그리기
+│   ├── assistant.py          손동작 명령 1~5 실행 (장비 설명, 공장 스캔, TBM, 호출, SOS)
+│   ├── story.py              시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출)
+│   ├── assistant_client.py   손 인식·음성 도우미 프로세스 부르기
+│   ├── hand_count.py         손 관절 21점 → 손가락 수, 연속 확인
+│   ├── i18n.py               4개 언어 문장 틀, 현장 용어집, TBM 항목
+│   ├── dashboard.py          조치 지시서 HTML (평면도, 위험 영역, 조치 목록, 음성 경고, 점검표, 기록)
 │   ├── inspection.py         바닥 투영, 바디캠 프레임 채점, CCTV 거리 경고
 │   ├── detector.py           YOLO 래퍼 (추적 포함)
 │   ├── dataset.py            학습 데이터 촬영 시점, 후처리, YOLO 형식
@@ -190,19 +271,28 @@ factory-safety-isaac/
 │   ├── isaac_utils.py        Isaac Sim 버전 차이 흡수, Replicator 도우미
 │   └── report.py             터미널 로그
 ├── scripts/
+│   ├── get_assets.py         [파이썬] Poly Haven 공구 모델 받기
 │   ├── build_scene.py        [Isaac] 장면 + 정답표
 │   ├── generate_dataset.py   [Isaac] YOLO 합성 데이터
-│   ├── run_patrol.py         [Isaac] 순찰 + 에이전트, 조치 지시서, 채점
+│   ├── run_patrol.py         [Isaac] 순찰 + 에이전트, 조치 지시서, 채점 (--gestures demo 로 손동작)
+│   ├── test_gestures.py      [Isaac] 손동작 인식 시험 (경로 여러 곳 x 손가락 1~5)
+│   ├── score_gestures.py     [.venv-assistant] 저장한 시험 화면으로 다시 채점
+│   ├── assistant_worker.py   [.venv-assistant] MediaPipe 손 인식 + 다국어 음성
 │   ├── train_yolo.py         [파이썬] YOLO 학습
+│   ├── val_yolo.py           [파이썬] YOLO 검증 점수 (metrics.json)
 │   ├── compare_yolo.py       [파이썬] YOLO 가중치 비교
 │   ├── eval_patrol.py        [파이썬] 여러 시나리오 평가 (내부에서 Isaac)
 │   ├── demo_all.py           [파이썬] 전체 시연 (내부에서 Isaac)
 │   ├── make_video.py         [파이썬] 시연 영상 (run_patrol --record 결과로)
 │   ├── make_figures.py       [파이썬] 구조도, 흐름도
+│   ├── pick_figures.py       [파이썬] 녹화에서 보고서 그림 고르기
 │   ├── make_docs.py          [파이썬] 개발완료보고서, 기술설명서 (docx)
+│   ├── make_slides.py        [파이썬] 발표자료 (pptx)
+│   ├── to_pdf.ps1            [PowerShell] docx, pptx → PDF (Word, PowerPoint 필요)
 │   └── plot_layout.py        [파이썬] 평면도
+├── data/tbm_today.json       오늘 TBM (작업, 위험, 지킬 것, 지난 순찰 조치)
 ├── tests/test_core.py        Isaac 없이 도는 테스트
-└── outputs/                  결과물 (저장소에는 eval/ 채점 결과와 yolo/warehouse/weights/best.pt 만)
+└── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서, yolo/warehouse_v3/weights/best.pt 만)
 ```
 
 `★` 두 파일을 고치면 경로, 물체 자리, 배치 확률이 장면, 학습 데이터, 순찰, 채점에 한꺼번에 반영됩니다.
@@ -232,6 +322,10 @@ setx ISAACSIM_PYTHON "C:\dev\factory-safety-isaac\.venv-isaac\Scripts\python.exe
 # 2) 학습용 가상환경
 py -3.12 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
+
+# 3) 손동작·다국어 음성 도우미 (손동작 명령을 쓸 때만, 손 모델은 처음 실행 때 받음)
+py -3.12 -m venv .venv-assistant
+.venv-assistant\Scripts\python -m pip install mediapipe edge-tts imageio-ffmpeg
 # Windows 에서는 위 명령이 CPU 전용 torch 를 깔아요. GPU 학습용으로 CUDA 빌드로 바꿔주기
 .venv\Scripts\python -m pip install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu126 --force-reinstall --no-deps
 ```
@@ -239,24 +333,31 @@ py -3.12 -m venv .venv
 > Isaac Sim 첫 실행 때 NVIDIA Omniverse 라이선스(EULA) 동의를 물어봐요. 터미널에서 `Yes` 를 입력하거나 환경 변수 `OMNI_KIT_ACCEPT_EULA=YES`.
 > `setx` 후에는 **VSCode를 완전히 껐다 켜야** 환경 변수가 적용돼요.
 
-**확인** (Isaac 없이 1초): `.venv\Scripts\python -m pytest tests -q` → `19 passed`
+**확인** (Isaac 없이 1초): `.venv\Scripts\python -m pytest tests -q` → `26 passed`
 
 ---
 
 ## 🚀 빠른 시작
 
 ```powershell
+# 0) 공구 모델 받기 (Poly Haven, 처음 한 번)
+.venv\Scripts\python scripts/get_assets.py
+
 # 1) 장면 확인 (위에서 본 창고, 정답표 저장)
 & $env:ISAACSIM_PYTHON scripts/build_scene.py
 
-# 2) 학습 데이터 4000장 (약 30분) → YOLO 학습 (약 2시간). 학습된 가중치가 들어 있으니 건너뛰어도 됨
-& $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 4000 --scenario-every 40
-.venv\Scripts\python scripts/train_yolo.py --epochs 80
+# 2) 학습 데이터 5000장 + 공구 가까이 1500장 + 운반 카트 1200장 → YOLO 학습 (약 2시간). 학습된 가중치가 들어 있으니 건너뛰어도 됨
+& $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 5000 --scenario-every 40 --seed 7
+& $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 1500 --scenario-every 30 --seed 11 --focus tools --prefix wt --out outputs/dataset_tools
+& $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 1200 --scenario-every 30 --seed 21 --carts 2 --focus cart --prefix wc --out outputs/dataset_cart
+.venv\Scripts\python scripts/train_yolo.py --data outputs/data_v3.yaml --epochs 80
+.venv\Scripts\python scripts/val_yolo.py
 
 # 3) 순찰 (바디캠 화면 / 관제 화면 / CCTV 화면)
 & $env:ISAACSIM_PYTHON scripts/run_patrol.py
 & $env:ISAACSIM_PYTHON scripts/run_patrol.py --view top
 & $env:ISAACSIM_PYTHON scripts/run_patrol.py --view cctv_west
+& $env:ISAACSIM_PYTHON scripts/run_patrol.py --story                          # 시연 이야기 (손동작, 카트, 영어 안내)
 
 # 4) 여러 시나리오 채점, 전체 시연
 .venv\Scripts\python scripts/eval_patrol.py --seeds 0 1 2 3 4
@@ -274,7 +375,7 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 전부 들어 있어
 
 | 옵션 | 기본값 | 설명 |
 |---|---|---|
-| `--weights` | `outputs/yolo/warehouse/weights/best.pt` | YOLO 가중치 |
+| `--weights` | `outputs/yolo/warehouse_v3/weights/best.pt` | YOLO 가중치 |
 | `--seed` | 무작위 | 위험 요소 배치 시드 (같으면 같은 배치) |
 | `--laps` | `1` | 몇 바퀴 (한 바퀴 59 m, 걸음 1.25 m/s 로 약 47초) |
 | `--view` | `bodycam` | `bodycam` / `top` (위에서) / `ptz` (CCTV 확대 재확인) / `cctv_west` `cctv_east` `cctv_south` |
@@ -283,6 +384,10 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 전부 들어 있어
 | `--no-cctv` | | CCTV 거리 측정과 확대 재확인 끄기 |
 | `--no-recheck` | | 에이전트 재확인(CCTV 확대) 끄기 (비교용) |
 | `--record` | | 영상용: 바디캠, CCTV, 확대 화면과 에이전트 상태를 저장할 폴더 (`make_video.py` 입력) |
+| `--story` | | 시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출, 손 인식 켬) |
+| `--gestures` | `off` | `demo`: 손가락 3 → 1 → 2 → 4 → 5 를 차례로 보임, `watch`: 손 인식만 (손동작은 안 함) |
+| `--lang` | `zh,en,ja` (`--story` 는 `en`) | 작업자 언어 (`ko` `en` `zh` `ja`). 여러 개면 명령마다 돌아가며 |
+| `--sound` | `auto` | 음성 경고·안내 소리 (`auto` 는 창이 있을 때만) |
 | `--result` | `outputs/eval/inspection_seed<시드>.json` | 채점 결과 |
 
 관제/CCTV 화면에서는 접근 경고가 나면 작업자와 위험물 사이에 빨간 선이 그려집니다.
@@ -300,8 +405,11 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 전부 들어 있어
 | `--val-every` | `7` | 7장 중 1장을 검증용 |
 | `--no-light-random` `--no-post` | | 조명 무작위화 / 흔들림·노이즈 끄기 |
 | `--gui` | | 창을 띄워 찍히는 장면 보기 |
+| `--focus tools` / `cart` | | 공구만 가까이서 / 운반 카트를 절반은 가까이서 (`--carts 2` 와 같이) |
+| `--carts` | `0` | 배치마다 운반 카트 수 |
+| `--prefix` `--out` | `wh` `outputs/dataset` | 파일 이름 앞부분, 저장 폴더 (데이터셋을 합칠 때) |
 
-**촬영 시점**: 바디캠 55% (경로 위 가슴 높이 1.2~1.55 m, 절반은 물체 쪽을 봄), CCTV 30% (3대 근처에서 위치·각도를 흔들고 작업자를 시야에 둠), 자유 15% (물체 주변 1.0~2.2 m).
+**촬영 시점**: 바디캠 (경로 위 가슴 높이 1.2~1.55 m, 절반은 물체 쪽을 봄), CCTV (3대 근처에서 위치·각도를 흔들고 작업자를 시야에 둠), 자유 시점 (물체 주변, 공구는 더 가까이), 위험 영역 (라바콘·표지 쪽).
 **출력**: `outputs/dataset/{images,labels}/{train,val}`, `data.yaml`, `README.txt` (클래스별 라벨 수)
 </details>
 
@@ -310,11 +418,12 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 전부 들어 있어
 
 | 옵션 | 기본값 | 설명 |
 |---|---|---|
-| `--model` | `yolo26s.pt` | 시작 가중치 (YOLO26: NMS 없는 출력, 작은 물체용 라벨 할당) |
+| `--data` | `outputs/data_v3.yaml` | 데이터 (일반 촬영 + 공구 가까이 + 운반 카트, 19클래스) |
+| `--model` | `yolo26s.pt` | 시작 가중치 (YOLO26: NMS 없는 출력, 작은 물체용 라벨 할당). 새 모델은 첫 모델 `outputs/yolo/warehouse/weights/best.pt` 에서 이어 학습 |
 | `--imgsz` | `960` | 데이터 해상도 그대로 |
-| `--epochs` | `100` | 4000장 기준 80이면 충분 |
+| `--epochs` | `100` | 처음부터 80, 이어 학습이면 40 |
 | `--batch` | `16` | YOLO26s, 960 에서 약 11 GB |
-| `--name` | `warehouse` | 결과 `outputs/yolo/<name>/weights/best.pt` |
+| `--name` | `warehouse_v3` | 결과 `outputs/yolo/<name>/weights/best.pt` |
 </details>
 
 ---
@@ -336,6 +445,12 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 | 몇 개씩, 위험 확률 | `scenario.py` 의 `sample_scenario()` |
 | 물체 모양 (기울기, 상자 수, 공구 종류) | `scene.py` 의 `_build_spill`, `_build_tool`, `_build_stack`, `_build_ext` |
 | 접근 경고 거리 | `config.py` 의 `PROXIMITY_WARN_M` |
+| 음성 경고 거리, 문구 | `config.py` 의 `TOUCH_WARN_M`, `VOICE_TEXT` |
+| 오늘 TBM 내용 | `data/tbm_today.json` (항목 키는 `i18n.py` 의 `TBM_ITEMS`, `ACTIONS`) |
+| 손동작 안내 문장, 언어 추가 | `i18n.py` (문장 틀마다 언어별 문장), 음성은 `assistant_worker.py` 의 `VOICES` |
+| 손가락 세는 기준 | `hand_count.py` 의 `BEND_MAX`, `REACH_MIN`, `THUMB_OUT` |
+| 위험 영역 크기 (라바콘 연결 거리, 표지 반경, 에이전트 판단 반경) | `zones.py` 의 `CONE_LINK_M`, `SIGN_RADIUS`, `AGENT_RADIUS` |
+| 위험 영역이 놓일 자리 | `warehouse.py` 의 `ZONE_SLOTS` |
 | 걷는 속도, 바디캠 높이 | `walker.py` 의 `PathWalker` |
 | 재확인 조건, CCTV 확대 화각, 확신 기준 | `agent.py` 의 `SafetyAgent` 상수 (`LOW_SHARE`, `PTZ_WINDOWS`, `PTZ_SURE` 등) |
 | 조치 방법, 심각도 | `agent.py` 의 `ACTIONS`, `SAFE_NOTES` |
@@ -365,9 +480,10 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 
 | 부분 | 상태 |
 |---|---|
-| 배치, 정답표, 경로, 걷기, 판정·채점 로직, 바닥 투영, CCTV 거리, USD 장면, 에이전트 (재확인·재시도·병합·위치 보정·조치 지시서) | 테스트 19개 통과 (`tests/test_core.py`) |
+| 배치, 정답표, 경로, 걷기, 판정·채점 로직, 바닥 투영, CCTV 거리, USD 장면, 에이전트 (재확인·재시도·병합·위치 보정·조치 지시서), 위험 영역, 음성 경고, 공구 자리 판단, 손가락 세기, 다국어 문장, 손동작 자세 | 테스트 26개 통과 (`tests/test_core.py`) |
 | 실제 Isaac Sim 6.0.1 (RTX 4060 Ti 16 GB, Windows 11) 장면, 라벨, 작업자 걷기 | ✅ |
-| 학습 데이터 4000장, YOLO 학습, 시나리오 10개 순찰 + 에이전트 채점 | ✅ (위 결과 표) |
+| 학습 데이터 6500장 (18클래스), YOLO 학습, 시나리오 10개 순찰 + 에이전트·위험 영역·음성 경고·공구 이름 채점 | ✅ (위 결과 표) |
+| 손동작 명령 (손가락 1~5, 경로 8곳 x 조명) | ✅ 35/40 |
 | 실제 사진, 실제 CCTV | ❌ 아직 안 함 (합성 데이터만으로 학습) |
 
 ---
@@ -384,7 +500,11 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 ## 📦 사용한 것
 
 - NVIDIA Isaac Sim 6.0, OpenUSD, Omniverse Replicator
-- NVIDIA Isaac Sim 에셋 (창고 `Simple_Warehouse`, 소품, 사람 모델) · YCB 물체 (공구 실물 스캔). 에셋은 NVIDIA 에셋 서버에서 참조로 불러오고 저장소에 포함하지 않음
+- NVIDIA Isaac Sim 에셋 (창고 `Simple_Warehouse`, 소품, 라바콘, 사람 모델) · YCB 드릴. 에셋은 NVIDIA 에셋 서버에서 참조로 불러오고 저장소에 포함하지 않음
+- [Poly Haven](https://polyhaven.com/models) 공구 실물 스캔 (CC0): 망치 3종, 드라이버 2종, 톱 2종, 곡괭이, 삽, 렌치 3종. `get_assets.py` 로 받고 저장소에 포함하지 않음
+- Windows 음성 합성 (SAPI, 한국어 Heami)
+- [MediaPipe Hands](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker) (Apache-2.0) 손 관절 인식
+- [edge-tts](https://github.com/rany2/edge-tts) (Microsoft 온라인 신경망 음성, 인터넷 필요)
 - [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) (AGPL-3.0, 상업적으로 쓸 계획이면 라이선스 확인 필요)
 - numpy, Pillow, matplotlib
 

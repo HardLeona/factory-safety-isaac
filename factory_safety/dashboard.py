@@ -35,6 +35,12 @@ def _map_svg(rep):
     for (tx, ty, _) in W.TABLES:
         x, y = _p(tx - 1.24, ty + 0.39)
         out.append(f'<rect x="{x:.0f}" y="{y:.0f}" width="{2.47 * S:.0f}" height="{0.78 * S:.0f}" fill="#a07850"/>')
+    for zz in rep.get("zones", []):
+        pts = " ".join("{:.0f},{:.0f}".format(*_p(a, b)) for a, b in zz["poly"])
+        col = "#d93a3a" if zz["source"] != "agent" else "#e07a1a"
+        out.append(f'<polygon points="{pts}" fill="{col}" fill-opacity="0.16" stroke="{col}" stroke-width="2" stroke-dasharray="5 3"/>')
+        cx, cy = _p(zz["x"], zz["y"])
+        out.append(f'<text x="{cx:.0f}" y="{cy - zz["radius"] * S - 4:.0f}" class="zl" fill="{col}">{zz["id"]}</text>')
     path = W.PatrolPath()
     pts = " ".join("{:.0f},{:.0f}".format(*_p(px, py)) for px, py in path.pts[::4])
     out.append(f'<polygon points="{pts}" fill="none" stroke="#3a78c9" stroke-width="2" stroke-dasharray="6 5" opacity="0.7"/>')
@@ -87,29 +93,61 @@ def _eval_html(ev):
             ("안전을 위험으로 오판", b["safe_as_hazard"], a["safe_as_hazard"]),
             ("없는 위험 보고", b["false_reports"], a["false_reports"]),
             ("현장 확인 요청", "-", f"{a['need_check']} (실제 물체 {a['need_check_real']})")]
+    if "zones" in ev:
+        z, v, t = ev["zones"], ev["voice"], ev["tools"]
+        rows += [("위험 영역 (라바콘·표지) 알아봄", "-", f"{z['found']}/{z['gt']}"),
+                 ("에이전트가 판단한 위험 영역 (실제 위험 주변)", "-", f"{z['agent']} ({z['agent_real']})"),
+                 ("닿기 직전 사건에 음성 경고", "-", f"{v['warned']}/{v['events']}"),
+                 ("공구 이름 맞힘", "-", f"{t['named']}/{t['total']}")]
+    if "gestures" in ev:
+        g = ev["gestures"]
+        rows += [("손동작 명령 맞게 인식 (잘못 실행)", "-", f"{g['recognized']}/{g['shown']} ({g['extra']})")]
     body = "".join(f"<tr><td>{k}</td><td>{v1}</td><td>{v2}</td></tr>" for k, v1, v2 in rows)
     return (f'<h2>정답표 비교 (평가용)</h2><table class="ev"><tr><th></th><th>바디캠만</th><th>에이전트</th></tr>{body}</table>'
             f'<p class="muted">재확인 {r["recheck_run"]}건: 찾음 {r["recheck_found"]}, 판정 고침 {r["recheck_changed"]} '
             f'(맞게 고침 {r["changed_correct"]}), 다른 CCTV 로 재시도 {r["recheck_retry"]}, 현장 확인 {r["recheck_escalated"]}</p>')
 
 
+def cctv_note(e):
+    return f" · CCTV {html.escape(e['cctv'])} 가 작업자 확대" if e.get("cctv") else ""
+
+
 def write_dashboard(path, rep, evaluation=None, seed=None, title="창고 안전 순찰 조치 지시서"):
     s = rep["summary"]
     tl = "".join(f'<li><span class="t">{clock(e["t"])}</span><span class="k k{e["kind"].replace(" ", "")}">{e["kind"]}</span>'
                  f'{html.escape(e["text"])}</li>' for e in rep["timeline"] if e["kind"] != "계획" or "점검표" not in e["text"])
+    srcname = {"cone": "라바콘 표시", "sign": "DANGER 표지", "agent": "에이전트 판단"}
+    zrows = "".join(f'<tr><td>{z["id"]}</td><td><b>{srcname[z["source"]]}</b>: {html.escape(z["reason"])}</td>'
+                    f'<td>{html.escape(z["zone"])} <small>({z["x"]:+.1f}, {z["y"]:+.1f})</small></td><td>반지름 {z["radius"]:.1f} m</td></tr>'
+                    for z in rep.get("zones", [])) or '<tr><td colspan="4">없음</td></tr>'
+    vrows = "".join(f'<tr><td>{clock(v["t"])}</td><td>{html.escape(v["what"])}</td></tr>' for v in rep.get("voice", [])) \
+        or '<tr><td colspan="2">없음</td></tr>'
     cps = "".join(f'<tr><td>{c["id"]}</td><td>{html.escape(c["name"])}</td><td>{c["status"]}</td><td>{c["finding"] or "-"}</td></tr>'
                   for c in rep["checkpoints"])
+    asst = rep.get("assistant", [])
+    arows = "".join(
+        f'<tr class="a{e["count"]}"><td>{clock(e["t"])}</td><td><b>{e["count"]}</b></td><td class="zone">{html.escape(e["cmd"])}</td>'
+        f'<td class="zone">{html.escape(e["lang_name"])}</td><td>{html.escape(e["text"])}<br><span class="muted">{html.escape(e["text_ko"])}</span></td></tr>'
+        for e in asst)
+    alerts = "".join(
+        f'<div class="alert {"sos" if e["count"] == 5 else "mgr"}"><b>{"SOS 신고" if e["count"] == 5 else "관리자 호출"}</b> '
+        f'{clock(e["t"])} · {html.escape(e["zone"])} ({e["worker"][0]:+.1f}, {e["worker"][1]:+.1f}) · 작업자 언어 {html.escape(e["lang_name"])}'
+        f'{cctv_note(e)}</div>'
+        for e in asst if e["count"] in (4, 5))
     doc = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>{title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body{{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#f6f7f9;color:#1d2330}}
+body{{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei","Yu Gothic",sans-serif;background:#f6f7f9;color:#1d2330}}
+.alert{{margin:10px 24px 0;padding:10px 14px;border-radius:8px;font-size:14px}} .alert.sos{{background:#d93a3a;color:#fff}}
+.alert.mgr{{background:#f6e3a6;color:#4a3a00}} .k손동작{{color:#0a7cc4}} .k관리자호출{{color:#c27c00}} .kSOS{{color:#d93a3a}}
+tr.a5 td{{background:#fdeaea}} tr.a4 td{{background:#fdf6e0}}
 header{{background:#1f2b3d;color:#fff;padding:14px 24px}} header h1{{margin:0;font-size:22px}} header p{{margin:4px 0 0;opacity:.8}}
 main{{display:grid;grid-template-columns:400px 1fr;gap:18px;padding:18px 24px}}
 .card{{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
 .kpi{{display:flex;gap:10px;margin-bottom:12px}} .kpi div{{flex:1;background:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
 .kpi b{{display:block;font-size:26px}} .kpi span{{font-size:12px;color:#667}}
 .map{{width:100%;height:auto}} .lbl{{font-size:10px;fill:#333}} .num{{font-size:11px;fill:#fff;font-weight:700;text-anchor:middle}}
-.ck{{font-size:9px;text-anchor:middle;fill:#333}}
+.ck{{font-size:9px;text-anchor:middle;fill:#333}} .zl{{font-size:12px;font-weight:700;text-anchor:middle}}
 table{{width:100%;border-collapse:collapse;font-size:13px}} th,td{{border-bottom:1px solid #e4e6ea;padding:6px 6px;text-align:left;vertical-align:top}}
 tr.safe td{{color:#667}} .st{{color:#fff;border-radius:4px;padding:1px 6px;font-size:12px}}
 .pri{{border-radius:4px;padding:1px 6px;font-size:12px;background:#eee;white-space:nowrap}} .st{{white-space:nowrap}}
@@ -122,17 +160,23 @@ ul.tl li{{padding:3px 0;border-bottom:1px dashed #e4e6ea}} .t{{color:#889;margin
 @media (max-width:900px){{main{{grid-template-columns:1fr}}}}
 </style></head><body>
 <header><h1>{title}</h1><p>작업자 바디캠 + CCTV 3대 + YOLO 판정, 에이전트 재확인 결과{f" · 시나리오 {seed}" if seed is not None else ""}</p></header>
+{alerts}
 <main><section>
 <div class="kpi"><div><b style="color:#d93a3a">{s['hazards']}</b><span>위험 (긴급 {s['urgent']})</span></div>
 <div><b style="color:#e09a1a">{s['need_check']}</b><span>현장 확인</span></div>
 <div><b style="color:#2e9d5b">{s['safe']}</b><span>안전 확인</span></div>
-<div><b>{s['checkpoints_done']}/{s['checkpoints']}</b><span>점검표</span></div></div>
+<div><b>{s['checkpoints_done']}/{s['checkpoints']}</b><span>점검표</span></div>
+<div><b style="color:#d93a3a">{s.get('zones', 0)}</b><span>위험 영역</span></div>
+<div><b style="color:#9b4dca">{s.get('voice', 0)}</b><span>음성 경고</span></div></div>
 <div class="card">{_map_svg(rep)}
 <p class="legend"><span style="color:#d93a3a">● 위험 (번호=우선순위)</span><span style="color:#e09a1a">● 확인 필요</span>
 <span style="color:#2e9d5b">● 안전</span><span>□ 점검 지점</span><span style="color:#3a78c9">- - 순찰 경로</span></p></div>
+<div class="card" style="margin-top:14px"><h2>위험 영역</h2><table><tr><th></th><th>근거</th><th>위치</th><th>크기</th></tr>{zrows}</table></div>
+<div class="card" style="margin-top:14px"><h2>음성 경고 ("경고 경고 위험 요소가 식별되었습니다")</h2><table><tr><th>시각</th><th>작업자가 다가간 것</th></tr>{vrows}</table></div>
 <div class="card" style="margin-top:14px"><h2>점검표</h2><table><tr><th></th><th>지점</th><th>결과</th><th>대장</th></tr>{cps}</table></div>
 </section><section>
 <div class="card"><h2>조치 목록 (우선순위 순)</h2><table><tr><th>#</th><th>우선</th><th>판정</th><th>위치</th><th>조치</th><th>근거</th></tr>{_rows(rep)}</table></div>
+{f'<div class="card" style="margin-top:14px"><h2>작업자 손동작 요청 (손가락 1~5 → 작업자 언어 안내)</h2><table><tr><th>시각</th><th>손가락</th><th>명령</th><th>언어</th><th>안내 (원문 / 한국어)</th></tr>{arows}</table></div>' if asst else ""}
 {f'<div class="card" style="margin-top:14px">{_eval_html(evaluation)}</div>' if evaluation else ""}
 <div class="card" style="margin-top:14px"><h2>에이전트 기록</h2><ul class="tl">{tl}</ul></div>
 </section></main></body></html>"""

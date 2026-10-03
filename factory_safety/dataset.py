@@ -16,8 +16,8 @@ from .geometry import CameraPose
 from .walk_anim import PERIOD
 
 # 촬영 대상 물체를 고르는 가중치 (드문 클래스를 더 자주)
-CAPTURE_WEIGHTS = {"spill": 1.2, "spill_marked": 1.2, "tool_floor": 2.0, "tool_stored": 1.0, "stack_unstable": 1.0,
-                   "stack_stable": 1.0, "ext_fallen": 1.6, "ext_blocked": 1.6, "ext_ok": 0.6}
+CAPTURE_WEIGHTS = {"spill": 1.2, "spill_marked": 1.2, "tool_floor": 2.6, "tool_stored": 1.3, "stack_unstable": 1.0,
+                   "stack_stable": 1.0, "ext_fallen": 1.6, "ext_blocked": 1.6, "ext_ok": 0.6, "zone": 1.6, "cart": 2.5}
 
 
 def _look_at(pos, target):
@@ -26,18 +26,52 @@ def _look_at(pos, target):
 
 
 def _pick_object(rng, scenario):
-    objs = scenario.objects
-    w = np.array([CAPTURE_WEIGHTS[o.cls] for o in objs])
+    """촬영할 물체나 위험 영역 (x, y 가 있는 것)."""
+    objs = list(scenario.objects) + list(getattr(scenario, "zones", [])) + list(getattr(scenario, "equipment", []))
+    w = np.array([CAPTURE_WEIGHTS.get(getattr(o, "cls", "zone"), 1.0) for o in objs])
     return objs[int(rng.choice(len(objs), p=w / w.sum()))]
 
 
-def sample_capture(rng, scenario, path):
-    """학습 이미지 한 장의 (카메라 자세, 작업자 (x, y, yaw, 애니메이션 시각, 보임), 종류)."""
+def _tool_closeup(rng, scenario, worker):
+    """공구를 가까이서 (0.7~2.2 m) 찍는 장면: 작은 공구(드라이버, 렌치)도 이름을 배우게."""
+    tools = [o for o in scenario.objects if o.cls in ("tool_floor", "tool_stored")]
+    o = tools[int(rng.integers(len(tools)))]
+    on_table = o.cls == "tool_stored"
+    a = rng.uniform(0.25 * math.pi, 0.75 * math.pi) if on_table else rng.uniform(0, 2 * math.pi)
+    dist = rng.uniform(0.7, 2.2)
+    x, y = float(np.clip(o.x + dist * math.cos(a), -9.5, 9.5)), float(np.clip(o.y + dist * math.sin(a), -11.5, 17.5))
+    z = rng.uniform(1.1, 1.8) if on_table else rng.uniform(0.8, 1.7)
+    yaw, pitch = _look_at((x, y, z), (o.x + rng.uniform(-0.3, 0.3), o.y + rng.uniform(-0.3, 0.3), W.TABLE_TOP if on_table else 0.05))
+    pose = CameraPose(pos=np.array([x, y, z]), yaw=yaw + rng.uniform(-0.2, 0.2), pitch=float(np.clip(pitch + rng.uniform(-0.08, 0.08), -1.2, 0.1)),
+                      roll=rng.uniform(-0.05, 0.05), vfov=rng.uniform(55, 75))
+    return pose, worker, "tool"
+
+
+def _cart_closeup(rng, scenario, worker):
+    """운반 카트를 1.0~5 m 에서 (작업자 눈높이, 가끔 CCTV 높이) 찍는 장면."""
+    e = list(scenario.equipment)[int(rng.integers(len(scenario.equipment)))]
+    a = rng.uniform(0, 2 * math.pi)
+    dist = rng.uniform(1.0, 5.0)
+    x, y = float(np.clip(e.x + dist * math.cos(a), -9.5, 9.5)), float(np.clip(e.y + dist * math.sin(a), -11.5, 17.5))
+    z = rng.uniform(1.1, 1.7) if rng.random() < 0.8 else rng.uniform(2.5, 4.5)
+    yaw, pitch = _look_at((x, y, z), (e.x + rng.uniform(-0.3, 0.3), e.y + rng.uniform(-0.3, 0.3), 0.6))
+    pose = CameraPose(pos=np.array([x, y, z]), yaw=yaw + rng.uniform(-0.3, 0.3), pitch=float(np.clip(pitch + rng.uniform(-0.1, 0.1), -1.2, 0.1)),
+                      roll=rng.uniform(-0.05, 0.05), vfov=rng.uniform(55, 78))
+    return pose, worker, "cart"
+
+
+def sample_capture(rng, scenario, path, focus=None):
+    """학습 이미지 한 장의 (카메라 자세, 작업자 (x, y, yaw, 애니메이션 시각, 보임), 종류).
+    focus="tools" 면 공구 가까이서만, "cart" 면 절반은 카트 가까이서."""
     r = rng.random()
     s_worker = rng.uniform(0, path.length)
     wp = path.point_at(s_worker)
     worker = (float(wp[0]), float(wp[1]), path.heading_at(s_worker) + (math.pi if rng.random() < 0.3 else 0.0),
               float(rng.uniform(0, PERIOD)), rng.random() < 0.85)
+    if focus == "tools":
+        return _tool_closeup(rng, scenario, worker)
+    if focus == "cart" and getattr(scenario, "equipment", None) and rng.random() < 0.5:
+        return _cart_closeup(rng, scenario, worker)
     if r < 0.55:
         s = rng.uniform(0, path.length)
         p, yaw = path.point_at(s), path.heading_at(s)
@@ -80,10 +114,14 @@ def sample_capture(rng, scenario, path):
         return pose, worker, "cctv"
     o = _pick_object(rng, scenario)
     a = rng.uniform(0, 2 * math.pi)
-    dist = rng.uniform(1.5, 5.0)
+    is_tool = getattr(o, "cls", "") in ("tool_floor", "tool_stored")
+    dist = rng.uniform(0.9, 3.0) if is_tool else rng.uniform(1.5, 5.0)     # 작은 공구는 가까이서도
+    if getattr(o, "cls", "") == "tool_stored":
+        a = rng.uniform(0.25 * math.pi, 0.75 * math.pi)                       # 작업대는 남쪽 벽 앞이라 북쪽에서
     x, y, z = o.x + dist * math.cos(a), o.y + dist * math.sin(a), rng.uniform(1.0, 2.2)
     x, y = float(np.clip(x, -9.5, 9.5)), float(np.clip(y, -11.5, 17.5))
-    yaw, pitch = _look_at((x, y, z), (o.x, o.y, 0.4))
+    tz = {"tool_floor": 0.05, "tool_stored": 1.0, "cart": 0.6}.get(getattr(o, "cls", ""), 0.4)
+    yaw, pitch = _look_at((x, y, z), (o.x, o.y, tz))
     pose = CameraPose(pos=np.array([x, y, z]), yaw=yaw + rng.uniform(-0.25, 0.25),
                       pitch=float(np.clip(pitch + rng.uniform(-0.1, 0.1), -0.9, 0.1)), roll=rng.uniform(-0.05, 0.05),
                       vfov=rng.uniform(55, 75))

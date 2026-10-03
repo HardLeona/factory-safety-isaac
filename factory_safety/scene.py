@@ -5,8 +5,11 @@ OpenUSD(pxr)만 쓴다. Isaac Sim 안에서도, usd-core 만 깔린 일반 파�
 
 물체 하나 = Xform 묶음 하나, 그 묶음에 의미 라벨(클래스)을 붙인다.
 Replicator 의 bounding_box_2d 는 라벨이 붙은 묶음 전체(유출+표지판, 소화기+앞을 막은 상자 등)를 감싼다.
+공구는 하나씩 종류(망치, 삽 ...) 라벨, 라바콘과 DANGER 표지도 따로 라벨을 붙인다.
 """
+import json
 import math
+import os
 
 import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade, UsdSkel
@@ -16,9 +19,51 @@ from .config import ASSETS, IMG_H, IMG_W, WAREHOUSE_URL
 from .walk_anim import FPS, build_walk_animation
 
 H_APERTURE = 20.955  # mm (USD 기본값)
-# 에셋 원점 높이 보정 (원점이 가운데인 YCB 공구는 반 높이만큼 올려야 바닥에 놓임)
-TOOL_LIFT = {"drill": 0.03, "clamp": 0.019, "scissors": 0.009, "wood": 0.045}
-BOX_H = {"box_a": 0.5, "box_b": 0.5}
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+POLYHAVEN_DIR = os.path.join(ROOT_DIR, "assets", "polyhaven")
+GENERATED_DIR = os.path.join(ROOT_DIR, "assets", "generated")
+YCB_DRILL_LIFT = 0.03     # YCB 드릴은 원점이 가운데라 반 높이만큼 올림
+
+
+def _layouts():
+    path = os.path.join(POLYHAVEN_DIR, "models.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def danger_texture(path):
+    """DANGER 표지 그림 (위: 빨간 타원 DANGER, 아래: 위험 구역 / 출입 금지)."""
+    if os.path.exists(path):
+        return path
+    from PIL import Image, ImageDraw, ImageFont
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    w, h = 600, 900
+    im = Image.new("RGB", (w, h), (250, 250, 248))
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, w, 300], fill=(15, 15, 15))
+    d.ellipse([40, 40, w - 40, 260], fill=(210, 20, 30), outline=(250, 250, 250), width=10)
+
+    def font(sz):
+        for name in ("malgunbd.ttf", "arialbd.ttf"):
+            try:
+                return ImageFont.truetype(os.path.join("C:/Windows/Fonts", name), sz)
+            except OSError:
+                continue
+        return ImageFont.load_default()
+    d.text((w / 2, 150), "DANGER", font=font(120), fill=(255, 255, 255), anchor="mm")
+    d.text((w / 2, 450), "위험 구역", font=font(120), fill=(15, 15, 15), anchor="mm")
+    d.text((w / 2, 640), "출입 금지", font=font(110), fill=(200, 20, 30), anchor="mm")
+    d.text((w / 2, 800), "KEEP OUT", font=font(70), fill=(15, 15, 15), anchor="mm")
+    d.rectangle([0, 0, w - 1, h - 1], outline=(15, 15, 15), width=14)
+    im.save(path)
+    return path
+BOX_H = {"box_a": 0.5, "box_b": 0.5, "box_c": 0.25, "box_d": 0.15}
+# 핸드트럭 (Poly Haven hand_truck): 손잡이가 +Y 쪽, 짐 받침이 -Y 쪽. 끌 때는 바퀴 축을 중심으로 손잡이 쪽(+Y)으로 기움
+CART_MODEL = "hand_truck"
+CART_AXLE = (0.0, -0.03, 0.13)       # 바퀴 축 (모델 좌표)
+CART_LOAD_Y = -0.30                  # 상자를 올리는 자리 (짐 받침 위, 프레임 앞)
 BOX_GRID = {"box_b": [(-0.27, -0.25), (0.27, -0.25), (-0.27, 0.25), (0.27, 0.25)],
             "box_a": [(0.0, -0.25), (0.0, 0.25)]}
 
@@ -192,6 +237,11 @@ class WarehouseScene:
         UsdGeom.Xform.Define(self.stage, root)
         for o in scenario.objects:
             self._build_object(root, o)
+        for z in getattr(scenario, "zones", []):
+            self._build_zone(root, z)
+        for e in getattr(scenario, "equipment", []):
+            self.add_cart(f"{root}/{e.id}_cart", e.x, e.y, e.yaw, e.params.get("tilt", 0.0), e.params.get("boxes", 0),
+                          e.params.get("box", "box_c"))
         self._bank.append((scenario, root))
         return len(self._bank) - 1
 
@@ -218,7 +268,8 @@ class WarehouseScene:
             g.AddRotateZOp().Set(math.degrees(o.yaw))
         base = str(g.GetPath())
         getattr(self, f"_build_{o.kind}")(base, o)
-        self.labeler(g.GetPrim(), o.cls)
+        if o.kind != "tool":                   # 공구는 하나씩 종류 라벨 (_build_tool)
+            self.labeler(g.GetPrim(), o.cls)
 
     def _build_spill(self, base, o):
         p = o.params
@@ -235,7 +286,8 @@ class WarehouseScene:
             self._ref(base + "/Sign", ASSETS["wet_sign"], (-r - 0.25, 0.35, 0.0), yaw=0.4)
             for k in range(p["n_cones"]):
                 a = math.pi * (0.2 + 0.9 * k)
-                self._ref(base + f"/Cone{k}", ASSETS["cone"], ((r + 0.35) * math.cos(a) * 1.3, (r + 0.35) * math.sin(a), 0.0))
+                c = self._ref(base + f"/Cone{k}", ASSETS["cone"], ((r + 0.35) * math.cos(a) * 1.3, (r + 0.35) * math.sin(a), 0.0))
+                self.labeler(c.GetPrim(), "cone")
             if src != "none":
                 self._ref(base + "/Source", ASSETS[src], (r * 1.3, -0.4, 0.0))
 
@@ -262,10 +314,150 @@ class WarehouseScene:
 
     def _build_tool(self, base, o):
         z0 = W.TABLE_TOP if o.cls == "tool_stored" else 0.0
-        for k, (kind, dx, dy, yaw) in enumerate(o.params["items"]):
-            rot = (0, 0, 0) if kind != "wood" else (90, 0, 0)
-            lift = TOOL_LIFT[kind] if kind != "wood" else 0.1
-            self._ref(f"{base}/T{k}_{kind}", ASSETS[kind], (dx, dy, z0 + lift), yaw=yaw, rot=rot)
+        lay = _layouts()
+        for k, (kind, model, dx, dy, yaw) in enumerate(o.params["items"]):
+            path = f"{base}/T{k}_{kind}"
+            if model == "procedural":
+                x = UsdGeom.Xform.Define(self.stage, path)
+                x.AddTranslateOp().Set(Gf.Vec3d(dx, dy, z0))
+                x.AddRotateZOp().Set(math.degrees(yaw))
+                self._power_saw(path + "/a")
+            elif model == "ycb_drill":
+                x = self._ref(path, ASSETS["ycb_drill"], (dx, dy, z0 + YCB_DRILL_LIFT), yaw=yaw)
+            else:
+                L = lay.get(model, {"rot": [0, 0, 0], "z": 0.0})
+                url = os.path.join(POLYHAVEN_DIR, model, f"{model}.usdc").replace(os.sep, "/")
+                x = self._ref(path, url, (dx, dy, z0 + L["z"]), yaw=yaw, rot=L["rot"])
+            self.labeler(x.GetPrim(), kind)
+
+    def _power_saw(self, path):
+        """원형 전동톱 (Poly Haven 에 없어서 기본 도형으로): 노란 몸체, 검은 손잡이, 금속 날과 덮개, 받침판."""
+        st = self.stage
+        UsdGeom.Xform.Define(st, path)
+        yellow = self._preview("/World/Looks/SawYellow", (0.85, 0.62, 0.05), 0.45)
+        black = self._preview("/World/Looks/SawBlack", (0.03, 0.03, 0.03), 0.6)
+        steel = self._metal("/World/Looks/SawSteel", (0.62, 0.63, 0.66), 0.3)
+
+        def part(name, kind, pos, scale=(1, 1, 1), mat=None, r=0.05, h=0.1, axis="Y"):
+            g = (UsdGeom.Cylinder if kind == "cyl" else UsdGeom.Cube).Define(st, f"{path}/{name}")
+            if kind == "cyl":
+                g.CreateRadiusAttr(r)
+                g.CreateHeightAttr(h)
+                g.CreateAxisAttr(axis)
+            else:
+                g.CreateSizeAttr(1.0)
+            xf = UsdGeom.Xformable(g)
+            xf.AddTranslateOp().Set(Gf.Vec3d(*pos))
+            if kind != "cyl":
+                xf.AddScaleOp().Set(Gf.Vec3f(*scale))
+            UsdShade.MaterialBindingAPI.Apply(g.GetPrim()).Bind(mat)
+        part("Base", "cube", (0.0, 0.0, 0.006), (0.30, 0.19, 0.012), mat=steel)
+        part("Blade", "cyl", (0.0, -0.035, 0.085), mat=steel, r=0.085, h=0.003)
+        part("Guard", "cyl", (0.0, -0.035, 0.10), mat=steel, r=0.095, h=0.045)
+        part("Motor", "cyl", (0.02, 0.055, 0.10), mat=yellow, r=0.055, h=0.11)
+        part("Body", "cube", (-0.02, 0.01, 0.15), (0.20, 0.07, 0.08), mat=yellow)
+        part("Grip", "cyl", (-0.02, 0.01, 0.235), mat=black, r=0.017, h=0.17, axis="X")
+        part("GripPostA", "cube", (-0.10, 0.01, 0.205), (0.025, 0.03, 0.06), mat=black)
+        part("GripPostB", "cube", (0.06, 0.01, 0.205), (0.025, 0.03, 0.06), mat=black)
+        part("Knob", "cyl", (0.12, 0.01, 0.16), mat=black, r=0.02, h=0.05, axis="Z")
+
+    def _metal(self, path, color, rough):
+        if self.stage.GetPrimAtPath(path):
+            return UsdShade.Material(self.stage.GetPrimAtPath(path))
+        m = self._preview(path, color, rough)
+        UsdShade.Shader(self.stage.GetPrimAtPath(path + "/PBR")).GetInput("metallic").Set(1.0)
+        return m
+
+    # ------------------------------------------------------------ 위험 영역
+    def _build_zone(self, root, z):
+        """라바콘 링 (+ DANGER 표지) 또는 표지만. 안쪽에 뚜껑 열린 바닥 구멍이 있기도 함. 묶음에는 라벨 없음."""
+        base = f"{root}/{z.id}_zone"
+        UsdGeom.Xform.Define(self.stage, base)
+        p = z.params
+        for k, (cx, cy) in enumerate(p.get("cones", [])):
+            c = self._ref(f"{base}/Cone{k}", ASSETS["cone"], (cx, cy, 0.0), yaw=k * 0.7)
+            self.labeler(c.GetPrim(), "cone")
+        a = p.get("sign_yaw", 0.0)
+        if p.get("inner") == "pit":
+            px, py = (z.x, z.y) if z.type == "cone" else (z.x - 0.7 * math.cos(a), z.y - 0.7 * math.sin(a))
+            self._pit(f"{base}/Pit", px, py, a)
+        if p.get("sign"):
+            r = 0.55 * z.radius if z.type == "cone" else 0.0
+            sx, sy = z.x + r * math.cos(a), z.y + r * math.sin(a)
+            sg = self._danger_sign(f"{base}/Sign", sx, sy, a)
+            self.labeler(sg.GetPrim(), "danger_sign")
+
+    def _danger_sign(self, path, x, y, yaw):
+        """A 자형 세움 표지 (높이 0.85 m, 폭 0.55 m), 양면에 DANGER 그림."""
+        st = self.stage
+        g = UsdGeom.Xform.Define(st, path)
+        g.AddTranslateOp().Set(Gf.Vec3d(x, y, 0.0))
+        g.AddRotateZOp().Set(math.degrees(yaw))
+        mat = self._textured("/World/Looks/DangerSign", danger_texture(os.path.join(GENERATED_DIR, "danger_sign.png")))
+        w, h, lean = 0.55, 0.85, math.radians(14)
+        top = h * math.cos(lean)
+        off = h * math.sin(lean)
+        pts, idx, uv = [], [], []
+        for side in (1, -1):
+            b = len(pts)
+            # 아래 두 점은 바깥으로 벌어지고, 위 두 점은 가운데에서 만남
+            pts += [Gf.Vec3f(side * off, -side * w / 2, 0.0), Gf.Vec3f(side * off, side * w / 2, 0.0),
+                    Gf.Vec3f(0.0, side * w / 2, top), Gf.Vec3f(0.0, -side * w / 2, top)]
+            idx += [b, b + 1, b + 2, b + 3]
+            uv += [Gf.Vec2f(0, 0), Gf.Vec2f(1, 0), Gf.Vec2f(1, 1), Gf.Vec2f(0, 1)]
+        mesh = UsdGeom.Mesh.Define(st, path + "/Board")
+        mesh.CreatePointsAttr(pts)
+        mesh.CreateFaceVertexCountsAttr([4, 4])
+        mesh.CreateFaceVertexIndicesAttr(idx)
+        mesh.CreateDoubleSidedAttr(True)
+        pv = UsdGeom.PrimvarsAPI(mesh).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.faceVarying)
+        pv.Set(uv)
+        UsdShade.MaterialBindingAPI.Apply(mesh.GetPrim()).Bind(mat)
+        return g
+
+    def _textured(self, path, image):
+        if self.stage.GetPrimAtPath(path):
+            return UsdShade.Material(self.stage.GetPrimAtPath(path))
+        m = UsdShade.Material.Define(self.stage, path)
+        s = UsdShade.Shader.Define(self.stage, path + "/PBR")
+        s.CreateIdAttr("UsdPreviewSurface")
+        s.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.5)
+        reader = UsdShade.Shader.Define(self.stage, path + "/st")
+        reader.CreateIdAttr("UsdPrimvarReader_float2")
+        reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+        reader.CreateOutput("result", Sdf.ValueTypeNames.Float2)
+        tex = UsdShade.Shader.Define(self.stage, path + "/Tex")
+        tex.CreateIdAttr("UsdUVTexture")
+        tex.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(image.replace(os.sep, "/"))
+        tex.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(reader.ConnectableAPI(), "result")
+        tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+        s.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).ConnectToSource(tex.ConnectableAPI(), "rgb")
+        m.CreateSurfaceOutput().ConnectToSource(s.ConnectableAPI(), "surface")
+        return m
+
+    def _pit(self, path, x, y, yaw):
+        """뚜껑이 열린 바닥 구멍: 검은 구멍 + 노랑 테두리 + 옆에 놓인 철판 뚜껑."""
+        st = self.stage
+        g = UsdGeom.Xform.Define(st, path)
+        g.AddTranslateOp().Set(Gf.Vec3d(x, y, 0.0))
+        g.AddRotateZOp().Set(math.degrees(yaw))
+        dark = self._preview("/World/Looks/PitDark", (0.005, 0.005, 0.005), 0.9)
+        rim = self._preview("/World/Looks/PitRim", (0.9, 0.7, 0.05), 0.5)
+        steel = self._metal("/World/Looks/PitLid", (0.45, 0.46, 0.48), 0.45)
+
+        def box(name, pos, scale, mat, rot=(0, 0, 0)):
+            c = UsdGeom.Cube.Define(st, f"{path}/{name}")
+            c.CreateSizeAttr(1.0)
+            xf = UsdGeom.Xformable(c)
+            xf.AddTranslateOp().Set(Gf.Vec3d(*pos))
+            if any(rot):
+                xf.AddRotateXYZOp().Set(Gf.Vec3f(*rot))
+            xf.AddScaleOp().Set(Gf.Vec3f(*scale))
+            UsdShade.MaterialBindingAPI.Apply(c.GetPrim()).Bind(mat)
+        box("Hole", (0, 0, 0.002), (0.8, 0.8, 0.004), dark)
+        for k, (dx, dy, sx, sy) in enumerate([(0, 0.43, 0.92, 0.06), (0, -0.43, 0.92, 0.06), (0.43, 0, 0.06, 0.92), (-0.43, 0, 0.06, 0.92)]):
+            box(f"Rim{k}", (dx, dy, 0.012), (sx, sy, 0.024), rim)
+        box("Lid", (0.95, 0.1, 0.03), (0.8, 0.8, 0.02), steel, rot=(0, -6, 12))
 
     def _build_stack(self, base, o):
         p = o.params
@@ -301,6 +493,48 @@ class WarehouseScene:
             box = p["block_box"]
             for L in range(p["block_layers"]):
                 self._ref(f"{base}/Block{L}", ASSETS[box], (bx, by, L * BOX_H[box]), yaw=math.atan2(ny, nx) + 0.1 * (L % 2))
+
+    # ------------------------------------------------------------ 운반 카트
+    @staticmethod
+    def cart_matrix(x, y, yaw, tilt_deg):
+        """핸드트럭 놓는 행렬: 바퀴 축을 중심으로 tilt 만큼 손잡이 쪽으로 기울이고, yaw 로 돌려 (x, y) 에."""
+        ax = Gf.Vec3d(*CART_AXLE)
+        return (Gf.Matrix4d().SetTranslate(-ax) * Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(1, 0, 0), -float(tilt_deg)))
+                * Gf.Matrix4d().SetTranslate(ax) * Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 0, 1), math.degrees(yaw)))
+                * Gf.Matrix4d().SetTranslate(Gf.Vec3d(float(x), float(y), 0.0)))
+
+    @staticmethod
+    def cart_slot(k, box="box_c"):
+        """카트에 실은 k 번째 상자 자리 (카트 좌표, 상자 원점은 바닥 가운데)."""
+        return (0.0, CART_LOAD_Y, 0.03 + k * BOX_H[box])
+
+    def add_cart(self, path, x, y, yaw, tilt=0.0, boxes=0, box="box_c"):
+        """핸드트럭 (라벨 cart) + 실은 상자 (라벨 없음, 카트 박스에 안 들어감). 반환: 움직일 때 쓰는 변환 op."""
+        g = UsdGeom.Xform.Define(self.stage, path)
+        op = g.AddTransformOp()
+        op.Set(self.cart_matrix(x, y, yaw, tilt))
+        url = os.path.join(POLYHAVEN_DIR, CART_MODEL, f"{CART_MODEL}.usdc").replace(os.sep, "/")
+        t = self._ref(path + "/Truck", url)
+        self.labeler(t.GetPrim(), "cart")
+        for k in range(boxes):
+            bx, by, bz = self.cart_slot(k, box)
+            self._ref(f"{path}/Load{k}", ASSETS[box], (bx, by, bz), yaw=0.04 * ((k * 7) % 3 - 1))
+        self._ops[path] = op
+        return op
+
+    def set_cart(self, path, x, y, yaw, tilt=0.0):
+        self._ops[path].Set(self.cart_matrix(x, y, yaw, tilt))
+
+    def add_box(self, path, box="box_c"):
+        """따로 움직이는 상자 (시연에서 팔레트 → 카트로 옮겨 실음)."""
+        g = UsdGeom.Xform.Define(self.stage, path)
+        self._ops[path] = g.AddTransformOp()
+        self.stage.DefinePrim(path + "/a", "Xform").GetReferences().AddReference(ASSETS[box])
+        strip_semantics(self.stage.GetPrimAtPath(path + "/a"))
+        return path
+
+    def set_matrix(self, path, m):
+        self._ops[path].Set(Gf.Matrix4d(m))
 
     def _set_visible(self, path, visible):
         prim = self.stage.GetPrimAtPath(path)

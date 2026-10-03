@@ -68,17 +68,17 @@
       "problemMatcher": []
     },
     {
-      "label": "Isaac: 시연 영상용 녹화 (시드 1)",
+      "label": "Isaac: 시연 영상용 녹화 (시드 5)",
       "type": "shell",
       "command": "${env:ISAACSIM_PYTHON}",
-      "args": ["scripts/run_patrol.py", "--headless", "--sim-dt", "0.0333333", "--seed", "1", "--yolo-every", "3", "--record", "outputs/record/seed1"],
+      "args": ["scripts/run_patrol.py", "--headless", "--sim-dt", "0.0333333", "--seed", "5", "--yolo-every", "3", "--story", "--record", "outputs/record/seed5"],
       "problemMatcher": []
     },
     {
       "label": "시연 영상 만들기",
       "type": "shell",
       "command": "${command:python.interpreterPath}",
-      "args": ["scripts/make_video.py", "--record", "outputs/record/seed1"],
+      "args": ["scripts/make_video.py", "--record", "outputs/record/seed5"],
       "problemMatcher": []
     },
     {

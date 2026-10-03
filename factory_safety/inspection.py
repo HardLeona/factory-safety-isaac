@@ -97,7 +97,7 @@ class BodycamInspector:
         gts = []
         for c, x0, y0, x1, y1, occ, path in gt:
             oid = object_id_from_path(path)
-            if oid is None or CLASSES[c] == "worker":
+            if oid is None or CLASSES[c] in ("worker", "cone", "danger_sign", "cart"):
                 continue
             if min(x1 - x0, y1 - y0) >= self.MIN_GT_PX and occ < 0.7:
                 self.visible[oid] += 1

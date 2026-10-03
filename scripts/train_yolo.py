@@ -15,13 +15,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     p = argparse.ArgumentParser(description="YOLO 학습")
-    p.add_argument("--data", default=os.path.join(ROOT, "outputs", "dataset", "data.yaml"))
+    p.add_argument("--data", default=os.path.join(ROOT, "outputs", "data_v3.yaml"))
     p.add_argument("--model", default="yolo26s.pt", help="시작 가중치 (n < s < m 순으로 크고 정확)")
     p.add_argument("--epochs", type=int, default=100)
     p.add_argument("--imgsz", type=int, default=960)
     p.add_argument("--batch", type=int, default=16)
     p.add_argument("--device", default=None, help="예: 0 (GPU), cpu")
-    p.add_argument("--name", default="warehouse")
+    p.add_argument("--name", default="warehouse_v3")
     a = p.parse_args()
 
     from ultralytics import YOLO
