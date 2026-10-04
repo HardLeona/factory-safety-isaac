@@ -52,10 +52,10 @@
 |---|---|
 | **목표 (Goal)** | 순찰 한 바퀴 동안 위험물을 찾아 위험/안전을 판정하고, 작업자 접근을 경고하고, 조치 지시서를 만든다 |
 | **계획 (Planning)** | 순찰 전에 도면(소화기 6곳, 작업대 2곳)으로 **점검표**를 만들고 지점마다 볼 수 있는 CCTV 를 계산. 순찰이 끝나면 못 본 지점을 CCTV 확대 일정으로 바꿈 |
-| **판단 (Reasoning)** | 재확인이 필요한 물체를 고름: 바디캠에 1~2프레임만 보이고 지나감, 판정 표 1등이 70% 미만, CCTV 경고로 처음 알게 된 물체. 2초 기다렸다가 그사이 바디캠이 확정하면 취소 |
-| **도구 (Tool)** | 바디캠, CCTV 3대, **CCTV PTZ** (방향·화각 명령), YOLO, 바닥 투영 거리 계산, 음성 경고, 조치 지시서(HTML). 손동작 요청은 LLM 이 도구를 골라 부름 (아래) |
-| **기억 (Memory)** | **위험물 대장**: 위치, 출처별 판정 표, 확신도, 본 횟수, 접근 경고 횟수, 상태 (확정 / 재확인 대기 / 재확인 완료 / 현장 확인 필요 / 기각 / 병합) |
-| **피드백 (Feedback)** | 확대 판정을 대장에 합쳐 판정 수정, 확대 화면(높이 5 m)에서 구한 위치로 대장 위치를 고치고 중복이면 병합. 못 찾거나 확신 50% 미만이면 **다른 CCTV 로 재시도**, 끝까지 안 되면 **현장 확인 요청** (나중에 바디캠이 확정하면 취소). 같은 물체가 다른 종류로 잡히면 병합 |
+| **판단 (Reasoning)** | 재확인이 필요한 물체를 고름: 바디캠에 1~2프레임만 보이고 지나감, 판정 표 1등이 70% 미만, CCTV 경고로 처음 알게 된 물체. 2초 기다렸다가 그사이 바디캠이 확정하면 취소. 확대 촬영 한 묶음이 끝나면 **로컬 LLM(LangGraph, `factory_safety/recheck_agent.py`)이 그 증거로 확신해도 되는지 판단** (없거나 실패하면 PTZ_SURE 임계값 규칙) |
+| **도구 (Tool)** | 바디캠, CCTV 3대, **CCTV PTZ** (방향·화각 명령), YOLO, 바닥 투영 거리 계산, 음성 경고, 조치 지시서(HTML), 매뉴얼 RAG. 손동작 요청과 재확인 확신 판단은 LLM 이 도구를 골라 부름 (아래) |
+| **기억 (Memory)** | **위험물 대장**: 위치, 출처별 판정 표, 확신도, 본 횟수, 접근 경고 횟수, 상태 (확정 / 재확인 대기 / 재확인 완료 / 미확정 / 현장 확인 필요 / 기각 / 병합) |
+| **피드백 (Feedback)** | 확대 판정을 대장에 합쳐 판정 수정, 확대 화면(높이 5 m)에서 구한 위치로 대장 위치를 고치고 중복이면 병합. 확신 못 하면 **다른 CCTV 로 재시도**. 카메라를 다 써도 못 가르면 사람에게 넘기지 않고 자동으로 정리: 재확인 전 추정이 **위험 쪽이면 위험으로 확정** (미탐을 줄이는 쪽 기본값), **안전 쪽이었으면 '미확정'(주의)** 으로 남김 (나중에 바디캠이 확정하면 취소). 같은 물체가 다른 종류로 잡히면 병합 |
 
 **도면 제약**: 소화기는 도면의 거치 자리에만, 작업대 공구는 작업대 위에만 있다고 보고 위치를 맞춥니다. 벽 밖으로 1 m 넘게 나간 바닥 추정은 버리고, 랙 안에 떨어진 추정은 랙 면으로 밀어냅니다.
 
@@ -116,11 +116,13 @@
   |---|---|
   | `look_around` | 최근 몇 초 바디캠에 보인 물체 (번호, 이름, 거리, 방향, 화면 가운데에서 얼마나 먼지) |
   | `equipment_info(id)` | 그 물체가 무엇이고 어떻게 안전하게 쓰는지 |
+  | `retrieve_manual(query)` | 검증된 안전 매뉴얼 RAG (`factory_safety/manuals.py`, `data/manuals/*.md`) 검색. 근거 문서가 없으면 "no relevant manual passage" |
   | `hazard_log(limit)` | 공장 전체 위험물 대장 (우선순위 순, 구역, 작업자와 거리) |
   | `todays_tbm` / `worker_status` | 오늘 TBM / 작업자 위치·구역 |
-  | `finish(say_ids, reason_ko, manager_ko)` | 말할 항목 (도구가 준 번호만 받음), 한국어 근거, 관리자 메시지 |
+  | `finish(say_ids, reason_ko, manager_ko, refuse)` | 말할 항목 (도구가 준 번호만 받음), 한국어 근거, 관리자 메시지, 매뉴얼 근거 없으면 `refuse=true` |
 
-  LLM 은 안전 문장을 직접 쓰지 않습니다 (말할 것만 고름). 판단 근거는 에이전트 기록에 `LLM 판단` 으로 남고, 관리자 메시지는 확인된 사실 (위치, 가까운 위험) 뒤에 `AI 요약` 으로 붙습니다
+  LLM 은 안전 문장을 직접 쓰지 않습니다 (말할 것만 고름). 손가락 1(장비 설명)은 `retrieve_manual` 로 찾은 매뉴얼 근거가 없으면 추측 없이 거부하고 관리자 호출로 넘깁니다.
+  판단 근거는 에이전트 기록에 `LLM 판단` 으로 남고, 관리자 메시지는 확인된 사실 (위치, 가까운 위험) 뒤에 `AI 요약` 으로 붙습니다
 - **언어**: 안내 문장은 사람이 검수한 4개 언어 문장 틀 + 현장 용어집으로 만듭니다. 번역 모델 (NLLB-200) 을 시험했더니 "안전화 → seat belt", "지게차 → parking lot" 처럼 현장 용어를 틀려서 안전 안내에는 쓰지 않습니다. 관리자에게는 한국어로 같이 남김
 - **음성**: edge-tts (Microsoft 온라인 신경망 음성, 인터넷 필요). 안 되면 Windows 음성 (한국어·영어·일본어). 만든 음성은 문장별로 저장해 다시 씀
 - **시뮬레이션**: 작업자 뼈대에 손가락 1~5 자세를 직접 만듭니다 (`walk_anim.py`). 손을 아래에서 위로 들어 올리며 손바닥이 카메라를 보게 돌리고, 손가락은 위로 조금 벌려 세우고, 엄지는 손바닥 쪽으로 접습니다 (팔은 2관절 IK).
@@ -138,6 +140,7 @@
 6. 한 바퀴를 다 돌면 손가락 4 → 관리자 호출 (위치·가까운 위험 + LLM 요약), 시뮬레이션 끝
 
 **조치 지시서** (`outputs/agent/dashboard_seed<시드>.html`, 시연 이야기는 `dashboard_story_seed5.html`): 평면도(번호 = 우선순위, 위험 영역), 조치 목록 (긴급/높음/보통, 위치, 조치 방법, 근거), 위험 영역, 음성 경고 기록, 점검표, 에이전트 기록. 우선순위 점수 = 위험 종류별 심각도 + 접근 경고 횟수 × 2.
+조치 문구는 고정 테이블(`ACTIONS`)이 기본이고, `--report-llm` (기본 켬) 이면 `factory_safety/report_agent.py` 가 매뉴얼(`data/manuals/*.md`)에 더 구체적인 근거가 있는지 찾아 보강하고 출처를 표시 (근거 없으면 고정 문구 그대로).
 
 ---
 
@@ -301,6 +304,9 @@ factory-safety-isaac/
 │   ├── overlay.py            화면에 박스와 한국어 이름, 손 관절 그리기
 │   ├── assistant.py          손동작 명령 1~5 실행 (장비 설명, 공장 스캔, TBM, 호출, SOS)
 │   ├── llm_agent.py          [.venv-assistant] LLM 에이전트 (LangGraph + 로컬 Qwen2.5-7B, 도구 6개)
+│   ├── manuals.py            [.venv-assistant] 매뉴얼 RAG (data/manuals/*.md 청크 → 로컬 임베딩·벡터스토어 → 검색, 근거 없으면 거부)
+│   ├── recheck_agent.py      [.venv-assistant] CCTV 재확인 확신 판단 LLM 에이전트 (LangGraph + 로컬 Qwen2.5-7B)
+│   ├── report_agent.py       [.venv-assistant] 조치 지시서 문구를 매뉴얼 근거로 보강하는 LLM 에이전트 (LangGraph + 로컬 Qwen2.5-7B)
 │   ├── story.py              시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출)
 │   ├── assistant_client.py   손 인식·음성 도우미 프로세스 부르기
 │   ├── hand_count.py         손 관절 21점 → 손가락 수, 연속 확인
@@ -333,6 +339,7 @@ factory-safety-isaac/
 │   ├── to_pdf.ps1            [PowerShell] docx, pptx → PDF (Word, PowerPoint 필요)
 │   └── plot_layout.py        [파이썬] 평면도
 ├── data/tbm_today.json       오늘 TBM (작업, 위험, 지킬 것, 지난 순찰 조치)
+├── data/manuals/*.md         안전 매뉴얼 RAG 원문 (공구·카트·적재·유출·소화기·위험구역, 공개 산업안전 자료 기반 큐레이션)
 ├── tests/test_core.py        Isaac 없이 도는 테스트
 └── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서, yolo/warehouse_v3/weights/best.pt 만)
 ```
@@ -370,11 +377,13 @@ py -3.12 -m venv .venv
 # 3) 손동작·다국어 음성·LLM 도우미 (손동작 명령을 쓸 때만, 손 모델은 처음 실행 때 받음)
 #    Isaac 환경 (.venv-isaac) 에는 깔지 마세요. Isaac 이 고정한 패키지 버전이 바뀝니다
 py -3.12 -m venv .venv-assistant
-.venv-assistant\Scripts\python -m pip install mediapipe edge-tts imageio-ffmpeg langgraph langchain-ollama
+.venv-assistant\Scripts\python -m pip install mediapipe edge-tts imageio-ffmpeg langgraph langchain-ollama langchain-chroma chromadb
 
 # 4) 로컬 LLM (손동작 요청 판단, 약 4.7 GB, 인터넷·API 키 불필요). 없으면 규칙으로 동작 (--llm off 와 같음)
 winget install Ollama.Ollama
 ollama pull qwen2.5:7b
+# 매뉴얼 RAG 임베딩 (손동작 1 "장비 설명" 이 검증된 안전 매뉴얼에 근거해 답하도록, 약 270 MB)
+ollama pull nomic-embed-text
 ```
 
 > Isaac Sim 첫 실행 때 NVIDIA Omniverse 라이선스(EULA) 동의를 물어봐요. 터미널에서 `Yes` 를 입력하거나 환경 변수 `OMNI_KIT_ACCEPT_EULA=YES`.
@@ -408,6 +417,7 @@ ollama pull qwen2.5:7b
 
 # 4) 여러 시나리오 채점, 전체 시연
 .venv\Scripts\python scripts/eval_patrol.py --seeds 0 1 2 3 4
+.venv\Scripts\python scripts/eval_patrol.py --seeds 0 1 2 --agent both   # 규칙 vs LangGraph 재확인 비교 (LLM 호출로 느려서 시드 적게)
 .venv\Scripts\python scripts/demo_all.py
 
 # 5) 시연 영상: 창 없이 녹화 (약 5분) → 영상 합치기
@@ -443,6 +453,9 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 위 작업 (장면, 
 | `--record` | | 영상용: 바디캠, CCTV, 확대 화면과 에이전트 상태를 저장할 폴더 (`make_video.py` 입력) |
 | `--story` | | 시연 이야기 (TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 관리자 호출, 손 인식 켬, CCTV 없음, 음성 경고 1번) |
 | `--llm` | `qwen2.5:7b` | 손동작 요청을 판단할 Ollama 모델, `off` 면 규칙만 |
+| `--recheck-llm` | `qwen2.5:7b` | CCTV 재확인 확신 여부를 판단할 Ollama 모델, `off` 면 PTZ_SURE 임계값 규칙만 |
+| `--agent` | `langgraph` | `langgraph` (위 LLM 사용) \| `rule` (`--recheck-llm` 무시, PTZ_SURE 임계값만). `eval_patrol.py --agent both` 비교용 |
+| `--report-llm` | `qwen2.5:7b` | 조치 지시서 문구를 매뉴얼 근거로 보강할 Ollama 모델, `off` 면 고정 문구(`ACTIONS`)만 |
 | `--voice-max` | 없음 (`--story` 는 `1`) | 음성 경고 최대 횟수 |
 | `--gestures` | `off` | `demo`: 손가락 3 → 1 → 2 → 4 → 5 를 차례로 보임, `watch`: 손 인식만 (손동작은 안 함) |
 | `--lang` | `zh,en,ja` (`--story` 는 `en`) | 작업자 언어 (`ko` `en` `zh` `ja`). 여러 개면 명령마다 돌아가며 |

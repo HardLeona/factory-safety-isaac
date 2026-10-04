@@ -86,7 +86,7 @@ class SiteAssistant:
               "zone": ctx["zone"], "worker": [round(float(wxy[0]), 2), round(float(wxy[1]), 2)], **extra}
         dec = ctx["decision"]
         if dec:
-            ev["llm"] = {k: dec.get(k) for k in ("llm", "model", "say_ids", "reason_ko", "manager_ko", "trace", "sec", "error")}
+            ev["llm"] = {k: dec.get(k) for k in ("llm", "model", "say_ids", "reason_ko", "manager_ko", "refuse", "trace", "sec", "error")}
             if dec.get("llm"):
                 self.agent.say(t, "LLM 판단", f"{dec['model']}: {' → '.join(dec.get('trace', []))} | {dec.get('reason_ko', '')}")
             else:
@@ -175,6 +175,10 @@ class SiteAssistant:
 
     # ------------------------------------------------------------ 1. 장비 설명
     def _equip(self, ctx, lang):
+        dec = ctx.get("decision") or {}
+        if dec.get("llm") and dec.get("refuse"):
+            # 매뉴얼 RAG 에 근거가 없으면 LLM 이 추측하지 않고 거부 (finish(refuse=true)) -> 관리자 호출로 넘김
+            return i18n.fmt("equip_refuse", lang), {"items": [], "notify": "관리자", "manager_ko": self._manager_note(ctx)}
         cand = [o for o in self._seen(ctx) if o["dist"] <= self.EQUIP_MAX_M]
         if not cand:
             return i18n.fmt("equip_none", lang), {"items": []}

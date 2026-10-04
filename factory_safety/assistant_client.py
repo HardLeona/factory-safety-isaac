@@ -65,6 +65,18 @@ class AssistantClient:
             return {"llm": False, "error": "도우미 없음"}
         return self.call(op="agent", snapshot=snapshot, model=model)
 
+    def recheck(self, snapshot, model=None):
+        """'주의' 물체 재관측 재판단 (factory_safety/recheck_agent.py). 실패하면 {"llm": False, "error"}."""
+        if not self.ok:
+            return {"llm": False, "error": "도우미 없음"}
+        return self.call(op="recheck", snapshot=snapshot, model=model)
+
+    def report_action(self, snapshot, model=None):
+        """조치 문구 매뉴얼 보강 (factory_safety/report_agent.py). 실패하면 {"llm": False, "error"}."""
+        if not self.ok:
+            return {"llm": False, "error": "도우미 없음"}
+        return self.call(op="report_action", snapshot=snapshot, model=model)
+
     def close(self):
         if self.proc is not None and self.proc.poll() is None:
             try:

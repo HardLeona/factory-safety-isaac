@@ -13,7 +13,7 @@ from .report import clock
 
 X0, X1, Y0, Y1 = -11.0, 11.0, -12.6, 18.6
 S = 17.0          # 1 m 당 픽셀
-COLOR = {"위험": "#d93a3a", "안전": "#2e9d5b", "확인 필요": "#e09a1a"}
+COLOR = {"위험": "#d93a3a", "안전": "#2e9d5b", "확인 필요": "#e09a1a", "주의": "#8a5fd1"}
 
 
 def _p(x, y):
@@ -71,17 +71,18 @@ def _rows(rep):
     out = []
     for r in rep["findings"]:
         ev = [f"바디캠 {r['n_body']}프레임"]
-        if r["n_ptz"]:
-            ev.append(f"CCTV 확대 {r['n_ptz']}장")
         if r["near_miss"]:
             ev.append(f"<b>접근 경고 {r['near_miss']}회</b>")
         if r["changed_by_recheck"]:
-            ev.append("재확인으로 판정 고침")
+            ev.append("재관측 재판단으로 판정 고침")
+        action = html.escape(r["action"])
+        if r.get("action_source"):
+            action += f'<br><span class="muted">근거: {html.escape(r["action_source"])}</span>'
         out.append(f'<tr class="{"safe" if r["state"] == "안전" else ""}"><td>{r["rank"]}</td>'
                    f'<td><span class="pri p{r["priority"]}">{r["priority"]}</span></td>'
                    f'<td><span class="st" style="background:{COLOR[r["state"]]}">{r["state"]}</span> {html.escape(r["label"])}</td>'
                    f'<td class="zone">{html.escape(r["zone"])}<br><small>({r["x"]:+.1f}, {r["y"]:+.1f})</small></td>'
-                   f'<td>{html.escape(r["action"])}</td><td><small>{" · ".join(ev)}<br>확신도 {r["confidence"] * 100:.0f}%</small></td></tr>')
+                   f'<td>{action}</td><td><small>{" · ".join(ev)}<br>확신도 {r["confidence"] * 100:.0f}%</small></td></tr>')
     return "".join(out)
 
 
@@ -92,7 +93,8 @@ def _eval_html(ev):
             ("위험을 안전으로 오판", b["hazard_as_safe"], a["hazard_as_safe"]),
             ("안전을 위험으로 오판", b["safe_as_hazard"], a["safe_as_hazard"]),
             ("없는 위험 보고", b["false_reports"], a["false_reports"]),
-            ("현장 확인 요청", "-", f"{a['need_check']} (실제 물체 {a['need_check_real']})")]
+            ("현장 확인 요청", "-", f"{a['need_check']} (실제 물체 {a['need_check_real']})"),
+            ("미확정 (주의, 안전·위험 못 가름)", "-", f"{a['undetermined']} (실제 물체 {a['undetermined_real']})")]
     if "zones" in ev:
         z, v, t = ev["zones"], ev["voice"], ev["tools"]
         rows += [("위험 영역 (라바콘·표지) 알아봄", "-", f"{z['found']}/{z['gt']}"),
@@ -105,7 +107,9 @@ def _eval_html(ev):
     body = "".join(f"<tr><td>{k}</td><td>{v1}</td><td>{v2}</td></tr>" for k, v1, v2 in rows)
     return (f'<h2>정답표 비교 (평가용)</h2><table class="ev"><tr><th></th><th>바디캠만</th><th>에이전트</th></tr>{body}</table>'
             f'<p class="muted">재확인 {r["recheck_run"]}건: 찾음 {r["recheck_found"]}, 판정 고침 {r["recheck_changed"]} '
-            f'(맞게 고침 {r["changed_correct"]}), 다른 CCTV 로 재시도 {r["recheck_retry"]}, 현장 확인 {r["recheck_escalated"]}</p>')
+            f'(맞게 고침 {r["changed_correct"]}), 다른 CCTV 로 재시도 {r["recheck_retry"]}, '
+            f'재확인 소진 후 위험으로 둠 {r["recheck_defaulted_hazard"]}, 미확정 {r["recheck_undetermined"]}, '
+            f'현장 확인(점검표) {r["recheck_escalated"]}</p>')
 
 
 def llm_note(e):
@@ -176,6 +180,7 @@ ul.tl li{{padding:3px 0;border-bottom:1px dashed #e4e6ea}} .t{{color:#889;margin
 <main><section>
 <div class="kpi"><div><b style="color:#d93a3a">{s['hazards']}</b><span>위험 (긴급 {s['urgent']})</span></div>
 <div><b style="color:#e09a1a">{s['need_check']}</b><span>현장 확인</span></div>
+<div><b style="color:#8a5fd1">{s['caution']}</b><span>주의 (미확정)</span></div>
 <div><b style="color:#2e9d5b">{s['safe']}</b><span>안전 확인</span></div>
 <div><b>{s['checkpoints_done']}/{s['checkpoints']}</b><span>점검표</span></div>
 <div><b style="color:#d93a3a">{s.get('zones', 0)}</b><span>위험 영역</span></div>

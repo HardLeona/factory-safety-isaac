@@ -7,6 +7,8 @@ Isaac Sim 파이썬에는 MediaPipe 를 같이 깔기 어려워서 따로 띄우
     {"op": "hand", "path": "frame.jpg"}              -> {"count": 3, "score": 0.95, "pts": [[x, y], ...]}   손이 없으면 count 0
     {"op": "tts", "text": "...", "lang": "zh"}       -> {"wav": ".../zh_ab12.wav", "dur": 4.2, "engine": "edge"}
     {"op": "agent", "snapshot": {...}}               -> LLM 에이전트 결정 (factory_safety/llm_agent.py, LangGraph + Qwen2.5-7B)
+    {"op": "recheck", "snapshot": {...}}             -> '주의' 물체 재관측 재판단 (factory_safety/recheck_agent.py, LangGraph + Qwen2.5-7B)
+    {"op": "report_action", "snapshot": {...}}       -> 조치 문구 매뉴얼 보강 (factory_safety/report_agent.py, LangGraph + Qwen2.5-7B)
 
 음성: edge-tts (Microsoft 온라인 신경망 음성, 인터넷 필요). 안 되면 Windows 음성 (설치된 한국어·영어·일본어만).
 만든 음성은 문장별로 assets/generated/tts 에 저장해 두고 다시 쓴다.
@@ -147,6 +149,12 @@ def main():
             elif op == "agent":
                 from factory_safety.llm_agent import decide
                 res = decide(req["snapshot"], req.get("model") or "qwen2.5:7b")
+            elif op == "recheck":
+                from factory_safety.recheck_agent import decide as decide_recheck
+                res = decide_recheck(req["snapshot"], req.get("model") or "qwen2.5:7b")
+            elif op == "report_action":
+                from factory_safety.report_agent import decide as decide_report
+                res = decide_report(req["snapshot"], req.get("model") or "qwen2.5:7b")
             elif op == "quit":
                 break
             else:
