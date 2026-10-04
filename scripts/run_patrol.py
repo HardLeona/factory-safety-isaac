@@ -40,6 +40,10 @@ parser.add_argument("--agent", choices=["rule", "langgraph"], default="langgraph
 parser.add_argument("--report-llm", default="qwen2.5:7b", help="조치 지시서 문구를 매뉴얼로 보강할 로컬 LLM, off 면 고정 문구만")
 parser.add_argument("--voice-max", type=int, default=None, help="음성 경고 최대 횟수 (--story 는 1)")
 parser.add_argument("--story", action="store_true", help="시연 이야기: TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 한 바퀴 뒤 관리자 호출 (factory_safety/story.py)")
+parser.add_argument("--pinch-weights", default=os.path.join(ROOT, "outputs", "yolo", "pinch_v1", "weights", "best.pt"),
+                    help="끼임점(pinch_point) 1클래스 경량 모델 가중치. 없으면 등록 위치 폴백만 사용")
+parser.add_argument("--pinch-demo", action="store_true",
+                    help="시연: 컨베이어(M1)를 켜고 순찰 중 가장 가까이 지날 때 끼임 경보를 보인 뒤 끈다")
 args, _ = parser.parse_known_args()
 if args.agent == "rule":
     args.recheck_llm = "off"            # 비교 평가용: 재관측 재판단도 규칙만 (LLM 안 씀)
@@ -65,12 +69,15 @@ from factory_safety.dashboard import write_dashboard  # noqa: E402
 from factory_safety import overlay  # noqa: E402
 from factory_safety.voice import VOICE_CAUTION_WAV, ensure_voice, play_async, with_alarm  # noqa: E402
 from factory_safety.detector import YoloDetector  # noqa: E402
+from factory_safety.geometry import Projector  # noqa: E402
 from factory_safety.inspection import bodycam_summary  # noqa: E402
-from factory_safety.isaac_utils import (DebugBoxes, attach, get_annotator, isaac_labeler, new_stage,  # noqa: E402
+from factory_safety.isaac_utils import (DebugBoxes, attach, depth_array, get_annotator, isaac_labeler, new_stage,  # noqa: E402
                                         parse_bboxes, rgb_array, set_viewport_camera, set_viewport_top_view,
                                         timeline_setter)
+from factory_safety import pinch_detect as PD  # noqa: E402
 from factory_safety.scenario import sample_scenario  # noqa: E402
 from factory_safety.scene import WarehouseScene  # noqa: E402
+from factory_safety import warehouse as W  # noqa: E402
 from factory_safety.walker import PathWalker  # noqa: E402
 
 if not os.path.exists(args.weights):
@@ -102,11 +109,28 @@ agent = SafetyAgent(IMG_W, IMG_H)
 agent.voice_max = args.voice_max
 agent.set_task_context(load_tbm())      # 오늘 TBM 작업 대상은 거리 경고에서 제외 (제스처 기능 켜짐 여부와 무관하게 항상 적용)
 
-# 카메라 출력: 바디캠 하나, 화면과 정답 박스
+# 카메라 출력: 바디캠 하나, 화면과 정답 박스. 깊이(distance_to_image_plane)도 받아서 손가락 끝·끼임점의
+# 3D 위치를 구한다 (geometry.Projector.unproject, pinch_detect 참고)
 rp = rep.create.render_product(scene.cam_path, (IMG_W, IMG_H))
 a_rgb, a_box = get_annotator("rgb"), get_annotator("bounding_box_2d_tight")
 attach(a_rgb, rp)
 attach(a_box, rp)
+a_depth = get_annotator("distance_to_image_plane")
+attach(a_depth, rp)
+
+pinch_yolo = None
+if os.path.exists(args.pinch_weights):
+    pinch_yolo = YoloDetector(args.pinch_weights)
+    print(f"[끼임점] 경량 탐지 모델 사용: {args.pinch_weights}")
+else:
+    print(f"[끼임점] 탐지 모델 없음 ({args.pinch_weights}) → 등록 위치 폴백만 사용")
+proj_cam = Projector(IMG_W, IMG_H)
+MACHINE_ID = "M1"
+agent.on_machine_visual = lambda mid, on: scene.set_machine_state(scene.machine_paths[mid], on)
+if args.pinch_demo:
+    agent.machines.set(MACHINE_ID, True)
+s_machine = walker.path.nearest_s(W.MACHINE_CONVEYOR["x"], W.MACHINE_CONVEYOR["y"])
+pinch_demo_state = {"fired": False, "off_at": None}
 if args.view == "top":
     set_viewport_top_view(stage)
 else:
@@ -241,6 +265,18 @@ try:
         x, y, yaw, at = walker.base_pose
         scene.set_worker(x, y, yaw, at)
         scene.set_camera(cam)
+        if args.pinch_demo and not pinch_demo_state["fired"] and abs(walker.s - s_machine) < 0.3:
+            # 시연: 순찰 경로에서 기계 끼임점에 가장 가까운 지점을 지날 때, 손끝이 끼임점 바로 옆(3 cm)에
+            # 있다고 보고 끼임 경보 규칙을 실제로 실행한다 (손을 뻗는 전신 애니메이션은 이번 범위 밖, README 참고)
+            tip = agent.machines.pinch_xyz(MACHINE_ID) + np.array([0.0, 0.0, 0.03])
+            ev = agent.check_pinch(t_sim, MACHINE_ID, tip)
+            pinch_demo_state["fired"] = True
+            pinch_demo_state["off_at"] = t_sim + 3.0
+            if ev:
+                print(f"[끼임 경보 시연] 손 빼세요! (거리 {ev['dist_cm']} cm)")
+        if pinch_demo_state["off_at"] is not None and t_sim >= pinch_demo_state["off_at"]:
+            agent.machines.set(MACHINE_ID, False)
+            pinch_demo_state["off_at"] = None
         if frame % args.yolo_every != 0 or frame < 10:
             app.update()
             frame += 1
@@ -258,6 +294,19 @@ try:
                     gest["region"], gest["t_hand"] = hand_region(gest["pts"]), t_sim
                 if gest["region"] is not None and t_sim - gest["t_hand"] <= HAND_HOLD_S:
                     dets = [d for d in dets if not covered(d[2], gest["region"])]
+                if gest["pts"]:
+                    # 손가락 끝(검지 끝) 3D 위치: 바디캠 깊이맵으로 역투영 (실제 탐지 경로, 시연 스크립트와 별개)
+                    proj_cam.set_pose(cam)
+                    depth_map = depth_array(a_depth.get_data())
+                    fingertip = PD.fingertip_xyz(proj_cam, gest["pts"], depth_map) if depth_map is not None else None
+                    if fingertip is not None:
+                        pinch_xyxy = None
+                        if pinch_yolo is not None:
+                            pdets, _ = pinch_yolo(img)
+                            muv, _ = proj_cam.project(agent.machines.pinch_xyz(MACHINE_ID)[None])
+                            pinch_xyxy = PD.best_pinch_box(pdets, muv[0])
+                        detected = PD.pinch_point_xyz(proj_cam, pinch_xyxy, depth_map) if pinch_xyxy is not None else None
+                        agent.check_pinch(t_sim, MACHINE_ID, fingertip, detected)
             agent.on_bodycam(t_sim, cam, dets, worker_xy=(x, y), gt=parse_bboxes(a_box.get_data(), CLASSES, with_paths=True))
             if assistant:
                 if walker.gesture is None:
@@ -319,6 +368,9 @@ if assistant:
 if client:
     client.close()
 print("\n" + action_summary(report))
+for m in report["machines"]:
+    print(f"[끼임 위험 기계] {m['id']} {m['name']}: {'작동' if m['on'] else '정지'} | "
+          f"접근 경보 {m['zone_alerts']}회, 끼임 경보 {m['pinch_alerts']}회 (폴백 {m['pinch_fallback']}회)")
 rows, summ = agent.scorer.report(key)
 print("\n" + bodycam_summary(rows, summ))
 print(evaluation_summary(evaluation))

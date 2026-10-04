@@ -708,19 +708,113 @@ def test_manuals_load_chunks():
     from factory_safety.config import CLASSES, EQUIPMENT
     from factory_safety.manuals import load_chunks
     chunks = load_chunks()
-    assert len(chunks) >= 6                 # 문서 6개, 섹션은 여러 개
+    assert len(chunks) >= 6                 # 문서 6개 이상 (컨베이어 추가로 7개), 섹션은 여러 개
     doc_ids = {c["doc_id"] for c in chunks}
-    assert doc_ids == {"hand_tools", "hand_cart", "stacking", "spill", "fire_extinguisher", "danger_zone"}
+    assert doc_ids == {"hand_tools", "hand_cart", "stacking", "spill", "fire_extinguisher", "danger_zone", "conveyor"}
     for c in chunks:
         assert c["text"] and c["title"] and c["source"]
         assert isinstance(c["applies_to"], list) and c["applies_to"]
-        assert all(t in CLASSES or t in EQUIPMENT for t in c["applies_to"])
+        # machine_conveyor 는 YOLO 클래스가 아니라 끼임 위험 기계용 의사(pseudo) 클래스 (19클래스 모델은 재학습 안 함)
+        assert all(t in CLASSES or t in EQUIPMENT or t == "machine_conveyor" for t in c["applies_to"])
         assert c["id"] == f"{c['doc_id']}#{c['section']}"
     # 공구 8종, 카트, 유출/적재/소화기/위험구역 상태가 모두 어느 문서에 걸려 있어야 한다
     covered = {t for c in chunks for t in c["applies_to"]}
     assert covered >= {"hammer", "screwdriver", "saw", "power_saw", "pickaxe", "shovel", "wrench", "drill", "cart",
                        "spill", "spill_marked", "stack_unstable", "stack_stable", "ext_ok", "ext_fallen", "ext_blocked",
                        "cone", "danger_sign"}
+
+
+def test_pinch_unproject_roundtrip():
+    """Projector.unproject 는 project() 의 정확한 역변환이어야 한다 (depth = 카메라 정면 축 거리)."""
+    from factory_safety import pinch_detect as PD
+    cam_pos = np.array([5.0, 10.0, 1.4])
+    true_pt = np.array([5.3, 13.2, 0.8])
+    d = true_pt - cam_pos
+    yaw = math.atan2(d[1], d[0])
+    pitch = math.atan2(d[2], math.hypot(d[0], d[1]))
+    cam = CameraPose(pos=cam_pos, yaw=yaw, pitch=pitch, vfov=66.0)
+    P = Projector(960, 540)
+    P.set_pose(cam)
+    uv, z = P.project(true_pt[None])
+    u, v = uv[0]
+    depth = np.full((540, 960), np.nan, dtype=np.float32)
+    depth[int(round(v)), int(round(u))] = z[0]
+    pts21 = [[0, 0]] * 8 + [[u, v]] + [[0, 0]] * 12       # 인덱스 8 = 검지 끝
+    got = PD.fingertip_xyz(P, pts21, depth)
+    assert np.linalg.norm(got - true_pt) < 1e-4
+    xyxy = [u - 5, v - 5, u + 5, v + 5]
+    got2 = PD.pinch_point_xyz(P, xyxy, depth)
+    assert np.linalg.norm(got2 - true_pt) < 1e-4
+    assert PD.fingertip_xyz(P, None, depth) is None                 # 손 없음
+    assert PD._sample(P, 2, 2, depth) is None                       # 그 픽셀에 깊이 없음
+
+
+def test_machine_zone_on_off():
+    """기계가 on 이면 끼임점 반경 MACHINE_ZONE_M 위험구역, off 면 즉시 해제."""
+    from factory_safety.config import MACHINE_ZONE_M
+    a = _agent()
+    assert a.zones == {}
+    a.machines.set("M1", True)
+    assert list(a.zones.keys()) == ["machine:M1"]
+    z = a.zones["machine:M1"]
+    assert z.source == "machine" and abs(z.radius - MACHINE_ZONE_M) < 1e-6
+    pinch = a.machines.pinch_xyz("M1")
+    assert np.linalg.norm(z.center - pinch[:2]) < 1e-6
+    a.machines.set("M1", False)
+    assert a.zones == {}                                             # 꺼지면 바로 해제
+    a.machines.set("M1", False)                                      # 같은 상태 재호출은 아무 일 없음
+    assert a.zones == {}
+
+
+def test_machine_zone_voice_warning():
+    """작업자가 작동 중인 기계의 1.5 m 위험구역 안에 들어오면 기존 음성 경고 규칙대로 강한 경고."""
+    a = _agent()
+    heard = []
+    a.on_voice = lambda t, level: heard.append((t, level))
+    a.machines.set("M1", True)
+    pinch = a.machines.pinch_xyz("M1")
+    cam = CameraPose(pos=np.array([pinch[0], pinch[1] - 3.0, 1.4]), yaw=math.pi / 2, pitch=0.0, vfov=66)
+    a.on_bodycam(1.0, cam, [], worker_xy=(pinch[0], pinch[1] - 0.5))   # 영역(반경 1.5 m) 안
+    assert heard and a.voice_events[-1]["target"] == "Z:" + a.zones["machine:M1"].zid
+    assert a.machine_report()[0]["zone_alerts"] == 1
+    a.on_bodycam(2.0, cam, [], worker_xy=(pinch[0], pinch[1] - 10.0))  # 멀리 있으면 경고 없음
+    assert a.machine_report()[0]["zone_alerts"] == 1
+
+
+def test_pinch_alert_requires_on_and_10cm():
+    """손가락 끝 - 끼임점 10 cm 이내 + 작동 중이면 최고 등급 경보. 꺼져 있으면 아무리 가까워도 경보 없음."""
+    a = _agent()
+    pinch = a.machines.pinch_xyz("M1")
+    near = pinch + np.array([0.03, 0.0, 0.02])    # 3.6 cm
+    far = pinch + np.array([0.5, 0.0, 0.0])       # 50 cm
+
+    assert a.check_pinch(0.0, "M1", near) is None          # 기계가 꺼져 있음 -> 경보 없음
+    a.machines.set("M1", True)
+    assert a.check_pinch(1.0, "M1", None) is None          # 손 없음
+    assert a.check_pinch(1.0, "M1", far) is None            # 멀리 있음
+    ev = a.check_pinch(2.0, "M1", near)
+    assert ev is not None and ev["level"] == "critical" and ev["say"] == "손 빼세요" and ev["dist_cm"] < 10.0
+    assert a.pinch_events == [ev]
+    assert a.machine_report()[0]["pinch_alerts"] == 1
+    a.machines.set("M1", False)
+    assert a.check_pinch(3.0, "M1", near) is None           # 꺼지면 아무리 가까워도 경보 없음
+    assert a.machine_report()[0]["pinch_alerts"] == 1       # 늘지 않음
+
+
+def test_pinch_fallback_logs_and_counts():
+    """끼임점 탐지 실패(detected_pinch_xyz=None) 시 등록된 위치로 폴백 계산하고, 폴백 사용을 로그와 집계에 남긴다."""
+    a = _agent()
+    a.machines.set("M1", True)
+    pinch = a.machines.pinch_xyz("M1")
+    near = pinch + np.array([0.0, 0.03, 0.0])
+    ev = a.check_pinch(1.0, "M1", near, detected_pinch_xyz=None)      # 탐지 실패 -> 폴백
+    assert ev is not None and ev["fallback"] is True
+    assert any("폴백" in e["text"] for e in a.timeline if e["kind"] == "끼임 경보")
+    assert a.machine_report()[0]["pinch_fallback"] == 1
+    # 탐지가 됐으면(위치를 직접 줌) 폴백이 아님
+    ev2 = a.check_pinch(2.0, "M1", near, detected_pinch_xyz=pinch)
+    assert ev2["fallback"] is False
+    assert a.machine_report()[0]["pinch_fallback"] == 1                # 더 안 늘어남
 
 
 if __name__ == "__main__":

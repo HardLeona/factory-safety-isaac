@@ -39,6 +39,7 @@ NAMES = {
     "wrench": {"ko": "렌치", "en": "a wrench", "zh": "扳手", "ja": "レンチ"},
     "drill": {"ko": "전동 드릴", "en": "a power drill", "zh": "电钻", "ja": "電動ドリル"},
     "cart": {"ko": "운반 카트", "en": "a hand cart", "zh": "手推运货车", "ja": "台車"},
+    "machine_conveyor": {"ko": "컨베이어", "en": "a conveyor", "zh": "传送带", "ja": "コンベア"},
 }
 
 # 장비 설명 (손가락 하나)
@@ -108,6 +109,13 @@ INFO = {
     "danger_sign": {"ko": "출입 금지 구역을 알리는 DANGER 표지입니다. 표지 너머로 들어가지 마세요.",
                     "en": "It is a DANGER sign for a no-entry zone. Do not go past the sign.",
                     "zh": "这是表示禁止进入区域的“危险”警示牌。请不要越过警示牌。", "ja": "立入禁止区域を示すDANGER標識です。標識の先に入らないでください。"},
+    "machine_conveyor": {"ko": "상자를 옮기는 컨베이어입니다. 작동 중일 때는 롤러가 맞물리는 진입부에 손이나 옷이 끼일 수 있으니 "
+                               "손을 넣지 마세요. 걸린 물건을 뺄 때는 반드시 먼저 기계를 끄세요.",
+                         "en": "It is a conveyor that moves boxes. While it is running, your hand or clothing can get caught "
+                               "at the entry roller nip, so never reach in. Always turn it off before clearing a jam.",
+                         "zh": "这是搬运箱子的传送带。运转时手或衣物可能被入口滚轮的咬合处夹住，请勿将手伸入。清理卡阻物前务必先关闭机器。",
+                         "ja": "箱を運ぶコンベアです。稼働中は入口ローラーの噛み合わせ部に手や衣服が巻き込まれるおそれがあるので、"
+                               "手を入れないでください。詰まりを取り除く前には必ず機械を止めてください。"},
 }
 
 DIRS = {"front": {"ko": "정면", "en": "ahead", "zh": "正前方", "ja": "正面"},

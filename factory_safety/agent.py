@@ -26,10 +26,11 @@ import numpy as np
 
 from . import warehouse as W
 from . import zones as Z
-from .config import CLASS_KO, EQUIPMENT, HAZARD, KIND, PROXIMITY_WARN_M, TOOL_KO, TOOL_TYPES, TOUCH_WARN_M, \
-    VOICE_TEXT_CAUTION, VOICE_TEXT_HAZARD
+from .config import CLASS_KO, EQUIPMENT, HAZARD, KIND, MACHINE_ZONE_M, PINCH_ALERT_M, PROXIMITY_WARN_M, TOOL_KO, \
+    TOOL_TYPES, TOUCH_WARN_M, VOICE_TEXT_CAUTION, VOICE_TEXT_HAZARD
 from .geometry import Projector
 from .inspection import BodycamInspector, floor_point
+from .machines import MachineRegistry
 from .report import clock
 
 # 위험 상태별 조치와 기본 심각도 (3 높음 ~ 1 낮음)
@@ -191,6 +192,11 @@ class SafetyAgent:
         self.report_judge = None  # 스냅샷 -> LLM 판단 (assistant_client.AssistantClient.report_action). None 이면 고정 문구만
         self.task_context = []    # [(kind, zone_or_None)] 거리 경고 제외 대상 (set_task_context 로 채움)
         self._t = 0.0
+        # 끼임 위험 기계: 작동 상태 의존 위험 (정적 HAZARD 체계와 별도, T0 규칙, LLM 없음)
+        self.machines = MachineRegistry(on_change=self._on_machine_change)
+        self.pinch_events = []        # 끼임 경보 기록 (관리자 보고 대상)
+        self._machine_stats = defaultdict(lambda: {"zone_alerts": 0, "pinch_alerts": 0, "pinch_fallback": 0})
+        self.on_machine_visual = None  # 기계 on/off 가 바뀔 때 (machine_id, on) 으로 불림 (장면 표시등 등, 선택)
 
     def set_task_context(self, tbm):
         """오늘 TBM 작업 계획에서 지금 작업 대상인 종류(위치 정보 있으면 구역까지)를 거리 경고 제외 목록에 둔다."""
@@ -668,9 +674,68 @@ class SafetyAgent:
         self.voice_events.append({"t": float(t), "target": key, "dist": round(d, 2), "what": what,
                                   "level": level, "vibration": vibration, "text": text})
         self.stats["voice"] += 1
+        if key.startswith("Z:"):
+            z = next((zz for zz in self.zones.values() if zz.zid == key[2:]), None)
+            if z is not None and z.source == "machine":
+                self._machine_stats[z.members[0]]["zone_alerts"] += 1
         self.say(t, "음성 경고" if level == "hazard" else "주의 안내", f"\"{text}\" ← 작업자 ↔ {what}")
         if self.on_voice:
             self.on_voice(t, level)
+
+    # ------------------------------------------------------------ 끼임 위험 기계 (작동 상태 의존 위험, T0 규칙, LLM 없음)
+    def _on_machine_change(self, machine_id, on):
+        """기계 on/off 가 바뀌면 그 즉시 위험구역을 설정·해제한다 (틱을 기다리지 않음)."""
+        m = self.machines.machines[machine_id]
+        key = f"machine:{machine_id}"
+        if on:
+            pinch = self.machines.pinch_xyz(machine_id)
+            poly = Z.circle(pinch[:2], MACHINE_ZONE_M)
+            z = Z.Zone(f"Z{len(self.zones) + 1}", "machine", key, poly, f"{m['name']} 작동 중 (끼임 위험)",
+                      [machine_id], float(self._t))
+            self.zones[key] = z
+            self.stats["zones"] += 1
+            self.say(self._t, "위험구역", f"{z.zid} {m['name']} 작동 시작 → 끼임점 반경 {MACHINE_ZONE_M:.1f} m 위험구역 설정")
+        else:
+            z = self.zones.pop(key, None)
+            if z is not None:
+                self.say(self._t, "위험구역", f"{z.zid} {m['name']} 정지 → 위험구역 즉시 해제")
+        if self.on_machine_visual:
+            self.on_machine_visual(machine_id, on)
+
+    def check_pinch(self, t, machine_id, fingertip_xyz, detected_pinch_xyz=None):
+        """끼임 경보 판정: 기계가 작동 중이고 손가락 끝 - 끼임점 3D 거리가 PINCH_ALERT_M 이내면 최고 등급 경보.
+        detected_pinch_xyz: YOLO pinch_point 탐지 + depth 로 구한 3D 위치. None 이면 탐지 실패로 보고 장면
+        메타데이터의 등록된 끼임점 위치(설비 대장 개념)로 폴백해 계산한다 (폴백 사용 여부를 로그에 남김).
+        기계가 꺼져 있으면 거리를 재지 않고 경보도 없다. 반환: 경보 dict 또는 None."""
+        on = self.machines.get(machine_id)["on"]
+        if not on or fingertip_xyz is None:
+            return None
+        m = self.machines.machines[machine_id]
+        fallback = detected_pinch_xyz is None
+        pinch = self.machines.pinch_xyz(machine_id) if fallback else np.asarray(detected_pinch_xyz, float)
+        d = float(np.linalg.norm(np.asarray(fingertip_xyz, float) - pinch))
+        if d > PINCH_ALERT_M:
+            return None
+        self._machine_stats[machine_id]["pinch_alerts"] += 1
+        if fallback:
+            self._machine_stats[machine_id]["pinch_fallback"] += 1
+        note = " [폴백: 등록 위치 사용 - 끼임점 탐지 실패]" if fallback else ""
+        self.say(t, "끼임 경보", f"{m['name']} 손 끝 - 끼임점 {d * 100:.0f} cm (작동 중){note} → 손 빼세요! (최고 등급)")
+        ev = {"t": float(t), "machine": machine_id, "dist_cm": round(d * 100, 1), "fallback": fallback,
+              "say": "손 빼세요", "level": "critical"}
+        self.pinch_events.append(ev)
+        self.stats["pinch_alert"] += 1
+        return ev
+
+    def machine_report(self):
+        """report()/대시보드용: 기계 ID, 상태, 접근(위험구역)·끼임 경보 횟수."""
+        out = []
+        for mid, m in self.machines.machines.items():
+            s = self._machine_stats[mid]
+            out.append({"id": mid, "name": m["name"], "on": self.machines.get(mid)["on"],
+                       "zone_alerts": s["zone_alerts"], "pinch_alerts": s["pinch_alerts"],
+                       "pinch_fallback": s["pinch_fallback"]})
+        return out
 
     # ------------------------------------------------------------ 순찰 끝
     def finish_patrol(self, t):
@@ -755,6 +820,7 @@ class SafetyAgent:
                   "poly": [[round(float(a), 2), round(float(b), 2)] for a, b in z.poly], "members": z.members,
                   "n_cones": z.n_cones, "sign": z.has_sign} for z in sorted(self.zones.values(), key=lambda z: z.zid)]
         return {"summary": summary, "findings": items, "checkpoints": cps, "zones": zones, "voice": self.voice_events,
+                "machines": self.machine_report(), "pinch_events": self.pinch_events,
                 "stats": dict(self.stats), "timeline": self.timeline}
 
     # ------------------------------------------------------------ 채점 (정답표, 판정에는 안 씀)
