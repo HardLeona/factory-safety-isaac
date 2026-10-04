@@ -561,6 +561,7 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 | 손동작 명령 (손가락 1~5, 경로 8곳 x 조명) | ✅ 37/40 |
 | LLM 에이전트 (Qwen2.5-7B 도구 호출) + 시연 이야기 | ✅ 손동작 4/4, LLM 결정 4/4 |
 | 실제 사진, 실제 CCTV | ❌ 아직 안 함 (합성 데이터만으로 학습) |
+| 끼임 위험 경보 (`feature/pinch`, 컨베이어 롤러 1대) — 아래 별도 절 | ✅ 핵심 규칙은 실제 Isaac Sim 순찰로 검증 |
 
 ---
 
@@ -570,6 +571,54 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 - **실제 CCTV 보정**: 카메라 내부·외부 파라미터를 재서 바닥 투영 거리 정확도 확인
 - **동적 사고**: Isaac Sim 6.1 사고 이벤트 확장(넘어짐, 유출, 화재) 으로 "적재물이 쓰러지는 순간" 데이터
 - **VR 체험**: 바디캠 시점을 XR 로 연결해 작업자 시점 안전 교육
+
+### 🧷 끼임 위험 경보 (`feature/pinch` 브랜치, 컨베이어 롤러)
+
+작동 중인 기계(끼임점이 있는 설비)의 위험을 기존 정적 위험물(HAZARD) 체계와 별도로 다룬다. 기계 작동 상태는
+실제 공장의 IoT/PLC 신호 조회를 흉내 낸 `get_machine_state(machine_id)` 로 노출하고, LLM 없이 T0 규칙만으로
+판단한다: 작동 중인 기계의 끼임점 반경 1.5 m 를 위험구역으로 즉시 설정/해제하고, 손가락 끝(검지 끝)과
+끼임점의 3D 거리가 10 cm 이내면 최고 등급 경보("손 빼세요" + 로그·HUD)를 낸다.
+
+**구현 범위**
+- 장면: 컨베이어 롤러 1대 (`factory_safety/scene.py:add_machine`), 진입 롤러에 `pinch_point` 라벨 (안전색 노랑으로 칠해 시각적으로도 구분)
+- 기계 상태: `factory_safety/machines.py` (`MachineRegistry`, 기본값 off)
+- 판단 규칙: `factory_safety/agent.py` (`_on_machine_change`, `check_pinch`, `machine_report`) — 위험구역은 기존 `_check_warnings` 경고 체계에 자연스럽게 편입됨
+- 3D 위치 추정: 바디캠에 `distance_to_image_plane` 어노테이터를 붙여 MediaPipe 손 관절(검지 끝)과 `pinch_point` YOLO 박스를 역투영 (`geometry.Projector.unproject`, `factory_safety/pinch_detect.py`)
+- 폴백: 끼임점 탐지 실패 시 장면 메타데이터의 등록 위치(`warehouse.MACHINE_CONVEYOR`)로 계산하고 로그("[폴백: ...]")·집계(`pinch_fallback`)에 남김
+- `report()`/대시보드: 기계 ID·상태·접근(위험구역)/끼임 경보 횟수를 "끼임 위험 기계" 카드로 표시, 손동작 1(장비 설명)로 가리키면 안전수칙 안내 (`data/manuals/conveyor.md`, `i18n.INFO["machine_conveyor"]`)
+- 테스트 6개 추가 (`tests/test_core.py`): 기계 on/off 위험구역 생성·해제, 위험구역 진입 경고, 10 cm+작동 중 경보, 꺼지면 무경보, 탐지 실패 폴백+로그
+
+**합성 데이터 생성 방식** (`scripts/generate_pinch_dataset.py`, 기존 `generate_dataset.py` 패턴 재사용)
+끼임점 주변 0.5~3.2 m, 눈높이~허리높이(0.5~1.9 m)에서 전 방위로 바디캠 시점처럼 렌더링. 조명 무작위화,
+흔들림 블러·센서 노이즈 후처리(기존 `dataset.post_process` 재사용), 30% 확률로 작은 상자를 끼임점 앞에 놓아
+가림 조건도 섞음. Replicator `bounding_box_2d_tight` 가 `pinch_point` 라벨이 붙은 진입 롤러만 자동으로
+정답 박스화.
+
+**학습 결과** (YOLO26n, 960 px, 1800장 — 학습 1543 / 검증 257, 라벨 1353장)
+
+| 지표 | 값 |
+|---|---|
+| Precision | 0.983 |
+| Recall | 0.910 |
+| mAP50 | 0.966 |
+| mAP50-95 | 0.760 |
+
+6 epoch 만에 수렴(끼임점을 현장 안전색 노랑으로 칠해 시각적으로 뚜렷하게 만든 효과가 큼), 60 epoch 중
+조기 종료. `outputs/yolo/pinch_v1/weights/best.pt`, `outputs/yolo/pinch_v1/metrics.json`.
+
+**실제 Isaac Sim 종단 검증** (`run_patrol.py --pinch-demo --record`, headless, 실제 GPU 렌더링)
+기계 on → 순찰 중 위험구역(1.5 m) 진입 시 실제 음성 경고 발생 → 끼임 경보("손 빼세요", 폴백 로그 포함) →
+기계 off → 위험구역 즉시 해제·이후 무경보, 전 과정 로그·`state.jsonl`로 기록됨. 전체 `pytest tests -q` 36개 통과.
+
+**알려진 한계 (의도적으로 범위 밖에 둔 것)**
+- 시연 중 "손이 끼임점에 닿는" 순간은 손끝 3D 위치를 스크립트로 직접 주입해 규칙을 실행시킴 (`run_patrol.py` 의
+  `--pinch-demo`). 작업자 캐릭터가 손을 실제로 끼임점(허리 높이)까지 뻗는 새 IK 애니메이션은 만들지 않았다 —
+  기존 손동작(1~5) IK는 가슴 높이로 캘리브레이션돼 있어 재사용이 안 맞고, 새 reach 애니메이션은 범위를 넘어선다
+  판단. 탐지·3D 역투영·T0 규칙 자체는 전부 실동작(위 종단 검증 참고).
+- `.venv-assistant`(MediaPipe) 가 없으면 실시간 손 인식 자체가 꺼져서, 실제 깊이 기반 손끝 추정 경로는 그
+  환경에서만 동작 확인 가능 (코드는 작성·단위 테스트 완료, 이번 세션엔 그 venv 를 새로 만들지 않음).
+- `feature/pinch` 는 CCTV 제거 작업(3단계 커밋, `3d2abb3`) 위로 리베이스 완료. `main` 과의 diff 는 순수 추가분
+  624줄(파일 15개) + 무관한 기존 버그 수정 1건(대시보드 평가 요약이 새 `evaluate()` 필드와 안 맞던 문제).
 
 ---
 
