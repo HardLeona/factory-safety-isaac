@@ -87,14 +87,14 @@ def _rows(rep):
 
 
 def _eval_html(ev):
-    b, a, r = ev["before"], ev["after"], ev["recheck"]
+    b, a, rj = ev["before"], ev["after"], ev.get("rejudge", {})
     rows = [("위험을 위험으로", f"{b['hazard_found']}/{b['hazard_total']}", f"{a['hazard_found']}/{a['hazard_total']}"),
             ("안전을 안전으로", f"{b['safe_ok']}/{b['safe_total']}", f"{a['safe_ok']}/{a['safe_total']}"),
             ("위험을 안전으로 오판", b["hazard_as_safe"], a["hazard_as_safe"]),
             ("안전을 위험으로 오판", b["safe_as_hazard"], a["safe_as_hazard"]),
             ("없는 위험 보고", b["false_reports"], a["false_reports"]),
             ("현장 확인 요청", "-", f"{a['need_check']} (실제 물체 {a['need_check_real']})"),
-            ("미확정 (주의, 안전·위험 못 가름)", "-", f"{a['undetermined']} (실제 물체 {a['undetermined_real']})")]
+            ("미확정 (주의, 안전·위험 못 가름)", "-", f"{a['caution']} (실제 물체 {a['caution_real']})")]
     if "zones" in ev:
         z, v, t = ev["zones"], ev["voice"], ev["tools"]
         rows += [("위험 영역 (라바콘·표지) 알아봄", "-", f"{z['found']}/{z['gt']}"),
@@ -106,10 +106,10 @@ def _eval_html(ev):
         rows += [("손동작 명령 맞게 인식 (잘못 실행)", "-", f"{g['recognized']}/{g['shown']} ({g['extra']})")]
     body = "".join(f"<tr><td>{k}</td><td>{v1}</td><td>{v2}</td></tr>" for k, v1, v2 in rows)
     return (f'<h2>정답표 비교 (평가용)</h2><table class="ev"><tr><th></th><th>바디캠만</th><th>에이전트</th></tr>{body}</table>'
-            f'<p class="muted">재확인 {r["recheck_run"]}건: 찾음 {r["recheck_found"]}, 판정 고침 {r["recheck_changed"]} '
-            f'(맞게 고침 {r["changed_correct"]}), 다른 CCTV 로 재시도 {r["recheck_retry"]}, '
-            f'재확인 소진 후 위험으로 둠 {r["recheck_defaulted_hazard"]}, 미확정 {r["recheck_undetermined"]}, '
-            f'현장 확인(점검표) {r["recheck_escalated"]}</p>')
+            f'<p class="muted">애매한 판정 {rj.get("ambiguous_hazard", 0) + rj.get("ambiguous_caution", 0)}건: '
+            f'고위험 후보라 즉시 위험 확정 {rj.get("ambiguous_hazard", 0)}, 주의로 분류 {rj.get("ambiguous_caution", 0)} | '
+            f'재관측 재판단 {rj.get("caution_rejudged", 0)}건 (확정으로 바뀜 {rj.get("caution_rejudged_confirmed", 0)}, '
+            f'맞게 고침 {rj.get("changed_correct", 0)})</p>')
 
 
 def llm_note(e):
