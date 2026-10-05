@@ -75,12 +75,14 @@ from factory_safety.inspection import bodycam_summary  # noqa: E402
 from factory_safety.isaac_utils import (DebugBoxes, attach, depth_array, get_annotator, isaac_labeler, new_stage,  # noqa: E402
                                         parse_bboxes, rgb_array, set_viewport_camera, set_viewport_top_view,
                                         timeline_setter)
+from factory_safety.model_weights import ensure_weights  # noqa: E402
 from factory_safety import pinch_detect as PD  # noqa: E402
 from factory_safety.scenario import sample_scenario  # noqa: E402
 from factory_safety.scene import WarehouseScene  # noqa: E402
 from factory_safety import warehouse as W  # noqa: E402
 from factory_safety.walker import PathWalker  # noqa: E402
 
+args.weights = ensure_weights(args.weights)
 if not os.path.exists(args.weights):
     sys.exit(f"[오류] YOLO 가중치가 없어요: {args.weights}\n"
              f"       python scripts/get_model.py 로 학습된 가중치를 받거나, python scripts/train_yolo.py 로 직접 학습하세요.")
@@ -121,6 +123,7 @@ a_depth = get_annotator("distance_to_image_plane")
 attach(a_depth, rp)
 
 pinch_yolo = None
+args.pinch_weights = ensure_weights(args.pinch_weights)
 if os.path.exists(args.pinch_weights):
     pinch_yolo = YoloDetector(args.pinch_weights)
     print(f"[끼임점] 경량 탐지 모델 사용: {args.pinch_weights}")

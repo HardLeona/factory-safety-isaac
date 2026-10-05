@@ -222,7 +222,8 @@
 <p align="center"><img src="docs/yolo_confusion.png" width="440" alt="정규화 혼동 행렬"> <img src="docs/yolo_training.png" width="440" alt="학습 곡선"></p>
 
 학습된 가중치는 저장소에 들어있지 않고 Hugging Face ([IBDPLab/factory-safety-isaac-yolo](https://huggingface.co/IBDPLab/factory-safety-isaac-yolo))에 올려 두었습니다.
-`python scripts/get_model.py` 로 `outputs/yolo/warehouse_v3/weights/best.pt` 에 받으면 데이터 생성과 학습 없이 바로 순찰을 돌릴 수 있습니다.
+`python scripts/get_model.py` 로 미리 받아 둬도 되고, `run_patrol.py` 를 돌릴 때 `outputs/yolo/warehouse_v3/weights/best.pt`·`pinch_v1/weights/best.pt` 가 없으면
+자동으로 받아 옵니다(일반 파이썬에 `huggingface_hub` 가 있을 때만; Isaac 전용 파이썬이라 없으면 안내 메시지만 보여주고 `get_model.py` 를 먼저 돌려야 함).
 
 **실제 사진 시험** (`detect_image.py`): 책상 위 공구를 위에서 가까이 찍은 휴대폰 사진 3장 (커터칼, 일자 드라이버, 가위) 에서 학습한 클래스인 드라이버를 놓치고 손잡이를 작업자로 봤습니다.
 학습 데이터의 드라이버는 화면의 0.05~4% 크기 (바디캠으로 1~5 m 앞 바닥) 인데 이 사진은 화면의 13% 를 채워서, 실제 현장 적용 전에 현장 사진으로 미세조정이 필요합니다.
