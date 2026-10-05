@@ -315,10 +315,14 @@ factory-safety-isaac/
 ├── data/tbm_today.json       오늘 TBM (작업, 위험, 지킬 것, 지난 순찰 조치)
 ├── data/manuals/*.md         안전 매뉴얼 RAG 원문 (공구·카트·적재·유출·소화기·위험구역·컨베이어, 공개 산업안전 자료 기반 큐레이션)
 ├── tests/test_core.py        Isaac 없이 도는 테스트
-└── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서, yolo/warehouse_v3/weights/best.pt 만)
+└── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서, yolo/warehouse_v3·pinch_v1/weights/best.pt 만)
 ```
 
 `★` 두 파일을 고치면 경로, 물체 자리, 배치 확률이 장면, 학습 데이터, 순찰, 채점에 한꺼번에 반영됩니다.
+
+**`_legacy_pre_cctv_removal/` 폴더 관례**: 구조를 크게 바꿀 때(예: CCTV 제거) 지금 코드와 안 맞게 된 결과물은 지우지 않고
+`outputs/eval/_legacy_pre_cctv_removal/`, `submission/_legacy_pre_cctv_removal/` 처럼 같은 이름의 하위 폴더로 옮겨 둡니다.
+평가·제출 문서 스크립트는 이 폴더를 보지 않으므로 최신 결과와 섞이지 않고, 과거 수치가 왜 다른지 추적할 때만 참고합니다.
 
 ---
 
@@ -387,6 +391,7 @@ ollama pull nomic-embed-text
 & $env:ISAACSIM_PYTHON scripts/run_patrol.py
 & $env:ISAACSIM_PYTHON scripts/run_patrol.py --view top
 & $env:ISAACSIM_PYTHON scripts/run_patrol.py --story --seed 5                 # 시연 이야기 (손동작, 카트, LLM, 영어 안내)
+& $env:ISAACSIM_PYTHON scripts/run_patrol.py --pinch-demo                     # 끼임 위험 경보 시연 (컨베이어 on → 접근 → 끼임 경보 → off)
 
 # 4) 여러 시나리오 채점, 전체 시연
 .venv\Scripts\python scripts/eval_patrol.py --seeds 0 1 2 3 4
@@ -432,6 +437,8 @@ VSCode 에서는 `Ctrl+Shift+P` → **Tasks: Run Task** 에 위 작업 (장면, 
 | `--lang` | `zh,en,ja` (`--story` 는 `en`) | 작업자 언어 (`ko` `en` `zh` `ja`). 여러 개면 명령마다 돌아가며 |
 | `--sound` | `auto` | 음성 경고·안내 소리 (`auto` 는 창이 있을 때만) |
 | `--result` | `outputs/eval/inspection_seed<시드>.json` | 채점 결과 |
+| `--pinch-weights` | `outputs/yolo/pinch_v1/weights/best.pt` | 끼임점(`pinch_point`) 1클래스 경량 모델 가중치. 없으면 등록 위치 폴백만 사용 |
+| `--pinch-demo` | | 시연: 컨베이어(M1)를 켜고 순찰 중 가장 가까이 지날 때 끼임 경보를 보인 뒤 끔 |
 
 끝나면 `outputs/agent/dashboard_seed<시드>.html` (조치 지시서), `outputs/agent/report_seed<시드>.json` (대장과 기록) 이 생깁니다.
 `--story` 는 평가 결과를 덮지 않게 `dashboard_story_seed<시드>.html`, `report_story_seed<시드>.json` 으로 저장합니다.
@@ -499,6 +506,8 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 | 걷는 속도, 바디캠 높이 | `walker.py` 의 `PathWalker` |
 | 재관측 재판단 모델·신뢰 기준 | `recheck_agent.py` 의 `MODEL`, `MAX_STEPS`, `run_patrol.py` 의 `--recheck-llm`/`--agent` |
 | 조치 방법, 심각도 | `agent.py` 의 `ACTIONS`, `SAFE_NOTES` |
+| 끼임 위험구역 반경, 끼임 경보 거리 | `config.py` 의 `MACHINE_ZONE_M`, `PINCH_ALERT_M` |
+| 끼임 위험 기계 위치·추가 | `warehouse.py` 의 `MACHINE_CONVEYOR`, `MACHINES` |
 
 **새 위험 요소 추가**: `config.py` 의 `CLASSES`, `HAZARD`, `KIND` 에 위험/안전 두 클래스 추가 → `warehouse.py` 에 자리 → `scenario.py` 에서 배치 → `scene.py` 에 `_build_<종류>` → `agent.py` 의 `HAZARD_SEVERITY`/`AVOIDANCE_HAZARDS` 에 편입 여부 결정 → `pytest`.
 

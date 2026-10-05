@@ -1,0 +1,9 @@
+{
+ "map50": 0.966,
+ "map5095": 0.76,
+ "precision": 0.983,
+ "recall": 0.91,
+ "per_class": {
+  "pinch_point": 0.966
+ }
+}
