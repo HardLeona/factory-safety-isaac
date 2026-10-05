@@ -1,11 +1,10 @@
 """시연 이야기 (run_patrol.py --story): 작업자가 하는 일. 에이전트는 이걸 모르고 바디캠 화면과 손동작으로만 안다.
 
-    ① 시작하자마자 손가락 3 → 오늘의 TBM (상자 4개를 카트로 북쪽 보관 구역에서 남쪽 작업 구역으로)
+    ① 시작하자마자 손가락 2 → 오늘의 TBM (상자 4개를 카트로 북쪽 보관 구역에서 남쪽 작업 구역으로)
     ② 순찰하며 걷기 (에이전트가 위험 요소 판정)
     ③ 북쪽 보관 구역에서 멈춰 운반 카트를 3초 보고 손가락 1 → 카트 쓰는 법과 주의점
     ④ 옆 팔레트의 상자 4개를 카트에 싣고, 카트를 뒤로 끌며 걷기
-    ⑤ 동쪽 통로 중간에서 손가락 2 → 공장 전체 위험 스캔
-    ⑥ 한 바퀴를 다 돌면 손가락 4 → 관리자 호출, 끝 (남은 점검 지점은 "현장 확인 필요"로 표시)
+    ⑤ 한 바퀴를 다 돌면 손가락 3 → 관리자 호출, 끝 (남은 점검 지점은 "현장 확인 필요"로 표시)
 손동작이 인식되지 않으면 한 번 더 보이고, 앞 안내가 끝나야 다음 손동작을 한다.
 """
 import math
@@ -23,7 +22,6 @@ BASE_BOX = "box_b"                      # 팔레트 아래층에 남는 상자 (
 N_BOXES = 4
 BOX_GRID = [(-0.27, -0.25), (0.27, -0.25), (-0.27, 0.25), (0.27, 0.25)]
 LOAD_Z = PALLET_TOP + 0.5               # 실을 상자는 아래층 (0.5 m) 위에
-SCAN_XY = (4.5, 4.0)                    # 공장 스캔을 하는 곳 (동쪽 통로 중간)
 FOLLOW_M = 1.25                         # 카트 바퀴 축은 작업자 뒤 이만큼 (경로를 따라)
 PULL_TILT = 40.0                        # 끌 때 카트 기울기 (도)
 LOOK_S = 3.0                            # 카트를 보는 시간
@@ -33,8 +31,8 @@ LOAD_EACH_S = 1.0                       # 상자 하나 싣는 시간
 ATTACH_S = 1.2                          # 카트를 끄는 자세로 잡는 시간
 HOLD = 2.0                              # 손을 들고 있는 시간
 GAP_S = 0.5
-LABELS = {"start": "준비", "tbm": "TBM 듣기", "walk": "순찰", "look": "운반 카트 확인", "load": "상자 싣기", "attach": "카트 잡기", "pull2": "카트 끌며 순찰",
-          "pull": "카트 끌며 순찰", "scan": "공장 위험 스캔", "end": "순찰 끝", "call": "관리자 호출", "done": "끝"}
+LABELS = {"start": "준비", "tbm": "TBM 듣기", "walk": "순찰", "look": "운반 카트 확인", "load": "상자 싣기", "attach": "카트 잡기",
+          "pull": "카트 끌며 순찰", "end": "순찰 끝", "call": "관리자 호출", "done": "끝"}
 
 
 def _ease(u):
@@ -53,7 +51,6 @@ class Story:
         self.path = walker.path
         self.prefix = prefix
         self.s_station = self.path.nearest_s(*STATION_XY)
-        self.s_scan = self.path.nearest_s(*SCAN_XY)
         self.state, self.t_state = "start", 0.0
         self.shown, self.heard = [], set()
         self.busy_until = 0.0
@@ -141,7 +138,7 @@ class Story:
         if st == "start":
             w.pause()
             if t >= 0.8:
-                self._show(t, 3)
+                self._show(t, 2)
                 self._go("tbm", t)
         elif st == "tbm":
             if self._gesture_over(t) and t >= self.busy_until:      # TBM 을 끝까지 듣고 출발
@@ -188,29 +185,20 @@ class Story:
             if e >= ATTACH_S:
                 w.resume()
                 self._go("pull", t)
-        elif st in ("pull", "pull2"):
+        elif st == "pull":
             self.cart = self._follow_pose()
-            if st == "pull" and w.s >= self.s_scan and t >= self.busy_until:
-                w.pause()
-                self._show(t, 2)
-                self._go("scan", t)
-            elif st == "pull2" and w.s >= self.path.length - 0.05:
+            if w.s >= self.path.length - 0.05:
                 w.s = self.path.length - 0.05
                 w.pause()
                 self.lap_done = True
                 self._go("end", t)
-        elif st == "scan":
-            self.cart = self._follow_pose()
-            if self._gesture_over(t):
-                w.resume()
-                self._go("pull2", t)
         elif st == "end":
             if e >= 0.6 and t >= self.busy_until:
-                self._show(t, 4)
+                self._show(t, 3)
                 self._go("call", t)
         elif st == "call":
             # 관리자 호출 안내가 끝나면 끝 (두 번 보여도 인식이 안 되면 그냥 끝)
-            if self._gesture_over(t) and (4 not in self.heard or t >= self.busy_until):
+            if self._gesture_over(t) and (3 not in self.heard or t >= self.busy_until):
                 self._go("done", t)
                 self.done = True
         elif st == "done":

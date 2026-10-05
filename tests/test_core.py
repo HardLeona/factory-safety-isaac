@@ -517,18 +517,11 @@ def test_assistant_commands():
         a.on_bodycam(0.1 * k, cam, dets, worker_xy=(-4.5, -2.3))
     ev = s.run(1.0, 1, cam, (-4.5, -2.3), math.pi / 2)            # 중국어
     assert ev["lang"] == "zh" and "锤子" in ev["text"] and "망치" in ev["text_ko"] and ev["items"][0]["tool"] == "hammer"
-    ev = s.run(1.1, 2, cam, (-4.5, -2.3), math.pi / 2)            # 영어: 공장 전체 스캔 (위험물 대장)
-    assert ev["lang"] == "en" and ev["n_hazards"] == 2 and "spill" in ev["text"] and "hammer" in ev["text"] and "west aisle" in ev["text"]
-    assert s.ptz_view(1.2) is None     # CCTV 없음 -> 확대 화면 없이 텍스트로만 전달
-    ev = s.run(1.2, 3, cam, (-4.5, -2.3), math.pi / 2)            # 일본어
-    assert ev["lang"] == "ja" and "TBM" in ev["text"] and "南側作業エリア" in ev["text"] and "남쪽 작업 구역" in ev["text_ko"]
-    ev = s.run(1.3, 4, cam, (-4.5, -2.3), math.pi / 2, lang="ko")
+    ev = s.run(1.1, 2, cam, (-4.5, -2.3), math.pi / 2)            # 영어: 오늘의 TBM
+    assert ev["lang"] == "en" and "TBM" in ev["text"] and "south work area" in ev["text"] and "남쪽 작업 구역" in ev["text_ko"]
+    ev = s.run(1.3, 3, cam, (-4.5, -2.3), math.pi / 2, lang="ko")  # 관리자 호출
     assert "서쪽 통로" in ev["text"] and any(e["kind"] == "관리자 호출" for e in a.timeline)
-    ev = s.run(2.0, 5, cam, (-4.5, -2.3), math.pi / 2, lang="en")
-    assert not ev["cctv"] and s.sos_view(3.0) is None     # CCTV 없음 -> 위치/정보만 전달, 영상 확대 없음
-    assert any(e["kind"] == "SOS" for e in a.timeline)
     s2 = SiteAssistant(_agent(), langs=["en"], tbm=tbm)
-    assert "No hazards" in s2.run(0.0, 2, cam, (-4.5, -2.3), math.pi / 2)["text"]
     # 운반 카트: 장비를 먼저 고름, 에이전트 대장에는 안 들어감
     cart = [("cart", 0.9, _box_at(cam, [-4.2, 0.5, 0.0], 90, 160, flat=False), 9)] + dets
     for k in range(3):
@@ -539,14 +532,14 @@ def test_assistant_commands():
     assert "hand cart" in ev["text"] and ev["items"][0]["cls"] == "cart" and all(f.group != "cart" for f in s2.agent.findings)
     # 시연 순서와 인식 채점
     d = DemoScript()
-    assert d.next(0.5, 0.0, a, cam, [], (-4.5, -2.3), True) is None and d.next(1.0, 0.0, a, cam, [], (-4.5, -2.3), True) == 3
+    assert d.next(0.5, 0.0, a, cam, [], (-4.5, -2.3), True) is None and d.next(1.0, 0.0, a, cam, [], (-4.5, -2.3), True) == 2
     assert d.next(2.0, 0.1, a, cam, [], (-4.5, -2.3), True) is None       # 안내가 끝나기 전
-    d.said(2.0, 3.0, 3)
+    d.said(2.0, 3.0, 2)
     assert d.next(6.5, 0.1, a, cam, dets, (-4.5, -2.3), True) == 1          # 망치가 화면 가운데 2 m
     d.missed(7.0)
     assert d.next(8.5, 0.1, a, cam, dets, (-4.5, -2.3), True) == 1          # 인식이 안 되면 한 번 더
     d.missed(9.0)
-    assert d.next(10.5, 0.7, a, cam, [], (-4.5, -2.3), True) == 2           # 두 번 안 되면 다음으로
+    assert d.next(10.5, 0.7, a, cam, [], (-4.5, -2.3), True) == 3           # 두 번 안 되면 다음으로 (관리자 호출)
     g = gesture_eval([(1.0, 3), (6.5, 1), (20.0, 2)], [{"t": 1.5, "count": 3}, {"t": 7.0, "count": 4}, {"t": 40.0, "count": 5}])
     assert g == {"shown": 3, "recognized": 1, "wrong": 1, "missed": 1, "extra": 1}
 
@@ -606,7 +599,7 @@ def test_gesture_rig():
 
 
 def test_story():
-    """시연 이야기: TBM(3) → 카트 보고 설명(1) → 상자 4개 싣고 끌기 → 공장 스캔(2) → 한 바퀴 뒤 관리자 호출(4) → 끝."""
+    """시연 이야기: TBM(2) → 카트 보고 설명(1) → 상자 4개 싣고 끌기 → 한 바퀴 뒤 관리자 호출(3) → 끝."""
     from factory_safety.story import FOLLOW_M, N_BOXES, Story
 
     class FakeScene:
@@ -630,8 +623,8 @@ def test_story():
             x, y = w.path.point_at(w.s)
             assert abs(math.hypot(st.cart[0] - x, st.cart[1] - y) - FOLLOW_M) < 0.3      # 카트는 작업자 뒤
     assert st.done and st.lap_done and st.loaded == N_BOXES and w.pulling
-    assert [c for _, c in st.shown] == [3, 1, 2, 4]
-    assert states[:8] == ["start", "tbm", "walk", "look", "look_ask", "load", "attach", "pull"] and "scan" in states
+    assert [c for _, c in st.shown] == [2, 1, 3]
+    assert states[:8] == ["start", "tbm", "walk", "look", "look_ask", "load", "attach", "pull"]
     assert 60 < t < 110          # 시연 길이 (초)
 
 
@@ -674,7 +667,7 @@ def test_assistant_llm_planner():
         a.on_bodycam(0.1 * k, cam, dets, worker_xy=(-4.5, -2.3))
     ev = s.run(1.0, 1, cam, (-4.5, -2.3), math.pi / 2)
     assert "hammer" in ev["text"] and ev["llm"]["llm"] and {o["kind"] for o in seen[0]["view"]} >= {"equipment", "tool"}
-    ev = s.run(2.0, 4, cam, (-4.5, -2.3), math.pi / 2)
+    ev = s.run(2.0, 3, cam, (-4.5, -2.3), math.pi / 2)
     assert "작업자 위치 서쪽 통로" in ev["manager_ko"] and "AI 요약: 서쪽 통로 작업자 호출" in ev["manager_ko"]
     assert sum(e["kind"] == "LLM 판단" for e in a.timeline) == 2
     s.planner = lambda snap: {"llm": False, "error": "꺼짐"}             # LLM 이 안 되면 규칙
@@ -815,6 +808,52 @@ def test_pinch_fallback_logs_and_counts():
     ev2 = a.check_pinch(2.0, "M1", near, detected_pinch_xyz=pinch)
     assert ev2["fallback"] is False
     assert a.machine_report()[0]["pinch_fallback"] == 1                # 더 안 늘어남
+
+
+def test_forklift_zone_tracks_moving_position():
+    """지게차는 기계처럼 on/off 가 아니라 계속 움직인다: update_forklift 가 매번 위험구역 중심을 다시 그리고,
+    active=False 면 즉시 해제한다."""
+    from factory_safety.config import FORKLIFT_ZONE_M
+    a = _agent()
+    assert a.zones == {}
+    a.update_forklift(1.0, "F1", (3.0, 4.0), True)
+    assert list(a.zones.keys()) == ["forklift:F1"]
+    z = a.zones["forklift:F1"]
+    assert z.source == "forklift" and abs(z.radius - FORKLIFT_ZONE_M) < 1e-6
+    assert np.linalg.norm(z.center - np.array([3.0, 4.0])) < 1e-6
+    a.update_forklift(1.2, "F1", (3.5, 4.0), True)          # 움직임: 같은 영역, 중심만 갱신
+    assert list(a.zones.keys()) == ["forklift:F1"]
+    assert np.linalg.norm(a.zones["forklift:F1"].center - np.array([3.5, 4.0])) < 1e-6
+    a.update_forklift(1.4, "F1", (10.0, 4.0), False)        # 지나감: 즉시 해제
+    assert a.zones == {}
+
+
+def test_forklift_proximity_warns_and_notifies_manager():
+    """작업자가 지게차 위험구역에 들어오면 기존 경고 규칙대로 강한 경고가 나고, 관리자 알림 피드에도 쌓인다."""
+    a = _agent()
+    heard = []
+    a.on_voice = lambda t, level: heard.append((t, level))
+    a.update_forklift(1.0, "F1", (0.0, 0.0), True)
+    cam = CameraPose(pos=np.array([0.0, -2.0, 1.4]), yaw=math.pi / 2, pitch=0.0, vfov=66)
+    a.on_bodycam(1.0, cam, [], worker_xy=(0.0, -0.5))        # 위험구역 안
+    assert heard and heard[-1][1] == "hazard"
+    assert any(n["source"] == "F1" and n["level"] == "critical" for n in a.manager_notifications)
+    assert a.forklift_report() == [{"id": "F1", "zone_alerts": 1}]
+
+
+def test_manager_notifications_feed_pinch_and_caution():
+    """끼임 경보와 '주의' 분류는 관리자 알림 피드에도 자동으로 쌓인다 (작업자가 직접 호출하지 않아도)."""
+    a = _agent()
+    a.machines.set("M1", True)
+    pinch = a.machines.pinch_xyz("M1")
+    a.check_pinch(1.0, "M1", pinch + np.array([0.02, 0.0, 0.0]))
+    assert any(n["level"] == "critical" and n["source"] == "M1" for n in a.manager_notifications)
+
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False)
+    a.on_bodycam(3.0, cam, [("tool_floor", 0.5, box, 11)])
+    a.on_bodycam(4.0, cam, [])                                # 1프레임만 보이고 사라짐 -> 주의
+    assert any(n["level"] == "caution" for n in a.manager_notifications)
 
 
 if __name__ == "__main__":

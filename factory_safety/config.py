@@ -24,6 +24,7 @@ ASSETS = {
     "ycb_drill": ASSET_ROOT + "Props/YCB/Axis_Aligned/035_power_drill.usd",
     "table": ASSET_ROOT + "Props/PackingTable/packing_table.usd",
     "worker": ASSET_ROOT + "People/Characters/original_male_adult_construction_05/male_adult_construction_05.usd",
+    "forklift": ASSET_ROOT + "Robots/IsaacSim/ForkliftC/forklift_c.usd",
 }
 
 # 바디캠, CCTV 화면 크기 (YOLO 입력과 데이터셋 기본값)
@@ -108,6 +109,10 @@ PROXIMITY_WARN_M = 2.0
 MACHINE_ZONE_M = 1.5
 # 손가락 끝 - 끼임점 3D 거리가 이 안이고 기계가 작동 중이면 최고 등급 끼임 경보 ("손 빼세요")
 PINCH_ALERT_M = 0.10
+
+# 지게차 접근 위험: 위치가 실시간으로 바뀌는 위험(정적 HAZARD 체계와 별도). 실제 공장의 UWB/RTLS 위치 추적 태그를
+# 대신하는 개념 (영상으로 지게차를 인식하는 게 아니라 위치 신호로 안다). 반경 안이면 즉시 강한 경고 (ZONE_WARN_M 만큼 더 넓게 경고)
+FORKLIFT_ZONE_M = 3.0
 
 # 로그 색상 (터미널, 디버그 드로잉)
 RISK_RGBA = {

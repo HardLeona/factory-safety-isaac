@@ -67,7 +67,7 @@ from factory_safety.assistant import load_tbm  # noqa: E402
 from factory_safety.config import CLASSES, IMG_H, IMG_W, VOICE_TEXT_CAUTION  # noqa: E402
 from factory_safety.dashboard import write_dashboard  # noqa: E402
 from factory_safety import overlay  # noqa: E402
-from factory_safety.voice import VOICE_CAUTION_WAV, ensure_voice, play_async, with_alarm  # noqa: E402
+from factory_safety.voice import VOICE_CAUTION_WAV, ensure_voice, play_async  # noqa: E402
 from factory_safety.detector import YoloDetector  # noqa: E402
 from factory_safety.geometry import Projector  # noqa: E402
 from factory_safety.inspection import bodycam_summary  # noqa: E402
@@ -197,10 +197,8 @@ def covered(b, r, frac=0.5):
 
 
 def speak(t, ev):
-    """명령 안내를 작업자 언어 음성으로 (SOS 는 경보음 먼저)."""
+    """명령 안내를 작업자 언어 음성으로."""
     wav, dur = client.tts(ev["text"], ev["lang"])
-    if wav and ev["count"] == 5:
-        wav, dur = with_alarm(wav), dur + 1.35
     ev["wav"], ev["dur"] = wav, round(dur, 2)
     if wav and SOUND:
         play_async(wav)

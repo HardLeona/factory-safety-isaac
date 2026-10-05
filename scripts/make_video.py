@@ -358,7 +358,8 @@ def dashboard_frames(png):
 def results_card(eval_dir, gestures=None, langs=None):
     files = sorted(glob.glob(os.path.join(eval_dir, "inspection_seed*.json")))
     rs = [json.load(open(f, encoding="utf-8")) for f in files]
-    rs = [r for r in rs if r.get("agent")]
+    # CCTV 제거 리팩터(에이전트 평가가 recheck -> rejudge 스키마로 바뀜) 전에 돌린 옛 평가 결과는 집계에서 뺀다
+    rs = [r for r in rs if r.get("agent") and "rejudge" in r["agent"].get("evaluation", {})]
     if not rs:
         return None
     tot = lambda part, k: sum(r["agent"]["evaluation"][part][k] for r in rs)  # noqa: E731

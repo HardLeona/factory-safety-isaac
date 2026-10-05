@@ -136,6 +136,7 @@ class WarehouseScene:
             self.cctv_paths[name] = self.add_camera(f"/World/CCTV/{name}")
         for m in W.MACHINES:
             self.machine_paths[m["id"]] = self.add_machine(f"/World/Fixed/Machine_{m['id']}", m)
+        self.forklift_path = self.add_forklift("/World/Forklift")
         return self
 
     def _read_env_extinguishers(self):
@@ -591,6 +592,24 @@ class WarehouseScene:
 
     def set_cart(self, path, x, y, yaw, tilt=0.0):
         self._ops[path].Set(self.cart_matrix(x, y, yaw, tilt))
+
+    # ------------------------------------------------------------ 지게차 (위치는 실제로는 RTLS/UWB 위치 추적 태그 개념, YOLO 라벨 없음)
+    @staticmethod
+    def forklift_matrix(x, y, yaw):
+        return (Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 0, 1), math.degrees(yaw)))
+                * Gf.Matrix4d().SetTranslate(Gf.Vec3d(float(x), float(y), 0.0)))
+
+    def add_forklift(self, path, x=0.0, y=-100.0, yaw=0.0):
+        """시연 전에는 장면 밖(y=-100)에 둔다. set_forklift 로 매 프레임 위치를 바꿈."""
+        g = UsdGeom.Xform.Define(self.stage, path)
+        op = g.AddTransformOp()
+        op.Set(self.forklift_matrix(x, y, yaw))
+        self._ref(path + "/Body", ASSETS["forklift"])
+        self._ops[path] = op
+        return path
+
+    def set_forklift(self, path, x, y, yaw):
+        self._ops[path].Set(self.forklift_matrix(x, y, yaw))
 
     def add_box(self, path, box="box_c"):
         """따로 움직이는 상자 (시연에서 팔레트 → 카트로 옮겨 실음)."""
