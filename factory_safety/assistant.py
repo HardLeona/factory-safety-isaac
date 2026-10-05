@@ -160,6 +160,14 @@ class SiteAssistant:
         for o in objs.values():
             o["dir"] = i18n.direction(ctx["yaw"], ctx["xy"], o["xy"])
             out.append(o)
+        # 끼임 위험 기계: YOLO 로 탐지하지 않으니(19클래스 재학습 안 함) 등록된 위치로 직접 후보에 넣는다
+        for mid, m in self.agent.machines.machines.items():
+            xy = np.array([m["x"], m["y"]], float)
+            dist = float(np.linalg.norm(xy - ctx["xy"]))
+            if dist > self.HAZ_MAX_M:
+                continue
+            out.append({"cls": "machine_conveyor", "tool": None, "conf": 1.0, "n": 1, "xy": xy, "dist": dist,
+                       "center": 0.3, "dir": i18n.direction(ctx["yaw"], ctx["xy"], xy)})
         return out
 
     def _floor(self, cam, xyxy):

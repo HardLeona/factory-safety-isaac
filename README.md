@@ -32,6 +32,7 @@
 | ✋ | **손동작 명령**: 손가락 1~5 → 장비 설명, 공장 위험 스캔, TBM, 관리자 호출, SOS (작업자 언어 음성) | `run_patrol.py --story`, `test_gestures.py` | Isaac Sim + `.venv-assistant` |
 | 💬 | **LLM 에이전트**: LangGraph + 로컬 Qwen2.5-7B (Ollama) 가 손동작 요청마다, 그리고 주의 물체 재관측마다 도구로 상황을 보고 판단 | `llm_agent.py`, `recheck_agent.py` | `.venv-assistant` + Ollama |
 | 📚 | **매뉴얼 근거 (RAG)**: 검증된 안전 매뉴얼에서 찾은 근거로만 장비 설명·조치 문구를 답함, 근거 없으면 추측 대신 거부 | `manuals.py`, `report_agent.py` | `.venv-assistant` + Ollama |
+| 🧷 | **끼임 위험 경보**: 작동 중인 기계(컨베이어 롤러)의 끼임점 1.5 m 위험구역 + 손끝 10 cm 이내 최고 등급 경보, 규칙 기반 | `run_patrol.py --pinch-demo` | Isaac Sim |
 | 📊 | **여러 시나리오 평가**: 순찰을 시드별로 돌려 3열 비교표 (바디캠 프레임 원시판정 / 규칙 에이전트 / LangGraph 에이전트) | `eval_patrol.py` | 일반 파이썬 (내부에서 Isaac) |
 | 🎬 | **시연 영상**: 녹화한 화면과 에이전트 기록을 1920x1080 영상으로 | `make_video.py` | 일반 파이썬 |
 | 📝 | **제출 문서**: 개발완료보고서, 기술설명서, 발표자료 (수치는 채점 결과에서) | `make_docs.py`, `make_slides.py` | 일반 파이썬 |
@@ -285,13 +286,16 @@ factory-safety-isaac/
 │   ├── inspection.py         바닥 투영, 바디캠 프레임 채점 (BodycamInspector)
 │   ├── detector.py           YOLO 래퍼 (ByteTrack 추적)
 │   ├── dataset.py            학습 데이터 촬영 시점(바디캠 70% / 자유 30%), 후처리, YOLO 형식
-│   ├── geometry.py           카메라 투영, 회전
+│   ├── machines.py           끼임 위험 기계 작동 상태 레지스트리 (MachineRegistry, get_machine_state)
+│   ├── pinch_detect.py       바디캠 depth + 손 관절로 손끝·끼임점 3D 위치 역투영 (끼임 경보용)
+│   ├── geometry.py           카메라 투영, 회전 (Projector.unproject 포함)
 │   ├── isaac_utils.py        Isaac Sim 버전 차이 흡수, Replicator 도우미
 │   └── report.py             터미널 로그
 ├── scripts/
 │   ├── get_assets.py         [파이썬] Poly Haven 공구 모델 받기
 │   ├── build_scene.py        [Isaac] 장면 + 정답표
 │   ├── generate_dataset.py   [Isaac] YOLO 합성 데이터
+│   ├── generate_pinch_dataset.py [Isaac] 끼임점(pinch_point) 합성 데이터
 │   ├── run_patrol.py         [Isaac] 순찰 + 에이전트, 조치 지시서, 채점 (--story 로 시연 이야기)
 │   ├── test_gestures.py      [Isaac] 손동작 인식 시험 (경로 여러 곳 x 손가락 1~5)
 │   ├── score_gestures.py     [.venv-assistant] 저장한 시험 화면으로 다시 채점
@@ -309,7 +313,7 @@ factory-safety-isaac/
 │   ├── to_pdf.ps1            [PowerShell] docx, pptx → PDF (Word, PowerPoint 필요)
 │   └── plot_layout.py        [파이썬] 평면도
 ├── data/tbm_today.json       오늘 TBM (작업, 위험, 지킬 것, 지난 순찰 조치)
-├── data/manuals/*.md         안전 매뉴얼 RAG 원문 (공구·카트·적재·유출·소화기·위험구역, 공개 산업안전 자료 기반 큐레이션)
+├── data/manuals/*.md         안전 매뉴얼 RAG 원문 (공구·카트·적재·유출·소화기·위험구역·컨베이어, 공개 산업안전 자료 기반 큐레이션)
 ├── tests/test_core.py        Isaac 없이 도는 테스트
 └── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서, yolo/warehouse_v3/weights/best.pt 만)
 ```
@@ -359,7 +363,7 @@ ollama pull nomic-embed-text
 > Isaac Sim 첫 실행 때 NVIDIA Omniverse 라이선스(EULA) 동의를 물어봐요. 터미널에서 `Yes` 를 입력하거나 환경 변수 `OMNI_KIT_ACCEPT_EULA=YES`.
 > `setx` 후에는 **VSCode를 완전히 껐다 켜야** 환경 변수가 적용돼요.
 
-**확인** (Isaac 없이 1초): `.venv\Scripts\python -m pytest tests -q` → `30 passed`
+**확인** (Isaac 없이 1초): `.venv\Scripts\python -m pytest tests -q` → `35 passed`
 
 ---
 
@@ -523,12 +527,13 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 
 | 부분 | 상태 |
 |---|---|
-| 배치, 정답표, 경로, 걷기, 판정·채점 로직, 바닥 투영, USD 장면, 에이전트 (2단계 분류·재관측 재판단·위치 보정·병합·조치 지시서), 위험 영역, 음성 경고, 공구 자리 판단, 손가락 세기, 다국어 문장, 손동작 자세, 시연 이야기, 카트 추적, LLM 결정 반영 | 테스트 30개 통과 (`tests/test_core.py`) |
+| 배치, 정답표, 경로, 걷기, 판정·채점 로직, 바닥 투영, USD 장면, 에이전트 (2단계 분류·재관측 재판단·위치 보정·병합·조치 지시서), 위험 영역, 음성 경고, 공구 자리 판단, 손가락 세기, 다국어 문장, 손동작 자세, 시연 이야기, 카트 추적, LLM 결정 반영, 끼임 위험 기계(작동 on/off·끼임 경보·폴백) | 테스트 35개 통과 (`tests/test_core.py`) |
 | 실제 Isaac Sim 6.0.1 (RTX 4060 Ti 16 GB, Windows 11) 장면, 라벨, 작업자 걷기 | ✅ |
 | 학습 데이터 7700장 (19클래스), YOLO 학습 | ✅ (위 결과 표) |
 | 손동작 명령 (손가락 1~5, 경로 8곳 x 조명) | ✅ 37/40 |
 | LLM 에이전트 (Qwen2.5-7B 도구 호출) + 시연 이야기 | ✅ 손동작 4/4, LLM 결정 4/4 |
 | 바디캠 단독 + 2단계 분류 + 재관측 재판단 구조의 순찰 채점 | ⏳ 재실행 필요 (`eval_patrol.py --agent both`, 위 결과 섹션 참고) |
+| 끼임 위험 경보 (컨베이어 롤러 1대) — 아래 별도 절 | ✅ 핵심 규칙은 실제 Isaac Sim 순찰로 검증 |
 | 실제 사진 | ❌ 아직 안 함 (합성 데이터만으로 학습) |
 
 ---
@@ -539,6 +544,55 @@ NVIDIA `warehouse_multiple_shelves.usd` 그대로. 단위 미터, +Z 위, yaw 0 
 - **새 채점 재실행**: 바디캠 단독 + 2단계 분류 + 재관측 재판단 구조로 `eval_patrol.py --agent both` 를 돌려 결과 섹션 수치를 채움
 - **동적 사고**: Isaac Sim 6.1 사고 이벤트 확장(넘어짐, 유출, 화재) 으로 "적재물이 쓰러지는 순간" 데이터
 - **VR 체험**: 바디캠 시점을 XR 로 연결해 작업자 시점 안전 교육
+
+### 🧷 끼임 위험 경보 (컨베이어 롤러)
+
+작동 중인 기계(끼임점이 있는 설비)의 위험을 기존 정적 위험물(HAZARD) 체계와 별도로 다룬다. 기계 작동 상태는
+실제 공장의 IoT/PLC 신호 조회를 흉내 낸 `get_machine_state(machine_id)` 로 노출하고, LLM 없이 T0 규칙만으로
+판단한다: 작동 중인 기계의 끼임점 반경 1.5 m 를 위험구역으로 즉시 설정/해제하고, 손가락 끝(검지 끝)과
+끼임점의 3D 거리가 10 cm 이내면 최고 등급 경보("손 빼세요" + 로그·HUD)를 낸다.
+
+**구현 범위**
+- 장면: 컨베이어 롤러 1대 (`factory_safety/scene.py:add_machine`), 진입 롤러에 `pinch_point` 라벨 (안전색 노랑으로 칠해 시각적으로도 구분)
+- 기계 상태: `factory_safety/machines.py` (`MachineRegistry`, 기본값 off)
+- 판단 규칙: `factory_safety/agent.py` (`_on_machine_change`, `check_pinch`, `machine_report`) — 위험구역은 기존 `_check_warnings` 경고 체계에 자연스럽게 편입됨
+- 3D 위치 추정: 바디캠에 `distance_to_image_plane` 어노테이터를 붙여 MediaPipe 손 관절(검지 끝)과 `pinch_point` YOLO 박스를 역투영 (`geometry.Projector.unproject`, `factory_safety/pinch_detect.py`)
+- 폴백: 끼임점 탐지 실패 시 장면 메타데이터의 등록 위치(`warehouse.MACHINE_CONVEYOR`)로 계산하고 로그("[폴백: ...]")·집계(`pinch_fallback`)에 남김
+- `report()`/대시보드: 기계 ID·상태·접근(위험구역)/끼임 경보 횟수를 "끼임 위험 기계" 카드로 표시, 손동작 1(장비 설명)로 가리키면 안전수칙 안내 (`data/manuals/conveyor.md`, `i18n.INFO["machine_conveyor"]`)
+- 테스트 6개 추가 (`tests/test_core.py`): 기계 on/off 위험구역 생성·해제, 위험구역 진입 경고, 10 cm+작동 중 경보, 꺼지면 무경보, 탐지 실패 폴백+로그
+
+**합성 데이터 생성 방식** (`scripts/generate_pinch_dataset.py`, 기존 `generate_dataset.py` 패턴 재사용)
+끼임점 주변 0.5~3.2 m, 눈높이~허리높이(0.5~1.9 m)에서 전 방위로 바디캠 시점처럼 렌더링. 조명 무작위화,
+흔들림 블러·센서 노이즈 후처리(기존 `dataset.post_process` 재사용), 30% 확률로 작은 상자를 끼임점 앞에 놓아
+가림 조건도 섞음. Replicator `bounding_box_2d_tight` 가 `pinch_point` 라벨이 붙은 진입 롤러만 자동으로
+정답 박스화.
+
+**학습 결과** (YOLO26n, 960 px, 1800장 — 학습 1543 / 검증 257, 라벨 1353장)
+
+| 지표 | 값 |
+|---|---|
+| Precision | 0.983 |
+| Recall | 0.910 |
+| mAP50 | 0.966 |
+| mAP50-95 | 0.760 |
+
+6 epoch 만에 수렴(끼임점을 현장 안전색 노랑으로 칠해 시각적으로 뚜렷하게 만든 효과가 큼), 60 epoch 중
+조기 종료. `outputs/yolo/pinch_v1/weights/best.pt`, `outputs/yolo/pinch_v1/metrics.json`.
+
+**실제 Isaac Sim 종단 검증** (`run_patrol.py --pinch-demo --record`, headless, 실제 GPU 렌더링)
+기계 on → 순찰 중 위험구역(1.5 m) 진입 시 실제 음성 경고 발생 → 끼임 경보("손 빼세요", 폴백 로그 포함) →
+기계 off → 위험구역 즉시 해제·이후 무경보, 전 과정 로그·`state.jsonl`로 기록됨. 전체 `pytest tests -q` 35개 통과.
+
+**알려진 한계 (의도적으로 범위 밖에 둔 것)**
+- 시연 중 "손이 끼임점에 닿는" 순간은 손끝 3D 위치를 스크립트로 직접 주입해 규칙을 실행시킴 (`run_patrol.py` 의
+  `--pinch-demo`). 작업자 캐릭터가 손을 실제로 끼임점(허리 높이)까지 뻗는 새 IK 애니메이션은 만들지 않았다 —
+  기존 손동작(1~5) IK는 가슴 높이로 캘리브레이션돼 있어 재사용이 안 맞고, 새 reach 애니메이션은 범위를 넘어선다
+  판단. 탐지·3D 역투영·T0 규칙 자체는 전부 실동작(위 종단 검증 참고).
+- `.venv-assistant`(MediaPipe) 가 없으면 실시간 손 인식 자체가 꺼져서, 실제 깊이 기반 손끝 추정 경로는 그
+  환경에서만 동작 확인 가능 (코드는 작성·단위 테스트 완료, 이번 세션엔 그 venv 를 새로 만들지 않음).
+- 원래 `feature/pinch` 브랜치는 CCTV 제거 작업 3단계 커밋(`3d2abb3`) 위에서 개발됐고 (순수 추가분 624줄,
+  파일 15개 + 대시보드 평가 요약이 새 `evaluate()` 필드와 안 맞던 무관한 버그 수정 1건), CCTV 제거 마무리
+  작업(4~7단계, `d5345ac`) 이후 `main` 에 머지됐다.
 
 ---
 

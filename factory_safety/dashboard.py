@@ -122,7 +122,7 @@ def write_dashboard(path, rep, evaluation=None, seed=None, title="창고 안전 
     s = rep["summary"]
     tl = "".join(f'<li><span class="t">{clock(e["t"])}</span><span class="k k{e["kind"].replace(" ", "")}">{e["kind"]}</span>'
                  f'{html.escape(e["text"])}</li>' for e in rep["timeline"] if e["kind"] != "계획" or "점검표" not in e["text"])
-    srcname = {"cone": "라바콘 표시", "sign": "DANGER 표지", "agent": "에이전트 판단"}
+    srcname = {"cone": "라바콘 표시", "sign": "DANGER 표지", "agent": "에이전트 판단", "machine": "작동 중 기계"}
     zrows = "".join(f'<tr><td>{z["id"]}</td><td><b>{srcname[z["source"]]}</b>: {html.escape(z["reason"])}</td>'
                     f'<td>{html.escape(z["zone"])} <small>({z["x"]:+.1f}, {z["y"]:+.1f})</small></td><td>반지름 {z["radius"]:.1f} m</td></tr>'
                     for z in rep.get("zones", [])) or '<tr><td colspan="4">없음</td></tr>'
@@ -130,6 +130,13 @@ def write_dashboard(path, rep, evaluation=None, seed=None, title="창고 안전 
         f'<tr><td>{clock(v["t"])}</td><td><span class="st" style="background:{"#d93a3a" if v["level"] == "hazard" else "#8a5fd1"}">'
         f'{"위험" if v["level"] == "hazard" else "주의"}</span></td><td>{html.escape(v["what"])}</td></tr>'
         for v in rep.get("voice", [])) or '<tr><td colspan="3">없음</td></tr>'
+
+    def _mrow(m):
+        pinch = f'{m["pinch_alerts"]}' + (f' (폴백 {m["pinch_fallback"]})' if m["pinch_fallback"] else "")
+        return (f'<tr><td>{m["id"]}</td><td>{html.escape(m["name"])}</td>'
+                f'<td><span class="st" style="background:{"#d93a3a" if m["on"] else "#2e9d5b"};color:#fff">'
+                f'{"작동" if m["on"] else "정지"}</span></td><td>{m["zone_alerts"]}</td><td>{pinch}</td></tr>')
+    mrows = "".join(_mrow(m) for m in rep.get("machines", [])) or '<tr><td colspan="5">없음</td></tr>'
     cps = "".join(f'<tr><td>{c["id"]}</td><td>{html.escape(c["name"])}</td><td>{c["status"]}</td><td>{c["finding"] or "-"}</td></tr>'
                   for c in rep["checkpoints"])
     asst = rep.get("assistant", [])
@@ -177,12 +184,14 @@ ul.tl li{{padding:3px 0;border-bottom:1px dashed #e4e6ea}} .t{{color:#889;margin
 <div><b style="color:#2e9d5b">{s['safe']}</b><span>안전 확인</span></div>
 <div><b>{s['checkpoints_done']}/{s['checkpoints']}</b><span>점검표</span></div>
 <div><b style="color:#d93a3a">{s.get('zones', 0)}</b><span>위험 영역</span></div>
-<div><b style="color:#9b4dca">{s.get('voice', 0)}</b><span>음성 경고</span></div></div>
+<div><b style="color:#9b4dca">{s.get('voice', 0)}</b><span>음성 경고</span></div>
+<div><b style="color:#d93a3a">{sum(m["pinch_alerts"] for m in rep.get("machines", []))}</b><span>끼임 경보</span></div></div>
 <div class="card">{_map_svg(rep)}
 <p class="legend"><span style="color:#d93a3a">● 위험 (번호=우선순위)</span><span style="color:#e09a1a">● 확인 필요</span>
 <span style="color:#2e9d5b">● 안전</span><span>□ 점검 지점</span><span style="color:#3a78c9">- - 순찰 경로</span></p></div>
 <div class="card" style="margin-top:14px"><h2>위험 영역</h2><table><tr><th></th><th>근거</th><th>위치</th><th>크기</th></tr>{zrows}</table></div>
 <div class="card" style="margin-top:14px"><h2>음성 경고 (위험: "멈추세요! 위험 요소가 식별되었습니다" · 주의: "발밑을 확인하세요")</h2><table><tr><th>시각</th><th>톤</th><th>작업자가 다가간 것</th></tr>{vrows}</table></div>
+<div class="card" style="margin-top:14px"><h2>끼임 위험 기계 (작동 상태 의존 위험)</h2><table><tr><th>ID</th><th>이름</th><th>상태</th><th>접근 경보</th><th>끼임 경보</th></tr>{mrows}</table></div>
 <div class="card" style="margin-top:14px"><h2>점검표</h2><table><tr><th></th><th>지점</th><th>결과</th><th>대장</th></tr>{cps}</table></div>
 </section><section>
 <div class="card"><h2>조치 목록 (우선순위 순)</h2><table><tr><th>#</th><th>우선</th><th>판정</th><th>위치</th><th>조치</th><th>근거</th></tr>{_rows(rep)}</table></div>

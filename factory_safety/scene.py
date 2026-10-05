@@ -102,6 +102,8 @@ class WarehouseScene:
         self.scenario = None
         self.cam_path = "/World/BodyCam"
         self.ext_mats = []
+        self.machine_paths = {}
+        self._machine_lamps = {}
 
     # ------------------------------------------------------------ 기본 구조
     def build(self):
@@ -129,6 +131,8 @@ class WarehouseScene:
                     p.SetActive(False)
         self._build_worker()
         self.add_camera(self.cam_path)
+        for m in W.MACHINES:
+            self.machine_paths[m["id"]] = self.add_machine(f"/World/Fixed/Machine_{m['id']}", m)
         return self
 
     def _read_env_extinguishers(self):
@@ -490,6 +494,69 @@ class WarehouseScene:
             box = p["block_box"]
             for L in range(p["block_layers"]):
                 self._ref(f"{base}/Block{L}", ASSETS[box], (bx, by, L * BOX_H[box]), yaw=math.atan2(ny, nx) + 0.1 * (L % 2))
+
+    # ------------------------------------------------------------ 끼임 위험 기계 (컨베이어 롤러)
+    MACHINE_ON_COLOR = (0.95, 0.15, 0.08)    # 표시등: 작동 중 (빨강)
+    MACHINE_OFF_COLOR = (0.12, 0.80, 0.25)   # 표시등: 정지 (초록)
+
+    def add_machine(self, path, m):
+        """컨베이어 롤러 1대. 진입 롤러(작업자가 접근하는 쪽)에 pinch_point 라벨을 붙인다 (롤러 닙 = 끼임점).
+        표시등 색으로 작동 상태를 보여준다 (set_machine_state 로 바꿈). 고정 설비라 묶음 라벨은 없음."""
+        st = self.stage
+        g = UsdGeom.Xform.Define(st, path)
+        g.AddTranslateOp().Set(Gf.Vec3d(float(m["x"]), float(m["y"]), 0.0))
+        g.AddRotateZOp().Set(math.degrees(m["yaw"]))
+        L, Wd, H, R = m["length"], m["width"], m["leg_h"], m["roller_r"]
+        steel = self._metal(f"{path}/Looks/Frame", (0.5, 0.52, 0.55), 0.4)
+        rubber = self._preview(f"{path}/Looks/Belt", (0.16, 0.16, 0.17), 0.7)
+        # 끼임점(진입 롤러)은 현장 안전색(노랑)으로 칠해 다른 부품과 뚜렷이 구분되게 한다 (실제 닙 가드 관행과도 맞음)
+        hazard_yellow = self._preview(f"{path}/Looks/HazardYellow", (0.95, 0.72, 0.05), 0.35)
+        lamp_mat = self._preview(f"{path}/Looks/Lamp", self.MACHINE_OFF_COLOR, 0.3)
+        UsdShade.Shader(st.GetPrimAtPath(f"{path}/Looks/Lamp/PBR")).CreateInput(
+            "emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*self.MACHINE_OFF_COLOR))
+
+        def box(name, pos, scale, mat):
+            c = UsdGeom.Cube.Define(st, f"{path}/{name}")
+            c.CreateSizeAttr(1.0)
+            xf = UsdGeom.Xformable(c)
+            xf.AddTranslateOp().Set(Gf.Vec3d(*pos))
+            xf.AddScaleOp().Set(Gf.Vec3f(*scale))
+            UsdShade.MaterialBindingAPI.Apply(c.GetPrim()).Bind(mat)
+
+        for k, (sx, sy) in enumerate(((0.15, Wd / 2 - 0.05), (0.15, -Wd / 2 + 0.05),
+                                      (L - 0.15, Wd / 2 - 0.05), (L - 0.15, -Wd / 2 + 0.05))):
+            box(f"Leg{k}", (sx, sy, H / 2), (0.05, 0.05, H), steel)
+        box("Top", (L / 2, 0.0, H + 0.02), (L, Wd, 0.04), steel)
+        box("Belt", (L / 2, 0.0, H + 0.045), (L - 2 * R, Wd - 0.05, 0.01), rubber)
+        entry = UsdGeom.Cylinder.Define(st, f"{path}/RollerEntry")
+        entry.CreateRadiusAttr(R)
+        entry.CreateHeightAttr(Wd)
+        entry.CreateAxisAttr("Y")
+        UsdGeom.Xformable(entry).AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, H + R))
+        UsdShade.MaterialBindingAPI.Apply(entry.GetPrim()).Bind(hazard_yellow)
+        self.labeler(entry.GetPrim(), "pinch_point")      # 진입 롤러 닙 = 끼임점 (개별 라벨, 19클래스 모델과 별도)
+        exit_r = UsdGeom.Cylinder.Define(st, f"{path}/RollerExit")
+        exit_r.CreateRadiusAttr(R)
+        exit_r.CreateHeightAttr(Wd)
+        exit_r.CreateAxisAttr("Y")
+        UsdGeom.Xformable(exit_r).AddTranslateOp().Set(Gf.Vec3d(L, 0.0, H + R))
+        UsdShade.MaterialBindingAPI.Apply(exit_r.GetPrim()).Bind(steel)
+        lamp = UsdGeom.Sphere.Define(st, f"{path}/Lamp")
+        lamp.CreateRadiusAttr(0.035)
+        UsdGeom.Xformable(lamp).AddTranslateOp().Set(Gf.Vec3d(L / 2, 0.0, H + 0.18))
+        UsdShade.MaterialBindingAPI.Apply(lamp.GetPrim()).Bind(lamp_mat)
+        self._machine_lamps[path] = lamp_mat
+        return path
+
+    def set_machine_state(self, path, on):
+        """표시등 색을 작동 상태에 맞게 바꾼다 (렌더·시연에서 눈에 보이는 on/off 표시)."""
+        mat = self._machine_lamps.get(path)
+        if mat is None:
+            return
+        color = Gf.Vec3f(*(self.MACHINE_ON_COLOR if on else self.MACHINE_OFF_COLOR))
+        shader = UsdShade.Shader(self.stage.GetPrimAtPath(str(mat.GetPath()) + "/PBR"))
+        shader.GetInput("diffuseColor").Set(color)
+        shader.GetInput("emissiveColor").Set(color)
 
     # ------------------------------------------------------------ 운반 카트
     @staticmethod
