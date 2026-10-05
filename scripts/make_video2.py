@@ -15,7 +15,7 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from make_video import (  # noqa: E402
     FG, FPS, HEIGHT, KIND_COLOR, MUTED, WIDTH,
-    add_audio, card, text, wrap,
+    add_audio, card, font, text, wrap,
 )
 
 # 리포(또는 이 워크트리)가 어디 있든, 스토리보드는 항상 AI_SW_CONTEST/agent_senario 에 있다
@@ -49,6 +49,48 @@ TOAST_DUR = 3.0     # 관리자 화면 전송 토스트를 띄우는 시간
 
 def kind_color(kind):
     return KIND_COLOR.get(kind) or EXTRA_KIND_COLOR.get(kind) or MUTED
+
+
+# 자막(한국어, malgun.ttf)에 베트남어 고유 문자(ạ/ế/ệ/Đ 등)가 섞여 있으면 malgun 에 없는 글자라 네모로 깨진다
+# (한글 가독성은 malgun 이 가장 좋아 기본 폰트는 그대로 두고, 베트남어 전용 문자만 segoeui 로 바꿔 그림)
+VI_FONT_PATH = "C:/Windows/Fonts/segoeui.ttf"
+VI_RANGES = [(0x0100, 0x024F), (0x1E00, 0x1EFF), (0x0300, 0x036F)]
+_vi_fonts = {}
+
+
+def vi_font(size):
+    if size not in _vi_fonts:
+        _vi_fonts[size] = ImageFont.truetype(VI_FONT_PATH, size)
+    return _vi_fonts[size]
+
+
+def _is_vi_only(ch):
+    cp = ord(ch)
+    return any(lo <= cp <= hi for lo, hi in VI_RANGES)
+
+
+def draw_mixed(d, xy, s, size, fill=FG):
+    """한 줄을 그리되, malgun 에 없는 베트남어 전용 문자 구간만 segoeui 로 바꿔 그린다."""
+    x, y = xy
+    f_ko = font(size)
+    f_vi = vi_font(size)
+    run, run_vi = "", False
+
+    def flush(run, run_vi, x):
+        if not run:
+            return x
+        f = f_vi if run_vi else f_ko
+        d.text((x, y), run, font=f, fill=fill)
+        return x + d.textlength(run, font=f)
+
+    for ch in s:
+        is_vi = _is_vi_only(ch)
+        if run and is_vi != run_vi:
+            x = flush(run, run_vi, x)
+            run = ""
+        run += ch
+        run_vi = is_vi
+    flush(run, run_vi, x)
 
 
 def load_narration():
@@ -80,7 +122,7 @@ def draw_clip_caption(im, kind, txt):
     lines = wrap(d, txt, 25, WIDTH - bw - 40 - 60, 2)
     yy = y0 + 18
     for ln in lines:
-        text(d, (40 + bw + 24, yy), ln, 25, FG)
+        draw_mixed(d, (40 + bw + 24, yy), ln, 25, FG)
         yy += 36
 
 
