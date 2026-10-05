@@ -129,7 +129,11 @@ def run_forklift():
     total_s = 18.0
     RETREAT_SPEED = 0.9     # 뒤로 물러나는 속도 (m/s)
     AVOID_HOLD_S = 2.0      # 경보 뒤 최소 이만큼은 물러나 지켜봄 (지게차가 금방 지나가도 회피 동작이 보이게)
-    warned, avoiding, avoid_t0, voice_n0 = False, False, None, 0
+    # 지게차와 작업자는 둘 다 같은 경로 중심선(path.point_at(s)) 위에 있어서, 앞뒤로만 비키면 스쳐
+    # 지나가는 순간 같은 좌표에 겹칠 수 있다 (실측 최소 거리 7 cm 까지 겹친 적 있음). 옆으로도 비켜서게 함.
+    LATERAL_OFFSET = 0.9    # 옆으로 비켜서는 거리 (m)
+    LATERAL_RATE = 1.6      # 초당 비켜서는 비율 (약 0.6초에 다 비킴)
+    warned, avoiding, avoid_t0, voice_n0, lateral_u = False, False, None, 0, 0.0
     while t < total_s and app.is_running():
         dt = args.sim_dt
         t += dt
@@ -152,7 +156,12 @@ def run_forklift():
         elif avoiding:
             avoiding = False
             walker.face(None)
+        lateral_u = max(0.0, min(1.0, lateral_u + LATERAL_RATE * dt * (1.0 if avoiding else -1.0)))
         x, y, yaw, at = walker.base_pose
+        if lateral_u > 0:
+            heading_here = path.heading_at(walker.s)
+            x += -math.sin(heading_here) * LATERAL_OFFSET * lateral_u
+            y += math.cos(heading_here) * LATERAL_OFFSET * lateral_u
         scene.set_worker(x, y, yaw, at)
         frame[0] += 1
         if frame[0] % args.yolo_every != 0:

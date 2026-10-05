@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from make_video import (  # noqa: E402
     FG, FPS, HEIGHT, KIND_COLOR, MUTED, WIDTH,
-    add_audio, card, font, text, wrap,
+    add_audio, font, text, wrap,
 )
 
 # 리포(또는 이 워크트리)가 어디 있든, 스토리보드는 항상 AI_SW_CONTEST/agent_senario 에 있다
@@ -32,6 +32,7 @@ NARRATION_DIR = os.path.join(ROOT, "outputs", "video", "narration")
 ALERT_DIR = os.path.join(NARRATION_DIR, "alerts_vi")
 COVER_IMG = "BodyGuard_영상_표지.png"
 OUTRO_IMG = "BodyGuard_영상_마무리.png"
+MANAGER_IMG = "관리자 화면@1x.png"
 
 # 기존 make_video.py 의 KIND_COLOR 에는 없는, 이 기능(끼임/지게차)에서 새로 쓰는 분류
 EXTRA_KIND_COLOR = {"위험구역": (255, 110, 110), "끼임 경보": (232, 72, 72)}
@@ -214,15 +215,6 @@ def play_manager_clip(emit, rec_dir):
         emit(im, frames=1)
 
 
-def manager_title_card():
-    return card([
-        ("에이전트가 스스로 판단해 보내는 알림입니다 — 작업자가 손짓으로 부르지 않아도 쌓입니다", 27, FG, False),
-        ("", 14, FG, False),
-        ("끼임 경보 · 지게차 접근 · '주의'로 남긴 애매한 판정 → 관리자 화면에 자동 기록", 24, MUTED, False),
-        ("관리자가 '확인'을 누르면 처리 완료로 바뀝니다", 24, MUTED, False),
-    ], title="관리자 화면")
-
-
 def main():
     p = argparse.ArgumentParser(description="BodyGuard v2 시연 영상 합성 (스토리보드+내레이션+실제 시연)")
     p.add_argument("--record-dir", default=os.path.join(ROOT, "outputs", "record"))
@@ -270,7 +262,7 @@ def main():
 
     mgr = narr["manager"]
     clips.append((now(), mgr["path"]))
-    emit(manager_title_card(), seconds=mgr["dur"] + 0.5)
+    emit(full_bleed(os.path.join(a.storyboard_dir, MANAGER_IMG)), seconds=mgr["dur"] + 0.5)
     play_manager_clip(emit, os.path.join(a.record_dir, "v2_manager"))
     print(f"[manager] 관리자 화면 재생 완료 (누적 {now():.1f}초)")
 
