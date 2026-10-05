@@ -195,7 +195,7 @@ ul.tl li{{padding:3px 0;border-bottom:1px dashed #e4e6ea}} .t{{color:#889;margin
 <div class="card" style="margin-top:14px"><h2>점검표</h2><table><tr><th></th><th>지점</th><th>결과</th><th>대장</th></tr>{cps}</table></div>
 </section><section>
 <div class="card"><h2>조치 목록 (우선순위 순)</h2><table><tr><th>#</th><th>우선</th><th>판정</th><th>위치</th><th>조치</th><th>근거</th></tr>{_rows(rep)}</table></div>
-{f'<div class="card" style="margin-top:14px"><h2>작업자 손동작 요청 (손가락 1~5 → 작업자 언어 안내)</h2><table><tr><th>시각</th><th>손가락</th><th>명령</th><th>언어</th><th>안내 (원문 / 한국어)</th></tr>{arows}</table></div>' if asst else ""}
+{f'<div class="card" style="margin-top:14px"><h2>작업자 손동작 요청 (손가락 1~3 → 작업자 언어 안내)</h2><table><tr><th>시각</th><th>손가락</th><th>명령</th><th>언어</th><th>안내 (원문 / 한국어)</th></tr>{arows}</table></div>' if asst else ""}
 {f'<div class="card" style="margin-top:14px">{_eval_html(evaluation)}</div>' if evaluation else ""}
 <div class="card" style="margin-top:14px"><h2>에이전트 기록</h2><ul class="tl">{tl}</ul></div>
 </section></main></body></html>"""

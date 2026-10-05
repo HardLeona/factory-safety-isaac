@@ -1,10 +1,8 @@
-"""작업자 손동작 명령: 바디캠 앞에 손을 가로로 내밀어 손가락 1~5개를 보이면 작업자 언어로 안내한다.
+"""작업자 손동작 명령: 바디캠 앞에 손을 가로로 내밀어 손가락 1~3개를 보이면 작업자 언어로 안내한다.
 
-    1 장비 설명      바로 전 바디캠 화면 가운데에 있던 장비 (운반 카트, 공구, 소화기 등) 가 무엇인지, 어떻게 써야 안전한지
-    2 공장 위험 스캔  위험물 대장(바디캠으로 확정한 것)으로 공장 전체의 위험 요소를 우선순위 순으로 (구역 포함)
-    3 오늘의 TBM     아침 작업 전 안전 회의 내용 (오늘 작업, 주의할 위험, 지킬 것, 지난 순찰 조치)
-    4 관리자 호출    작업자 위치와 바디캠 화면을 관리자에게 보냄
-    5 SOS 신고       위치와 바디캠 화면을 관리자·안전팀에 보냄
+    1 장비 설명         바로 전 바디캠 화면 가운데에 있던 장비 (운반 카트, 공구, 소화기 등) 가 무엇인지, 어떻게 써야 안전한지
+    2 오늘의 TBM        아침 작업 전 안전 회의 내용 (오늘 작업, 주의할 위험, 지킬 것, 지난 순찰 조치), 작업자 언어로
+    3 관리자 호출·SOS   작업자 위치와 바디캠 화면을 관리자에게 보냄 (긴급 여부를 가리지 않고 즉시 전달, 동급으로 취급)
 
 무엇을 말할지는 LLM 에이전트 (llm_agent.py: LangGraph + 로컬 Qwen2.5-7B) 가 도구로 상황을 보고 정하고 (planner),
 LLM 이 없거나 실패하면 규칙으로 정한다. 작업자에게 들려주는 문장은 i18n 의 검수한 틀로 만든다 (작업자 언어 + 관리자용 한국어).
@@ -18,12 +16,12 @@ import numpy as np
 
 from . import i18n
 from . import warehouse as W
-from .config import EQUIPMENT, HAZARD, KIND
+from .config import EQUIPMENT, KIND
 from .hand_count import GestureFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TBM_PATH = os.path.join(ROOT, "data", "tbm_today.json")
-KINDS = {1: "equip", 2: "scan", 3: "tbm", 4: "manager", 5: "sos"}
+KINDS = {1: "equip", 2: "tbm", 3: "manager_sos"}
 EQUIP_RANK = {"equipment": -0.2, "tool": 0.0, "ext": 0.0, "stack": 0.3, "marker": 0.4, "spill": 0.5}     # 장비 설명에서 먼저 고를 종류
 
 
@@ -37,7 +35,6 @@ class SiteAssistant:
     EQUIP_MAX_M = 8.0
     HAZ_MAX_M = 12.0
     ZONE_MAX_M = 8.0
-    SCAN_SAY = 3          # 공장 스캔에서 말해 주는 위험 수 (나머지는 조치 지시서)
 
     def __init__(self, agent, langs=("zh",), tbm=None, w=None, h=None):
         self.agent = agent
@@ -69,7 +66,7 @@ class SiteAssistant:
         wxy = np.asarray(worker_xy, float)
         ctx = {"t": t, "cam": cam, "xy": wxy, "yaw": float(worker_yaw), "zone": W.zone_name(*wxy)}
         ctx["decision"] = self._plan(ctx, count, lang)
-        fn = {1: self._equip, 2: self._scan, 3: self._tbm, 4: self._manager, 5: self._sos}[count]
+        fn = {1: self._equip, 2: self._tbm, 3: self._manager_sos}[count]
         texts, extra = {}, {}
         for lg in dict.fromkeys((lang, "ko")):
             texts[lg], extra = fn(ctx, lg)
@@ -86,7 +83,7 @@ class SiteAssistant:
             else:
                 self.agent.say(t, "LLM 판단", f"LLM 을 못 써서 규칙으로 정함 ({dec.get('error', '')[:60]})")
         self.events.append(ev)
-        kind = {4: "관리자 호출", 5: "SOS"}.get(count, "손동작")
+        kind = {3: "관리자 호출·SOS"}.get(count, "손동작")
         self.agent.say(t, kind, f"손가락 {count}개 → {ev['cmd']} ({ev['lang_name']}): {texts['ko']}")
         return ev
 
@@ -197,45 +194,12 @@ class SiteAssistant:
         text = i18n.fmt("equip", lang, dir=i18n.DIRS[o["dir"]][lang], d=i18n.dist_text(o["dist"]), name=nm, info=info)
         return text, {"items": [self._item(o)]}
 
-    # ------------------------------------------------------------ 2. 공장 위험 스캔
-    def _scan(self, ctx, lang):
-        """공장 전체: 위험물 대장 (바디캠으로 확정한 것) 의 위험을 우선순위 순으로. 같은 종류·구역은 한 번만."""
-        rep = self.agent.report()
-        haz = [r for r in rep["findings"] if r["state"] == "위험"]
-        # LLM 이 고른 위험을 먼저 (고른 순서대로), 나머지는 우선순위 순
-        order = {i: k for k, i in enumerate(self._llm_ids(ctx))}
-        haz.sort(key=lambda r: order.get(r["id"], len(order)))
-        said, seen = [], set()
-        for r in haz:
-            key = (r["class"], r["zone"])
-            if key in seen:
-                continue
-            seen.add(key)
-            said.append(r)
-        n_zone = len(rep["zones"])
-        if not said:
-            return i18n.fmt("scan_none", lang), {"items": [], "zones": n_zone}
-        sep = " " if lang in ("ko", "en") else ""
-        parts = [i18n.fmt("scan_head", lang, n=len(said))]
-        for r in said[:self.SCAN_SAY]:
-            if r.get("tool_types"):
-                nm = i18n.fmt("floor_tool", lang, tool=i18n.join([i18n.name(t, lang) for t in r["tool_types"][:2]], lang))
-            else:
-                nm = i18n.name(r["class"], lang)
-            parts.append(i18n.fmt("scan_item", lang, name=nm, zone=i18n.zone(r["zone"], lang)))
-        if len(said) > self.SCAN_SAY:
-            parts.append(i18n.fmt("scan_more", lang, n=len(said) - self.SCAN_SAY))
-        if n_zone:
-            parts.append(i18n.fmt("scan_zones", lang, n=n_zone))
-        items = [{"id": r["id"], "cls": r["class"], "zone": r["zone"], "xy": [r["x"], r["y"]]} for r in said[:self.SCAN_SAY]]
-        return sep.join(parts), {"items": items, "zones": n_zone, "n_hazards": len(said)}
-
     @staticmethod
     def _item(o):
         return {"cls": o["cls"], "tool": o["tool"], "xy": [round(float(o["xy"][0]), 2), round(float(o["xy"][1]), 2)],
                 "dist": round(o["dist"], 1), "dir": o["dir"]}
 
-    # ------------------------------------------------------------ 3. TBM
+    # ------------------------------------------------------------ 2. TBM
     def _tbm(self, ctx, lang):
         tb = self.tbm
         sep = " " if lang in ("ko", "en") else ""
@@ -249,9 +213,9 @@ class SiteAssistant:
             parts.append(i18n.fmt("tbm_todo", lang, n=len(todo), items=i18n.join(items, lang)))
         return sep.join(parts), {"date": tb["date"]}
 
-    # ------------------------------------------------------------ 4. 관리자 호출
-    def _manager(self, ctx, lang):
-        return i18n.fmt("manager", lang, zone=i18n.zone(ctx["zone"], lang)), {"notify": "관리자", "manager_ko": self._manager_note(ctx)}
+    # ------------------------------------------------------------ 3. 관리자 호출·SOS (안전팀 구분 없이 관리자에게만, 동급으로 즉시 전달)
+    def _manager_sos(self, ctx, lang):
+        return i18n.fmt("manager_sos", lang, zone=i18n.zone(ctx["zone"], lang)), {"notify": "관리자", "manager_ko": self._manager_note(ctx)}
 
     def _manager_note(self, ctx):
         """관리자에게 보내는 한국어 메시지: 확인된 사실 (위치, 가까운 위험) + LLM 요약."""
@@ -264,12 +228,6 @@ class SiteAssistant:
             facts += f" | AI 요약: {dec['manager_ko']}"
         return facts
 
-    # ------------------------------------------------------------ 5. SOS
-    def _sos(self, ctx, lang):
-        zone = i18n.zone(ctx["zone"], lang)
-        note = self._manager_note(ctx)
-        return i18n.fmt("sos", lang, zone=zone), {"notify": "관리자, 안전팀", "manager_ko": note}
-
     def report(self):
         return list(self.events)
 
@@ -277,8 +235,7 @@ class SiteAssistant:
 class DemoScript:
     """시연용 손동작 순서 (작업자 역할). 앞 안내가 끝난 뒤에만 다음 손동작을 한다.
 
-    3 TBM: 순찰을 시작하자마자 | 1 장비 설명: 공구나 소화기가 화면 가운데 1~4 m 에 보일 때 |
-    2 위험 안내: 위험 요소가 2~7 m 에 보일 때 | 4 관리자 호출: 순찰 70% | 5 SOS: 순찰 85%
+    2 TBM: 순찰을 시작하자마자 | 1 장비 설명: 공구나 소화기가 화면 가운데 1~4 m 에 보일 때 | 3 관리자 호출·SOS: 순찰 70%
     (조건이 안 맞아도 순찰이 꽤 지나면 그 자리에서 함)."""
     HOLD = 2.0
     GAP_S = 1.0
@@ -290,7 +247,7 @@ class DemoScript:
         self.busy_until = 0.0
 
     def _view(self, agent, cam, dets, wxy):
-        equip = haz = False
+        equip = False
         obs, _ = agent._normalize(cam, dets)
         for name, conf, xyxy, tid, tool in obs:
             xy, _ = agent._locate(cam, xyxy, name)
@@ -300,9 +257,7 @@ class DemoScript:
             cx = abs((xyxy[0] + xyxy[2]) / 2 / agent.w - 0.5)
             if (tool or KIND[name] == "ext") and 1.0 <= d <= 4.0 and cx < 0.22:
                 equip = True
-            if HAZARD.get(name) and 2.0 <= d <= 7.0:
-                haz = True
-        return equip, haz
+        return equip
 
     def next(self, t, frac, agent, cam, dets, wxy, walking):
         """지금 보일 손가락 수 또는 None."""
@@ -312,18 +267,14 @@ class DemoScript:
         for _, c in self.shown:
             tries[c] = tries.get(c, 0) + 1
         done = self.heard | {c for c, n in tries.items() if n >= self.TRIES}
-        equip, haz = self._view(agent, cam, dets, np.asarray(wxy, float))
+        equip = self._view(agent, cam, dets, np.asarray(wxy, float))
         want = None
-        if 3 not in done:
-            want = 3 if t >= 1.0 else None
+        if 2 not in done:
+            want = 2 if t >= 1.0 else None
         elif 1 not in done:
             want = 1 if equip or frac > 0.5 else None
-        elif 2 not in done:
-            want = 2 if haz or frac > 0.62 else None
-        elif 4 not in done:
-            want = 4 if frac >= 0.7 else None
-        elif 5 not in done:
-            want = 5 if frac >= 0.85 else None
+        elif 3 not in done:
+            want = 3 if frac >= 0.7 else None
         if want:
             self.shown.append((float(t), want))
             self.busy_until = t + 1e9          # 안내가 나오면 (said) 그 길이만큼으로 바꿈

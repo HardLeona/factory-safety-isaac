@@ -177,11 +177,11 @@ def build(template, out):
     X = A["x"]
     s = content_slide(prs, "2. 해결: 판정·경고하고 작업자 언어로 답하는 AI 에이전트", L_BODY)
     tb(s, 0.6, 1.3, 12.1, 0.9, [("바디캠 하나로 위험/안전과 **공구 이름**을 판정하고, 애매한 것은 **'주의'로 분류**해 바디캠이 다시 지나칠 때 **재판단**한다. "
-                                 "**위험 영역**에 닿기 직전이면 **음성으로 경고**하고, 작업자가 **손가락 1~5개**를 보이면 **작업자 언어**로 안내·호출·SOS 를 처리한다", 15, INK)])
+                                 "**위험 영역**에 닿기 직전이면 **음성으로 경고**하고, 작업자가 **손가락 1~3개**를 보이면 **작업자 언어**로 안내·호출·SOS 를 처리한다", 15, INK)])
     pic(s, os.path.join(FIG, "workflow.png"), 0.6, 2.25, w=12.1)
     feats = [("① 판정", "위험/안전 상태\n공구 이름 8종", BLUE), ("② 재관측 재판단", "'주의' 분류 →\n재관측 시 LLM 판단", ORANGE),
              ("③ 위험 영역", "라바콘·DANGER 표지\n스스로 판단한 주변", RED), ("④ 음성 경고", "위험 \"멈추세요\"\n주의 \"발밑 확인\"", RGBColor(0x9B, 0x4D, 0xCA)),
-             ("⑤ 손동작 명령", "손가락 1~5 → LLM 판단\n중·영·일 음성 안내",RGBColor(0x0A, 0x7C, 0xC4)), ("⑥ 조치 지시서", "우선순위·위치\n영역 지도와 기록", GREEN)]
+             ("⑤ 손동작 명령", "손가락 1~3 → LLM 판단\n중·영·일 음성 안내",RGBColor(0x0A, 0x7C, 0xC4)), ("⑥ 조치 지시서", "우선순위·위치\n영역 지도와 기록", GREEN)]
     for k, (h, body, col) in enumerate(feats):
         tb(s, 0.6 + k * 2.04, 4.5, 1.94, 1.9, [(h, 15, col, True), (body, 12, INK)], fill=LIGHT, align=PP_ALIGN.CENTER)
     tb(s, 0.6, 6.5, 12.1, 0.4, "로봇 없이 작업자 바디캠(스피커)만으로 동작, 별도 CCTV 설비 불필요 · 위험 데이터는 디지털 트윈에서 합성", 13, GRAY, align=PP_ALIGN.CENTER)
@@ -232,13 +232,13 @@ def build(template, out):
     s = content_slide(prs, "7. 핵심 구현 ③  손동작 명령 → 작업자 언어 안내", L_BODY)
     pic(s, os.path.join(FIG, "fig_gestures.jpg"), 0.5, 1.2, w=12.3)
     pic(s, os.path.join(FIG, "fig_gesture.jpg"), 0.5, 3.75, w=5.0)
-    tb(s, 5.75, 3.7, 3.6, 2.95, [("어떻게 처리하나", 15, BLUE, True), "• MediaPipe 손 관절 21점 → 손가락 1~5, 멈춘 손에서 3번 연속이면 명령",
+    tb(s, 5.75, 3.7, 3.6, 2.95, [("어떻게 처리하나", 15, BLUE, True), "• MediaPipe 손 관절 21점 → 손가락 1~3, 멈춘 손에서 3번 연속이면 명령",
                                   "• LangGraph + 로컬 Qwen2.5-7B 가 도구 (화면 물체, 장비 정보, 위험물 대장, TBM) 로 보고 무엇을 말할지·근거 결정",
                                   "• 말은 검수한 4개 언어 문장 틀 (번역기는 '안전화→seat belt' 처럼 틀림)"], 11, fill=LIGHT)
     tb(s, 9.55, 3.7, 3.25, 2.95, [("결과", 15, BLUE, True), (f"{G_TEST['ok']}/{G_TEST['trials']}", 30, INK, True),
-                                   (f"경로 8곳·조명 바꿔 손가락 1~5, 다른 명령 {G_TEST['wrong']}번, 움직이는 손 잘못 실행 0", 11, GRAY),
+                                   (f"경로 8곳·조명 바꿔 손가락 1~3, 다른 명령 {G_TEST['wrong']}번, 움직이는 손 잘못 실행 0", 11, GRAY),
                                    (f"시연 {G_DEMO['recognized']}/{G_DEMO['shown']} · {', '.join(G_LANGS) or '중·영·일'} · LLM 결정 {G_DEMO.get('llm', 0)}/{G_DEMO.get('requests', 0)}", 12, INK)], fill=LIGHT)
-    tb(s, 0.5, 6.7, 12.3, 0.35, f"시연 영상 ({VIDEO_LEN}): TBM(3) → 순찰·판정 → 운반 카트 설명(1) → 상자 싣고 끌기 → 공장 위험 스캔(2) → 관리자 호출(4) → 조치 지시서",
+    tb(s, 0.5, 6.7, 12.3, 0.35, f"시연 영상 ({VIDEO_LEN}): TBM(2) → 순찰·판정 → 운반 카트 설명(1) → 상자 싣고 끌기 → 관리자 호출·SOS(3) → 조치 지시서",
        12, GRAY, align=PP_ALIGN.CENTER)
 
     # 9. 성과
@@ -255,7 +255,7 @@ def build(template, out):
               ["에이전트가 판단한 위험 영역 (실제 위험 주변)", f"{X['zone_agent']} ({X['zone_agent_real']})"],
               ["닿기 직전 사건에 음성 경고", f"**{X['voice_warned']}/{X['voice_events']}** ({pct(X['voice_warned'], X['voice_events'])})"],
               ["공구 이름 맞힘", f"**{X['tool_named']}/{X['tool_total']}** ({pct(X['tool_named'], X['tool_total'])})"],
-              ["손동작 명령 인식 (손가락 1~5)", f"**{G_TEST['ok']}/{G_TEST['trials']}** ({pct(G_TEST['ok'], G_TEST['trials'])})"]],
+              ["손동작 명령 인식 (손가락 1~3)", f"**{G_TEST['ok']}/{G_TEST['trials']}** ({pct(G_TEST['ok'], G_TEST['trials'])})"]],
           0.5, 4.3, 7.4, [4.6, 2.8], size=13, row_h=0.42)
     tb(s, 8.3, 1.35, 4.5, 2.6, [("애매한 판정과 재판단", 15, BLUE, True),
                                  f"애매한 판정 {rc['ambiguous_hazard'] + rc['ambiguous_caution']}건: 즉시 위험 확정 {rc['ambiguous_hazard']}, 주의 분류 {rc['ambiguous_caution']}",

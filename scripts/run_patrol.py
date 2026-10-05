@@ -31,7 +31,7 @@ parser.add_argument("--record", default=None, help="영상용: 바디캠 화면�
 parser.add_argument("--result", default=None, help="채점 결과 JSON 경로 (기본 outputs/eval/inspection_seed<시드>.json)")
 parser.add_argument("--headless", action="store_true")
 parser.add_argument("--sound", default="auto", help="음성 경고 소리: auto (창이 있을 때만), on, off")
-parser.add_argument("--gestures", default="off", help="작업자 손동작 명령: off | demo (시연 순서대로 손가락 1~5 를 보임) | watch (손 인식만)")
+parser.add_argument("--gestures", default="off", help="작업자 손동작 명령: off | demo (시연 순서대로 손가락 1~3 을 보임) | watch (손 인식만)")
 parser.add_argument("--lang", default=None, help="작업자 언어 ko/en/zh/ja (쉼표로 여러 개면 명령마다 돌아가며). 기본 zh,en,ja, --story 면 en")
 parser.add_argument("--llm", default="qwen2.5:7b", help="손동작 명령을 판단할 로컬 LLM (Ollama 모델 이름), off 면 규칙만")
 parser.add_argument("--recheck-llm", default="qwen2.5:7b", help="'주의' 물체 재관측 재판단을 맡길 로컬 LLM, off 면 규칙(고위험 후보 재적용)만")
@@ -39,7 +39,7 @@ parser.add_argument("--agent", choices=["rule", "langgraph"], default="langgraph
                     help="재관측 재판단 방식: langgraph (기본, --recheck-llm 사용) | rule (규칙만, --recheck-llm 무시)")
 parser.add_argument("--report-llm", default="qwen2.5:7b", help="조치 지시서 문구를 매뉴얼로 보강할 로컬 LLM, off 면 고정 문구만")
 parser.add_argument("--voice-max", type=int, default=None, help="음성 경고 최대 횟수 (--story 는 1)")
-parser.add_argument("--story", action="store_true", help="시연 이야기: TBM → 카트 설명 → 상자 싣고 끌기 → 공장 스캔 → 한 바퀴 뒤 관리자 호출 (factory_safety/story.py)")
+parser.add_argument("--story", action="store_true", help="시연 이야기: TBM → 카트 설명 → 상자 싣고 끌기 → 한 바퀴 뒤 관리자 호출·SOS (factory_safety/story.py)")
 parser.add_argument("--pinch-weights", default=os.path.join(ROOT, "outputs", "yolo", "pinch_v1", "weights", "best.pt"),
                     help="끼임점(pinch_point) 1클래스 경량 모델 가중치. 없으면 등록 위치 폴백만 사용")
 parser.add_argument("--pinch-demo", action="store_true",
@@ -197,9 +197,9 @@ def covered(b, r, frac=0.5):
 
 
 def speak(t, ev):
-    """명령 안내를 작업자 언어 음성으로 (SOS 는 경보음 먼저)."""
+    """명령 안내를 작업자 언어 음성으로 (관리자 호출·SOS 는 경보음 먼저)."""
     wav, dur = client.tts(ev["text"], ev["lang"])
-    if wav and ev["count"] == 5:
+    if wav and ev["count"] == 3:
         wav, dur = with_alarm(wav), dur + 1.35
     ev["wav"], ev["dur"] = wav, round(dur, 2)
     if wav and SOUND:

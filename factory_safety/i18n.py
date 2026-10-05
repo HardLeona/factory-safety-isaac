@@ -140,10 +140,8 @@ ACTIONS = {"spill": {"ko": "유출물 제거, 표지판·라바콘 설치", "en"
 
 # 손동작 명령
 COMMANDS = {1: {"ko": "장비 설명", "en": "Equipment info", "zh": "设备说明", "ja": "設備の説明"},
-            2: {"ko": "공장 위험 스캔", "en": "Factory hazard scan", "zh": "工厂危险扫描", "ja": "工場の危険スキャン"},
-            3: {"ko": "오늘의 TBM", "en": "Today's TBM", "zh": "今日班前会", "ja": "本日のTBM"},
-            4: {"ko": "관리자 호출", "en": "Call manager", "zh": "呼叫管理人员", "ja": "管理者の呼び出し"},
-            5: {"ko": "SOS 신고", "en": "SOS", "zh": "紧急求助", "ja": "SOS通報"}}
+            2: {"ko": "오늘의 TBM", "en": "Today's TBM", "zh": "今日班前会", "ja": "本日のTBM"},
+            3: {"ko": "관리자 호출·SOS", "en": "Call manager / SOS", "zh": "呼叫管理人员／SOS", "ja": "管理者呼び出し・SOS"}}
 
 T = {
     "ack": {"ko": "{n}번, {cmd}.", "en": "{n}: {cmd}.", "zh": "{n}号：{cmd}。", "ja": "{n}番、{cmd}。"},
@@ -156,24 +154,10 @@ T = {
                      "en": "I could not find a verified manual passage for this, so I will not guess. A manager has been called to help.",
                      "zh": "未在已验证的手册中找到相关依据，因此不作回答。已呼叫管理人员，请您直接确认。",
                      "ja": "検証済みのマニュアルに根拠が見つからないため回答しません。管理者を呼びましたので直接確認してください。"},
-    "floor_tool": {"ko": "통로 바닥에 놓인 {tool}", "en": "{tool} left on the aisle floor", "zh": "遗留在通道地面上的{tool}", "ja": "通路の床に放置された{tool}"},
     "tool_floor_note": {"ko": "바닥에 있으니 작업대로 옮겨 주세요.", "en": "It is on the floor, so please put it on the workbench.",
                         "zh": "它在地面上，请放回工作台。", "ja": "床にあるので作業台に戻してください。"},
     "tool_stored_note": {"ko": "작업대에 잘 정리되어 있습니다.", "en": "It is stored properly on the workbench.", "zh": "它已整齐地放在工作台上。",
                          "ja": "作業台にきちんと片付けられています。"},
-    "scan_head": {"ko": "이번 순찰의 위험물 대장으로 공장 전체를 확인했습니다. 위험 요소 {n}개입니다.",
-                  "en": "I checked the whole factory from this patrol's hazard log. There are {n} hazards.",
-                  "zh": "已根据本次巡检的危险物台账检查了整个工厂，共有{n}个危险因素。",
-                  "ja": "今回の巡回の危険物台帳で工場全体を確認しました。危険要素は{n}つです。"},
-    "scan_item": {"ko": "{zone}에 {name}.", "en": "{name_cap} in {zone}.", "zh": "{zone}有{name}。", "ja": "{zone}に{name}。"},
-    "scan_more": {"ko": "그 밖에 {n}개는 조치 지시서에 있습니다.", "en": "{n} more are in the action report.",
-                  "zh": "其余{n}个已列入整改通知单。", "ja": "ほか{n}つは対応指示書にあります。"},
-    "scan_zones": {"ko": "위험 영역 {n}곳에는 들어가지 마세요.", "en": "Stay out of the {n} danger zones.",
-                   "zh": "请不要进入{n}个危险区域。", "ja": "{n}か所の危険エリアに入らないでください。"},
-    "scan_none": {"ko": "이번 순찰의 위험물 대장으로 공장 전체를 확인했습니다. 지금 확인된 위험 요소는 없습니다.",
-                  "en": "I checked the whole factory from this patrol's hazard log. No hazards are confirmed right now.",
-                  "zh": "已根据本次巡检的危险物台账检查了整个工厂，目前没有确认的危险因素。",
-                  "ja": "今回の巡回の危険物台帳で工場全体を確認しました。今のところ確認された危険要素はありません。"},
     "haz_head": {"ko": "지금 화면에서 위험 요소 {n}개를 찾았습니다.", "en": "I found {n} hazards in view.",
                  "zh": "当前画面中发现{n}个危险因素。", "ja": "今の画面で危険要素を{n}つ見つけました。"},
     "haz_item": {"ko": "{dir} {d}미터, {name}.", "en": "{name_cap}, {d} meters {dir}.", "zh": "{dir}{d}米处有{name}。", "ja": "{dir}{d}メートル先に{name}。"},
@@ -190,14 +174,10 @@ T = {
     "tbm_todo": {"ko": "지난 순찰 조치 {n}건: {items}.", "en": "{n} actions from the last patrol: {items}.", "zh": "上次巡检的{n}项整改：{items}。",
                  "ja": "前回の巡回の対応{n}件：{items}。"},
     "todo_item": {"ko": "{zone} {action}", "en": "{action} in {zone}", "zh": "{zone}{action}", "ja": "{zone}で{action}"},
-    "manager": {"ko": "관리자를 불렀습니다. 위치({zone})와 바디캠 화면을 보냈으니 잠시 기다려 주세요.",
-                "en": "Your manager has been called with your location, {zone}, and bodycam view. Please wait.",
-                "zh": "已呼叫管理人员，并发送了您的位置（{zone}）和随身摄像头画面。请稍候。",
-                "ja": "管理者を呼びました。現在地（{zone}）とボディカメラの映像を送ったので、少しお待ちください。"},
-    "sos": {"ko": "긴급 신고 접수. 위치({zone})를 관리자와 안전팀에 보냈습니다. 움직이지 말고 기다리세요.",
-            "en": "Emergency report sent. The manager and safety team have your location, {zone}. Stay still and wait for help.",
-            "zh": "紧急求助已发送。您的位置（{zone}）已发给管理人员和安全组。请不要移动，等待救援。",
-            "ja": "緊急通報を送りました。現在地（{zone}）を管理者と安全チームに送りました。動かずに待ってください。"},
+    "manager_sos": {"ko": "관리자 호출·SOS 신고 접수. 위치({zone})와 바디캠 화면을 관리자에게 보냈습니다. 움직이지 말고 기다리세요.",
+                    "en": "Manager called / SOS sent. Your manager has your location, {zone}, and bodycam view. Stay still and wait for help.",
+                    "zh": "已呼叫管理人员／发送SOS。您的位置（{zone}）和随身摄像头画面已发送给管理人员。请不要移动，等待帮助。",
+                    "ja": "管理者呼び出し・SOS通報を送信しました。現在地（{zone}）とボディカメラの映像を管理者に送りました。動かずに待ってください。"},
 }
 
 # TBM (작업 전 안전 회의) 항목: 관리자가 고르는 목록

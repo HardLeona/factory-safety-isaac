@@ -76,18 +76,18 @@ def main():
         im.paste(Image.open(os.path.join(rec, f"body_{gst['k']:05d}.jpg")).convert("RGB").resize((bx1 - bx0, by1 - by0)), (bx0, by0))
         MV.assist_caption(im, assist[i], 0.2)
         im.crop((bx0, by0, bx1, by1)).resize((960, 540)).save(os.path.join(DOCS, "fig_gesture.jpg"), quality=92)
-    # 손가락 1~5 와 명령 (scripts/test_gestures.py --save 로 찍은 화면)
+    # 손가락 1~3 과 명령 (scripts/test_gestures.py --save 로 찍은 화면)
     gdir = os.path.join(ROOT, "outputs", "eval", "gesture_frames")
-    names = {1: "장비 설명", 2: "공장 위험 스캔", 3: "오늘의 TBM", 4: "관리자 호출", 5: "SOS 신고"}
+    names = {1: "장비 설명", 2: "오늘의 TBM", 3: "관리자 호출·SOS"}
     # 손가락 수마다 명령이 맞게 나온 첫 지점의 화면 (명령이 확정된 순간)
     gt = os.path.join(ROOT, "outputs", "eval", "gesture_test.json")
     rows = json.load(open(gt, encoding="utf-8")).get("rows", []) if os.path.exists(gt) else []
-    spot = {c: next((r["spot"] for r in rows if r["shown"] == c and r["ok"]), 0) for c in range(1, 6)}
-    shots = [os.path.join(gdir, f"spot{spot[c]}_g{c}.jpg") for c in range(1, 6)]
+    spot = {c: next((r["spot"] for r in rows if r["shown"] == c and r["ok"]), 0) for c in range(1, 4)}
+    shots = [os.path.join(gdir, f"spot{spot[c]}_g{c}.jpg") for c in range(1, 4)]
     if all(os.path.exists(f) for f in shots):
         from PIL import ImageDraw
         w, h = 480, 270
-        sheet = Image.new("RGB", (w * 5, h + 56), (18, 24, 34))
+        sheet = Image.new("RGB", (w * len(shots), h + 56), (18, 24, 34))
         d = ImageDraw.Draw(sheet)
         for c, f in enumerate(shots, 1):
             sheet.paste(Image.open(f).convert("RGB").resize((w, h)), ((c - 1) * w, 0))
@@ -106,7 +106,7 @@ def main():
         im.crop((0, 0, 1600, 760)).save(os.path.join(DOCS, "fig_dashboard_crop.png"))
     # 영상 한 장면 (재판단 순간이 있으면 그 순간, 없으면 카트를 끌며 순찰하는 순간)
     if a.video is None:
-        pull = [s for s in states if s.get("story") in ("pull", "pull2")]
+        pull = [s for s in states if s.get("story") == "pull"]
         a.video = (frame_at(states, rj["t"], has("body")) if rj is not None else
                    (pull[len(pull) // 3]["k"] if pull else states[len(states) // 2]["k"]))
     subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "make_video.py"), "--record", rec, "--out",

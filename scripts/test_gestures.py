@@ -1,7 +1,7 @@
-"""손동작 인식 시험 (Isaac Sim): 순찰 경로 여러 지점에서 조명을 바꿔 가며 손가락 1~5 를 보이고, 순찰 때와 똑같이
+"""손동작 인식 시험 (Isaac Sim): 순찰 경로 여러 지점에서 조명을 바꿔 가며 손가락 1~3 을 보이고, 순찰 때와 똑같이
 손을 올리고 → 들고 있고 → 내리는 동안의 바디캠 화면을 명령 확정 필터에 넣어 명령이 맞게 나오는지 본다.
 
-    <isaac>/python.sh scripts/test_gestures.py                  # 지점 8곳 x 손가락 1~5 = 40번
+    <isaac>/python.sh scripts/test_gestures.py                  # 지점 8곳 x 손가락 1~3 = 24번
     <isaac>/python.sh scripts/test_gestures.py --spots 12 --raw outputs/eval/gesture_raw    # 원본 화면 저장 (기준 조정용)
 
 결과: outputs/eval/gesture_test.json
@@ -73,7 +73,7 @@ for i in range(args.spots):
     walker.reset(s0=walker.path.length * (i + 0.5) / args.spots)
     walker.t = float(rng.uniform(0, 10))
     scene.randomize_lighting(rng)
-    for c in range(1, 6):
+    for c in range(1, 4):
         flt = GestureFilter()
         walker.start_gesture(c, hold=1.2)
         seq, fired, n = [], [], 0
