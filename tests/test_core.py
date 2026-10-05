@@ -5,6 +5,7 @@
 import math
 import os
 import sys
+from collections import defaultdict
 
 import numpy as np
 
@@ -176,7 +177,7 @@ def test_cctv_event_scoring():
 
 def _agent():
     from factory_safety.agent import SafetyAgent
-    return SafetyAgent(960, 540, [c[0] for c in W.CCTVS], log=None)
+    return SafetyAgent(960, 540, log=None)
 
 
 def _box_at(cam, xyz, w=60, h=30, flat=True):
@@ -187,139 +188,127 @@ def _box_at(cam, xyz, w=60, h=30, flat=True):
     return [u - w / 2, v - h / 2, u + w / 2, v + h / 2] if flat else [u - w / 2, v - h, u + w / 2, v]
 
 
-def _shoot(agent, t, cls=None, conf=0.8):
-    """확대 촬영 한 장: 목표점 자리에 cls 박스를 돌려준다 (cls 가 None 이면 아무것도 못 찾음)."""
-    name, pose = agent.next_ptz(t)
-    dets = [(cls, conf, _box_at(pose, agent.job["target"], 120, 80), None)] if cls else []
-    agent.on_ptz(t, dets)
-    return name
-
-
-def test_agent_plan_and_cameras():
+def test_agent_ambiguous_hazard_immediate():
+    """잠깐 보고 지나친 물체라도 후보 중 고위험 클래스(stack_unstable)가 있으면 즉시 위험으로 확정한다."""
     a = _agent()
-    a.plan(59.0)
-    opts = {cp.cid: [n for n, _ in a.camera_options(cp.target)] for cp in a.checkpoints}
-    assert "cctv_east" in opts["C1"] and "cctv_west" in opts["C2"]      # 서쪽 랙 북쪽 끝 / 남쪽 끝 소화기
-    assert all(opts[c] for c in ("C7", "C8"))                          # 작업대 2곳은 남쪽 CCTV 로 보임
-    # 랙(6 m)이 가리면 후보에서 빠진다: 서쪽 통로 바닥은 동쪽 CCTV 에서 안 보임
-    assert "cctv_east" not in [n for n, _ in a.camera_options(np.array([-5.9, 0.5, 0.0]))]
-    # 대장에 있는 적재물이 시야를 가리면 그 CCTV 도 뺀다 (동쪽 랙 남쪽 끝 소화기를 서쪽 CCTV 에서 볼 때)
-    from factory_safety.agent import Finding
-    c6 = next(c for c in a.checkpoints if c.cid == "C6")
-    assert "cctv_west" in [n for n, _ in a.camera_options(c6.target)]
-    st = Finding("F09", "stack", np.array([6.85, -5.22]), 0.0, "바디캠")
-    st.body["stack_stable"] += 3.0
-    a.findings.append(st)
-    why = {}
-    assert "cctv_west" not in [n for n, _ in a.camera_options(c6.target, why=why)] and why == {"cctv_west": "F09"}
-    pose = a.aim("cctv_west", np.array([-5.9, 0.5, 0.0]), 4.0)
-    P = Projector(960, 540)
-    P.set_pose(pose)
-    (u, v), = P.project(np.array([[-5.9, 0.5, 0.0]]))[0]
-    assert abs(u - 480) < 1 and abs(v - 270) < 1 and pose.vfov < 20
+    cam = CameraPose(pos=np.array([7.2, -4.0, 1.38]), yaw=-math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [7.2, -5.6, 0.0])
+    a.on_bodycam(1.0, cam, [("stack_unstable", 0.6, box, 7)])
+    a.on_bodycam(2.0, cam, [])     # 1프레임만 보이고 사라짐 (CONFIRM 미달)
+    f = a.findings[0]
+    assert f.status == "확정" and f.cls == "stack_unstable" and a.stats["ambiguous_hazard"] == 1
+    rep = a.report()
+    assert rep["findings"][0]["state"] == "위험"
 
 
-def test_agent_tentative_recheck():
+def test_agent_ambiguous_caution_classification():
+    """저위험 후보(tool_floor)만 있으면 안전·위험을 단정하지 않고 '주의' 로 분류하고, 위험구역에는 안 들어간다."""
     a = _agent()
     cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
-    a.on_bodycam(1.0, cam, [("tool_floor", 0.5, _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False), 7)])
+    box = _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False)
+    a.on_bodycam(1.0, cam, [("tool_floor", 0.5, box, 11)])
     a.on_bodycam(2.0, cam, [])                                   # 1프레임만 보이고 사라짐
     f = a.findings[0]
-    assert f.status == "재확인 대기" and len(a.jobs) == 1 and abs(f.xy[1] - 3.0) < 0.3
-    assert a.next_ptz(2.5) is None                                # 잠깐 기다림 (바디캠이 다시 볼 수도 있음)
-    _shoot(a, 4.5, "tool_floor", 0.9)
-    _shoot(a, 4.7, "tool_floor", 0.85)
-    assert f.status == "재확인 완료" and f.cls == "tool_floor" and a.job is None
+    assert f.status == "주의" and a.stats["ambiguous_caution"] == 1
     rep = a.report()
-    assert rep["findings"][0]["state"] == "위험" and "작업대로 회수" in rep["findings"][0]["action"]
+    row = next(r for r in rep["findings"] if r["id"] == f.fid)
+    assert row["state"] == "주의" and "현장 확인 권고" in row["action"]
+    assert a.zones == {}       # 위험구역에는 포함 안 됨 (지도에는 report() 로 표시됨)
 
 
-def test_agent_retry_and_escalate():
+def test_agent_caution_reobserved_llm_and_fallback():
+    """'주의' 물체를 바디캠이 다시 지나치면 recheck_judge(가짜 LLM)가 누적 증거로 재판단해 확정한다.
+    LLM 이 없거나 실패하면 규칙(고위험 후보 재검토)으로 폴백 — 고위험 없으면 주의를 유지한다."""
+    a = _agent()
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False)
+    a.on_bodycam(1.0, cam, [("tool_floor", 0.5, box, 11)])
+    a.on_bodycam(2.0, cam, [])
+    f = a.findings[0]
+    assert f.status == "주의"
+    seen = []
+
+    def judge(snap):
+        seen.append(snap)
+        return {"llm": True, "model": "fake", "verdict": "tool_stored", "reason_ko": "작업대 위로 옮겨짐", "trace": ["evidence()"]}
+    a.recheck_judge = judge
+    for k in range(3):   # 다시 지나칠 때 투표가 갈림 (tool_floor/tool_stored 비슷) -> LLM 이 가른다
+        a.on_bodycam(10.0 + 0.1 * k, cam, [("tool_floor", 0.4, box, 12), ("tool_stored", 0.4, box, 12)])
+    assert f.status == "확정" and f.cls == "tool_stored" and a.stats["caution_rejudged"] == 1
+    assert seen and seen[0]["target_kind"] == "tool" and "tool_floor" in seen[0]["prior_observations"]
+    assert any(e["kind"] == "LLM 판단" for e in a.timeline)
+    # LLM 없이(규칙 폴백): 저위험 후보만 다시 보이면 주의 유지
+    a2 = _agent()
+    a2.on_bodycam(1.0, cam, [("tool_floor", 0.5, box, 21)])
+    a2.on_bodycam(2.0, cam, [])
+    f2 = a2.findings[0]
+    assert f2.status == "주의"
+    for k in range(3):
+        a2.on_bodycam(10.0 + 0.1 * k, cam, [("tool_floor", 0.6, box, 22)])
+    assert f2.status == "주의" and a2.stats["caution_rejudged"] == 1 and a2.stats["caution_rejudged_confirmed"] == 0
+
+
+def test_agent_ambiguous_mixed_candidates_immediate_hazard():
+    """잠깐 보임에서 저위험(tool_floor) + 고위험(stack_unstable) 후보가 섞이면, 고위험 후보 쪽으로 즉시 위험 확정한다."""
+    a = _agent()
+    cam = CameraPose(pos=np.array([7.2, -4.0, 1.38]), yaw=-math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [7.2, -5.6, 0.0])
+    a.on_bodycam(1.0, cam, [("tool_floor", 0.5, box, 31), ("stack_unstable", 0.4, box, 31)])
+    a.on_bodycam(2.0, cam, [])
+    f = a.findings[0]
+    assert f.status == "확정" and f.cls == "stack_unstable" and a.stats["ambiguous_hazard"] == 1
+
+
+def test_agent_report_action_grounding():
+    """report_judge(가짜 LLM)가 매뉴얼 근거(grounded=true)를 주면 조치 문구를 보강하고 출처를 남긴다.
+    grounded=false 거나 LLM 이 없거나 실패하면 고정 문구(ACTIONS) 그대로 쓴다."""
+    from factory_safety.agent import ACTIONS
     a = _agent()
     cam = CameraPose(pos=np.array([4.5, 8.0, 1.38]), yaw=-math.pi / 2, pitch=-0.2, vfov=70)
-    a.on_bodycam(1.0, cam, [("spill", 0.35, _box_at(cam, [3.1, 2.2, 0.0]), 3)])          # 근거 약함
-    a.on_bodycam(1.2, cam, [("spill", 0.7, _box_at(cam, [5.9, 9.4 - 6.0, 0.0]), 4),
-                            ("spill", 0.7, _box_at(cam, [5.9, 9.4 - 6.0, 0.0]), 4)])     # 2프레임 0.7
-    a.on_bodycam(3.0, cam, [])
-    weak, strong = a.findings
-    shots = []
-    while a.busy() and len(shots) < 20:
-        shots.append(_shoot(a, 10.0 + len(shots)))
-    assert weak.status == "기각" and strong.status == "현장 확인 필요"
-    # 나중에 바디캠이 다시 보고 확정하면 현장 확인은 취소
-    box = _box_at(cam, [5.9, 9.4 - 6.0, 0.0])
+    box = _box_at(cam, [3.1, 2.2, 0.0])
     for k in range(3):
-        a.on_bodycam(40.0 + 0.2 * k, cam, [("spill", 0.8, box, 9)])
-    assert strong.status == "확정"
-    assert a.stats["recheck_retry"] >= 1 or len(set(shots)) == 1     # 볼 수 있는 CCTV 가 여럿이면 다음 CCTV 로
+        a.on_bodycam(0.1 * k, cam, [("spill", 0.8, box, 1)], worker_xy=(4.5, 8.0))
+    seen = []
+
+    def judge(snap):
+        seen.append(snap)
+        return {"llm": True, "grounded": True, "action_ko": "유출물 제거 + 미끄럼 방지 패드 설치, 바닥 균열도 점검",
+               "source": "spill / 청소·정리정돈"}
+    a.report_judge = judge
     rep = a.report()
-    assert [r["state"] for r in rep["findings"]] == ["위험"]
+    row = next(r for r in rep["findings"] if r["class"] == "spill")
+    assert "미끄럼 방지 패드" in row["action"] and row["action_source"] == "spill / 청소·정리정돈"
+    assert seen and seen[0]["class"] == "spill" and seen[0]["standard_action"] == ACTIONS["spill"][0]
+    # grounded=false 면 고정 문구 그대로
+    a.report_judge = lambda snap: {"llm": True, "grounded": False, "action_ko": "", "source": ""}
+    rep2 = a.report()
+    row2 = next(r for r in rep2["findings"] if r["class"] == "spill")
+    assert row2["action"] == ACTIONS["spill"][0] and row2["action_source"] is None
+    # LLM 실패해도(예외) 고정 문구로 안전하게 폴백
+    a.report_judge = lambda snap: (_ for _ in ()).throw(RuntimeError("꺼짐"))
+    rep3 = a.report()
+    row3 = next(r for r in rep3["findings"] if r["class"] == "spill")
+    assert row3["action"] == ACTIONS["spill"][0] and row3["action_source"] is None
 
 
-def test_agent_cancel_and_checkpoints():
+def test_agent_checkpoints_and_finish_patrol():
+    """바디캠이 확인한 소화기 점검 지점은 '바디캠 확인' 으로, 끝내 못 본 지점은 순찰이 끝날 때 바로
+    '현장 확인 필요' 로 넘어간다 (CCTV 재확인 시도 없이)."""
+    from factory_safety.agent import Finding
     a = _agent()
-    cam = CameraPose(pos=np.array([-4.5, -6.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
-    box = _box_at(cam, [-3.1, 7.8, 0.0])
-    a.on_bodycam(1.0, cam, [("spill_marked", 0.6, box, 1)])
-    a.on_bodycam(2.0, cam, [])                                    # 잠깐 보임 -> 재확인 예약
-    for k in range(3):                                           # 다른 추적 번호로 다시 보고 확정
-        a.on_bodycam(2.5 + 0.2 * k, cam, [("spill_marked", 0.8, box, 2)])
-    assert a.findings[0].status == "확정" and not a.jobs and a.stats["recheck_canceled"] == 1
+    mx, my, _ = W.EXT_MOUNTS[1]
+    f = Finding("F01", "ext", np.array([mx, my], float), 0.0, "바디캠")
+    f.body["ext_ok"] += 3.0
+    a.findings.append(f)
+    a._tick_checkpoints(1.0)
+    c2 = next(c for c in a.checkpoints if c.cid == "C2")
+    assert c2.status == "바디캠 확인" and c2.finding == "F01"
     a.finish_patrol(60.0)
-    assert len(a.jobs) == len(a.checkpoints)                     # 순찰 중 점검 지점을 하나도 못 봄
-    n = 0
-    while a.busy() and n < 60:
-        job = a.job or a.jobs[0]
-        want = "ext_ok" if (job["checkpoint"] and job["checkpoint"].group == "ext") else "tool_stored"
-        _shoot(a, 61.0 + n, want)
-        n += 1
+    c1 = next(c for c in a.checkpoints if c.cid == "C1")
+    assert c1.status == "현장 확인 필요" and c2.status == "바디캠 확인"   # 확인된 지점은 그대로, 못 본 지점만 넘어감
     rep = a.report()
-    assert rep["summary"]["checkpoints_done"] == len(a.checkpoints)
-    assert sum(1 for r in rep["findings"] if r["class"] == "ext_ok") == len(W.EXT_MOUNTS)
-
-
-def test_agent_table_check_picks_target():
-    """작업대 확대 화면에 옆 바닥 공구가 같이 보여도 작업대 위 공구를 고르고, 바닥 공구 항목은 안 건드림."""
-    from factory_safety.agent import Finding
-    a = _agent()
-    floor = Finding("F01", "tool_floor", np.array([-6.16, -9.71]), 0.0, "바디캠")
-    floor.body["tool_floor"] += 3.0
-    floor.body_confirmed = True
-    a.findings.append(floor)
-    a.finish_patrol(50.0)
-    a.jobs = [j for j in a.jobs if j["checkpoint"].cid == "C7"]
-    for k in range(2):
-        name, pose = a.next_ptz(51.0 + k)
-        P = Projector(960, 540)
-        P.set_pose(pose)
-        (uf, vf), = P.project(np.array([[-6.16, -9.71, 0.1]]))[0]
-        (ut, vt), = P.project(np.array([a.job["target"]]))[0]
-        a.on_ptz(51.0 + k, [("tool_floor", 0.95, [uf - 30, vf - 20, uf + 30, vf + 20], None),
-                            ("tool_stored", 0.7, [ut - 80, vt - 40, ut + 80, vt + 40], None)])
-    table = [f for f in a.findings if f.group == "tool_stored"]
-    assert len(table) == 1 and table[0].cls == "tool_stored" and np.allclose(floor.xy, [-6.16, -9.71])
-
-
-def test_agent_ptz_relocates_and_merges():
-    """바디캠 위치가 3 m 넘게 틀린 적재물도 확대 화면에서 구한 위치로 고쳐 원래 항목과 합친다."""
-    from factory_safety.agent import Finding
-    a = _agent()
-    true = Finding("F01", "stack", np.array([7.2, -5.6]), 0.0, "바디캠")
-    true.body["stack_unstable"] += 3.0
-    true.body_confirmed = True
-    off = Finding("F02", "stack", np.array([4.0, -7.6]), 0.0, "바디캠", status="재확인 대기")
-    off.body["stack_unstable"] += 0.9
-    a.findings += [true, off]
-    a.PTZ_WINDOWS, a.MATCH_FRAC = (9.0, 7.0), 0.9    # 진짜 자리까지 화면에 들어오고 짝지어지게 넓게
-    a._request(1.0, off, None, "잠깐 보임", "잠깐 보임")
-    for k in range(2):
-        name, pose = a.next_ptz(5.0 + k)
-        P = Projector(960, 540)
-        P.set_pose(pose)
-        (u, v), = P.project(np.array([[7.2, -5.6, 0.0]]))[0]
-        assert 0 < u < 960 and 0 < v < 540
-        a.on_ptz(5.0 + k, [("stack_unstable", 0.9, [u - 60, v - 120, u + 60, v], None)])
-    assert off.status == "병합" and off.merged_into == "F01" and true.n_ptz == 2
+    row = next(r for r in rep["findings"] if r["id"] == "C1")
+    assert row["state"] == "확인 필요"
 
 
 def test_agent_near_miss_priority_and_eval():
@@ -370,16 +359,6 @@ def test_agent_regroup_and_low_confidence():
     odd.body["ext_fallen"] += 2.0
     a.findings.append(odd)
     assert a._regroup(3.0, odd) is odd and odd.status == "현장 확인 필요"
-    # 확대 판정 확신이 낮으면 다른 CCTV 로 한 번 더, 마지막까지 낮으면 현장 확인
-    a = _agent()
-    a.finish_patrol(60.0)
-    job = a.jobs[[j["checkpoint"].cid for j in a.jobs].index("C4")]
-    a.jobs = [job]
-    n_cams = len(job["cams"])
-    for k in range(2 * n_cams):
-        _shoot(a, 61.0 + k, "ext_blocked", 0.34)
-    cp = next(c for c in a.checkpoints if c.cid == "C4")
-    assert n_cams >= 2 and cp.status == "현장 확인 필요" and a.stats["recheck_retry"] == n_cams - 1
 
 
 def test_zones_build():
@@ -402,7 +381,7 @@ def test_agent_zone_voice_and_tools():
     """화면의 라바콘을 영역으로 묶고, 작업자가 영역에 다가가면 음성 경고. 공구는 놓인 자리로 위험/안전."""
     a = _agent()
     heard = []
-    a.on_voice = heard.append
+    a.on_voice = lambda t, level: heard.append((t, level))
     cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
     ring = [(-6.2 + 1.2 * math.cos(q), 2.6 + 1.2 * math.sin(q)) for q in np.linspace(0, 5.5, 5)]
     for k in range(3):
@@ -429,7 +408,10 @@ def test_dashboard():
     from factory_safety.dashboard import write_dashboard
     a = _agent()
     a.plan(59.0)
-    test_agent_tentative_recheck()
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False)
+    for k in range(3):
+        a.on_bodycam(0.1 * k, cam, [("tool_floor", 0.8, box, 1)])
     path = os.path.join(tempfile.mkdtemp(), "d.html")
     write_dashboard(path, a.report(), seed=1)
     assert "조치 목록" in open(path, encoding="utf-8").read()
@@ -537,13 +519,13 @@ def test_assistant_commands():
     assert ev["lang"] == "zh" and "锤子" in ev["text"] and "망치" in ev["text_ko"] and ev["items"][0]["tool"] == "hammer"
     ev = s.run(1.1, 2, cam, (-4.5, -2.3), math.pi / 2)            # 영어: 공장 전체 스캔 (위험물 대장)
     assert ev["lang"] == "en" and ev["n_hazards"] == 2 and "spill" in ev["text"] and "hammer" in ev["text"] and "west aisle" in ev["text"]
-    assert s.ptz_view(1.2)[2].startswith("스캔") and s.ptz_view(30.0) is None
+    assert s.ptz_view(1.2) is None     # CCTV 없음 -> 확대 화면 없이 텍스트로만 전달
     ev = s.run(1.2, 3, cam, (-4.5, -2.3), math.pi / 2)            # 일본어
     assert ev["lang"] == "ja" and "TBM" in ev["text"] and "南側作業エリア" in ev["text"] and "남쪽 작업 구역" in ev["text_ko"]
     ev = s.run(1.3, 4, cam, (-4.5, -2.3), math.pi / 2, lang="ko")
     assert "서쪽 통로" in ev["text"] and any(e["kind"] == "관리자 호출" for e in a.timeline)
     ev = s.run(2.0, 5, cam, (-4.5, -2.3), math.pi / 2, lang="en")
-    assert ev["cctv"] and s.sos_view(3.0)[0] == ev["cctv"] and s.sos_view(20.0) is None
+    assert not ev["cctv"] and s.sos_view(3.0) is None     # CCTV 없음 -> 위치/정보만 전달, 영상 확대 없음
     assert any(e["kind"] == "SOS" for e in a.timeline)
     s2 = SiteAssistant(_agent(), langs=["en"], tbm=tbm)
     assert "No hazards" in s2.run(0.0, 2, cam, (-4.5, -2.3), math.pi / 2)["text"]
@@ -698,6 +680,141 @@ def test_assistant_llm_planner():
     s.planner = lambda snap: {"llm": False, "error": "꺼짐"}             # LLM 이 안 되면 규칙
     ev = s.run(3.0, 1, cam, (-4.5, -2.3), math.pi / 2)
     assert "hand cart" in ev["text"] and not ev["llm"]["llm"]
+
+
+def test_assistant_equip_refuse():
+    """손동작 1 에서 LLM 이 매뉴얼 근거를 못 찾으면(refuse=true) 추측하지 않고 거부 + 관리자 호출로 넘긴다."""
+    from factory_safety.assistant import SiteAssistant
+    a = _agent()
+    s = SiteAssistant(a, langs=["en"])
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    dets = [("hammer", 0.85, _box_at(cam, [-3.9, 0.6, 0.0], 50, 22, flat=False), 1)]
+    for k in range(3):
+        s.observe(0.1 * k, cam, dets)
+        a.on_bodycam(0.1 * k, cam, dets, worker_xy=(-4.5, -2.3))
+
+    def planner(snap):
+        return {"llm": True, "model": "fake", "say_ids": [], "reason_ko": "매뉴얼 근거 없음", "manager_ko": "", "refuse": True,
+               "trace": ["retrieve_manual(query=hammer)"]}
+    s.planner = planner
+    ev = s.run(1.0, 1, cam, (-4.5, -2.3), math.pi / 2)
+    assert ev["llm"]["refuse"] and "관리자" in ev["notify"]
+    assert "매뉴얼" in ev["text_ko"] or "검증된" in ev["text_ko"]
+    assert "작업자 위치" in ev["manager_ko"]
+
+
+def test_manuals_load_chunks():
+    """data/manuals/*.md 가 프런트매터 + ## 섹션으로 쪼개지는지 (임베딩·벡터스토어 없이, 순수 파싱만)."""
+    from factory_safety.config import CLASSES, EQUIPMENT
+    from factory_safety.manuals import load_chunks
+    chunks = load_chunks()
+    assert len(chunks) >= 6                 # 문서 6개 이상 (컨베이어 추가로 7개), 섹션은 여러 개
+    doc_ids = {c["doc_id"] for c in chunks}
+    assert doc_ids == {"hand_tools", "hand_cart", "stacking", "spill", "fire_extinguisher", "danger_zone", "conveyor"}
+    for c in chunks:
+        assert c["text"] and c["title"] and c["source"]
+        assert isinstance(c["applies_to"], list) and c["applies_to"]
+        # machine_conveyor 는 YOLO 클래스가 아니라 끼임 위험 기계용 의사(pseudo) 클래스 (19클래스 모델은 재학습 안 함)
+        assert all(t in CLASSES or t in EQUIPMENT or t == "machine_conveyor" for t in c["applies_to"])
+        assert c["id"] == f"{c['doc_id']}#{c['section']}"
+    # 공구 8종, 카트, 유출/적재/소화기/위험구역 상태가 모두 어느 문서에 걸려 있어야 한다
+    covered = {t for c in chunks for t in c["applies_to"]}
+    assert covered >= {"hammer", "screwdriver", "saw", "power_saw", "pickaxe", "shovel", "wrench", "drill", "cart",
+                       "spill", "spill_marked", "stack_unstable", "stack_stable", "ext_ok", "ext_fallen", "ext_blocked",
+                       "cone", "danger_sign"}
+
+
+def test_pinch_unproject_roundtrip():
+    """Projector.unproject 는 project() 의 정확한 역변환이어야 한다 (depth = 카메라 정면 축 거리)."""
+    from factory_safety import pinch_detect as PD
+    cam_pos = np.array([5.0, 10.0, 1.4])
+    true_pt = np.array([5.3, 13.2, 0.8])
+    d = true_pt - cam_pos
+    yaw = math.atan2(d[1], d[0])
+    pitch = math.atan2(d[2], math.hypot(d[0], d[1]))
+    cam = CameraPose(pos=cam_pos, yaw=yaw, pitch=pitch, vfov=66.0)
+    P = Projector(960, 540)
+    P.set_pose(cam)
+    uv, z = P.project(true_pt[None])
+    u, v = uv[0]
+    depth = np.full((540, 960), np.nan, dtype=np.float32)
+    depth[int(round(v)), int(round(u))] = z[0]
+    pts21 = [[0, 0]] * 8 + [[u, v]] + [[0, 0]] * 12       # 인덱스 8 = 검지 끝
+    got = PD.fingertip_xyz(P, pts21, depth)
+    assert np.linalg.norm(got - true_pt) < 1e-4
+    xyxy = [u - 5, v - 5, u + 5, v + 5]
+    got2 = PD.pinch_point_xyz(P, xyxy, depth)
+    assert np.linalg.norm(got2 - true_pt) < 1e-4
+    assert PD.fingertip_xyz(P, None, depth) is None                 # 손 없음
+    assert PD._sample(P, 2, 2, depth) is None                       # 그 픽셀에 깊이 없음
+
+
+def test_machine_zone_on_off():
+    """기계가 on 이면 끼임점 반경 MACHINE_ZONE_M 위험구역, off 면 즉시 해제."""
+    from factory_safety.config import MACHINE_ZONE_M
+    a = _agent()
+    assert a.zones == {}
+    a.machines.set("M1", True)
+    assert list(a.zones.keys()) == ["machine:M1"]
+    z = a.zones["machine:M1"]
+    assert z.source == "machine" and abs(z.radius - MACHINE_ZONE_M) < 1e-6
+    pinch = a.machines.pinch_xyz("M1")
+    assert np.linalg.norm(z.center - pinch[:2]) < 1e-6
+    a.machines.set("M1", False)
+    assert a.zones == {}                                             # 꺼지면 바로 해제
+    a.machines.set("M1", False)                                      # 같은 상태 재호출은 아무 일 없음
+    assert a.zones == {}
+
+
+def test_machine_zone_voice_warning():
+    """작업자가 작동 중인 기계의 1.5 m 위험구역 안에 들어오면 기존 음성 경고 규칙대로 강한 경고."""
+    a = _agent()
+    heard = []
+    a.on_voice = lambda t, level: heard.append((t, level))
+    a.machines.set("M1", True)
+    pinch = a.machines.pinch_xyz("M1")
+    cam = CameraPose(pos=np.array([pinch[0], pinch[1] - 3.0, 1.4]), yaw=math.pi / 2, pitch=0.0, vfov=66)
+    a.on_bodycam(1.0, cam, [], worker_xy=(pinch[0], pinch[1] - 0.5))   # 영역(반경 1.5 m) 안
+    assert heard and a.voice_events[-1]["target"] == "Z:" + a.zones["machine:M1"].zid
+    assert a.machine_report()[0]["zone_alerts"] == 1
+    a.on_bodycam(2.0, cam, [], worker_xy=(pinch[0], pinch[1] - 10.0))  # 멀리 있으면 경고 없음
+    assert a.machine_report()[0]["zone_alerts"] == 1
+
+
+def test_pinch_alert_requires_on_and_10cm():
+    """손가락 끝 - 끼임점 10 cm 이내 + 작동 중이면 최고 등급 경보. 꺼져 있으면 아무리 가까워도 경보 없음."""
+    a = _agent()
+    pinch = a.machines.pinch_xyz("M1")
+    near = pinch + np.array([0.03, 0.0, 0.02])    # 3.6 cm
+    far = pinch + np.array([0.5, 0.0, 0.0])       # 50 cm
+
+    assert a.check_pinch(0.0, "M1", near) is None          # 기계가 꺼져 있음 -> 경보 없음
+    a.machines.set("M1", True)
+    assert a.check_pinch(1.0, "M1", None) is None          # 손 없음
+    assert a.check_pinch(1.0, "M1", far) is None            # 멀리 있음
+    ev = a.check_pinch(2.0, "M1", near)
+    assert ev is not None and ev["level"] == "critical" and ev["say"] == "손 빼세요" and ev["dist_cm"] < 10.0
+    assert a.pinch_events == [ev]
+    assert a.machine_report()[0]["pinch_alerts"] == 1
+    a.machines.set("M1", False)
+    assert a.check_pinch(3.0, "M1", near) is None           # 꺼지면 아무리 가까워도 경보 없음
+    assert a.machine_report()[0]["pinch_alerts"] == 1       # 늘지 않음
+
+
+def test_pinch_fallback_logs_and_counts():
+    """끼임점 탐지 실패(detected_pinch_xyz=None) 시 등록된 위치로 폴백 계산하고, 폴백 사용을 로그와 집계에 남긴다."""
+    a = _agent()
+    a.machines.set("M1", True)
+    pinch = a.machines.pinch_xyz("M1")
+    near = pinch + np.array([0.0, 0.03, 0.0])
+    ev = a.check_pinch(1.0, "M1", near, detected_pinch_xyz=None)      # 탐지 실패 -> 폴백
+    assert ev is not None and ev["fallback"] is True
+    assert any("폴백" in e["text"] for e in a.timeline if e["kind"] == "끼임 경보")
+    assert a.machine_report()[0]["pinch_fallback"] == 1
+    # 탐지가 됐으면(위치를 직접 줌) 폴백이 아님
+    ev2 = a.check_pinch(2.0, "M1", near, detected_pinch_xyz=pinch)
+    assert ev2["fallback"] is False
+    assert a.machine_report()[0]["pinch_fallback"] == 1                # 더 안 늘어남
 
 
 if __name__ == "__main__":

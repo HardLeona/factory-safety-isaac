@@ -20,7 +20,10 @@ from typing import Annotated, TypedDict
 MODEL = "qwen2.5:7b"
 MAX_STEPS = 6
 COMMAND_GOAL = {
-    1: "explain the piece of equipment the worker was looking at (the most centered and closest equipment in view)",
+    1: "explain the piece of equipment the worker was looking at (the most centered and closest equipment in view). "
+       "Before finishing, call retrieve_manual with a short query about that equipment or hazard. "
+       "If it returns no relevant passage, you must not explain from guesswork: call finish with say_ids=[] and refuse=true "
+       "so the worker is told to ask a manager instead.",
     2: "scan the whole factory for hazards using the hazard log and tell the worker the most important ones",
     3: "brief the worker on today's TBM (toolbox meeting): work, risks and rules",
     4: "call the supervisor: write a short Korean message for the supervisor with the worker's location and situation",
@@ -31,9 +34,10 @@ Your goal: {goal}.
 Use the tools to look at the real situation first. Only use ids that tools returned; never invent objects or hazards.
 When you have decided, call `finish` exactly once with:
 - say_ids: ids of the items to tell the worker, most important first (object ids for equipment, hazard ids for a scan, empty otherwise)
-- reason_ko: one Korean sentence explaining why you chose them (distance, priority, today's work), for the agent log
+- reason_ko: one Korean sentence explaining why you chose them (distance, priority, today's work, and the manual passage you grounded on if any), for the agent log
 - manager_ko: a short Korean message for the supervisor (only for supervisor calls and SOS, else empty)
-Write reason_ko and manager_ko in Korean and copy names and areas exactly from the tools' name_ko / what_ko / area_ko fields.
+- refuse: true only if you were asked to explain equipment and retrieve_manual found no relevant passage (else false)
+Write reason_ko and manager_ko in Korean and copy names and areas exactly from the tools' name_ko / what_ko / area_ko / title / section fields.
 Do not mention anything the tools did not return. The worker's language is {lang}. Use at most 4 tool calls before finish."""
 
 
@@ -55,6 +59,14 @@ def _tools(snap, out):
                           ensure_ascii=False)
 
     @tool
+    def retrieve_manual(query: str) -> str:
+        """Search the verified safety manuals (RAG over data/manuals/*.md) for passages about this equipment or hazard.
+        Returns a list of {title, section, text, source} or "no relevant manual passage" if nothing is grounded enough."""
+        from . import manuals
+        hits = manuals.retrieve(query)
+        return json.dumps(hits or "no relevant manual passage", ensure_ascii=False)
+
+    @tool
     def hazard_log(limit: int = 6) -> str:
         """List hazards recorded so far in the whole factory, highest priority first (id, what, area, distance from worker, priority)."""
         rows = snap.get("hazards", [])[:max(1, int(limit))]
@@ -72,16 +84,18 @@ def _tools(snap, out):
         return json.dumps(snap.get("worker", {}), ensure_ascii=False)
 
     @tool
-    def finish(say_ids: list[str], reason_ko: str, manager_ko: str = "") -> str:
-        """Finish with your decision. say_ids: items to tell the worker. reason_ko: Korean reason. manager_ko: Korean message to the supervisor."""
+    def finish(say_ids: list[str], reason_ko: str, manager_ko: str = "", refuse: bool = False) -> str:
+        """Finish with your decision. say_ids: items to tell the worker. reason_ko: Korean reason. manager_ko: Korean message
+        to the supervisor. refuse: true only when asked to explain equipment and retrieve_manual found no grounded passage."""
         valid = {o["id"] for o in snap.get("view", [])} | {h["id"] for h in snap.get("hazards", [])}
-        out["say_ids"] = [i for i in say_ids if i in valid]
+        out["say_ids"] = [] if refuse else [i for i in say_ids if i in valid]
         out["reason_ko"] = reason_ko.strip()
         out["manager_ko"] = (manager_ko or "").strip()
+        out["refuse"] = bool(refuse)
         out["done"] = True
         return "ok"
 
-    return [look_around, equipment_info, hazard_log, todays_tbm, worker_status, finish]
+    return [look_around, equipment_info, retrieve_manual, hazard_log, todays_tbm, worker_status, finish]
 
 
 def build_graph(snap, out, model=MODEL, host=None):
@@ -128,7 +142,7 @@ def build_graph(snap, out, model=MODEL, host=None):
 
 
 def decide(snap, model=MODEL, host=None):
-    """스냅샷 -> {say_ids, reason_ko, manager_ko, trace, llm, sec}. 실패하면 {"llm": False, "error"}."""
+    """스냅샷 -> {say_ids, reason_ko, manager_ko, refuse, trace, llm, sec}. 실패하면 {"llm": False, "error"}."""
     t0 = time.time()
     out = {}
     try:
@@ -143,7 +157,7 @@ def decide(snap, model=MODEL, host=None):
     if not out.get("done"):
         return {"llm": False, "error": "finish 를 안 부름", "sec": round(time.time() - t0, 2), "trace": out.get("trace", [])}
     return {"llm": True, "model": model, "say_ids": out["say_ids"], "reason_ko": out["reason_ko"], "manager_ko": out["manager_ko"],
-            "trace": out.get("trace", []), "sec": round(time.time() - t0, 2)}
+            "refuse": out.get("refuse", False), "trace": out.get("trace", []), "sec": round(time.time() - t0, 2)}
 
 
 def graph_mermaid():
@@ -151,7 +165,7 @@ def graph_mermaid():
     return "\n".join([
         "flowchart LR",
         "  S([손동작 명령]) --> A[agent<br/>Qwen2.5-7B]",
-        "  A -- 도구 호출 --> T[tools<br/>look_around · equipment_info · hazard_log<br/>todays_tbm · worker_status]",
+        "  A -- 도구 호출 --> T[tools<br/>look_around · equipment_info · retrieve_manual<br/>hazard_log · todays_tbm · worker_status]",
         "  T --> A",
         "  A -. 글로만 답함 .-> M[remind<br/>finish 다시 요청] -.-> A",
         "  A -- finish --> R[결정<br/>말할 항목 · 근거 · 관리자 메시지]",

@@ -2,10 +2,9 @@
 
     python scripts/make_video.py --record outputs/record/seed1 --out outputs/video/demo.mp4
 
-화면 구성: 위쪽 바디캠(입력, YOLO 판정) | CCTV 3대 + 확대(PTZ) 화면(도구)
-          아래쪽 평면도(작업자 위치, 위험물 대장) | 위험물 대장 | 에이전트 기록(계획, 판정, 재확인, 경고)
+화면 구성: 왼쪽 바디캠(입력, YOLO 판정) | 오른쪽 평면도(작업자·위험물·위험 영역) | 위험물 대장 | 에이전트 기록(판정→주의→재판단→경고→결과)
 앞뒤로 제목, 문제와 구조, 점검 계획, 조치 지시서 화면, 평가 결과를 붙인다.
-음성 경고가 난 시각에는 "경고 경고 위험 요소가 식별되었습니다" 음성을 소리 트랙에 넣는다.
+음성 경고가 난 시각에는 위험("멈추세요! 위험 요소가 식별되었습니다") 또는 주의("발밑을 확인하세요") 음성을 소리 트랙에 넣는다.
 """
 import argparse
 import glob
@@ -45,17 +44,15 @@ PANEL = (28, 36, 50)
 FG = (232, 236, 242)
 MUTED = (150, 160, 178)
 RED, GREEN, AMBER, BLUE, ORANGE, PURPLE = (232, 72, 72), (60, 184, 110), (240, 170, 40), (80, 150, 240), (255, 140, 40), (170, 110, 230)
-KIND_COLOR = {"계획": BLUE, "판정": (110, 200, 255), "판정 수정": PURPLE, "재확인 계획": AMBER, "CCTV 선택": AMBER,
-              "재확인": AMBER, "재시도": AMBER, "재확인 취소": MUTED, "현장 확인": RED, "접근 경고": RED, "점검표": GREEN,
-              "위험 영역": (255, 110, 110), "음성 경고": (255, 80, 200), "위치 보정": AMBER,
-              "손동작": (120, 220, 255), "관리자 호출": AMBER, "SOS": RED, "LLM 판단": (190, 150, 255)}
-# 화면 배치: CCTV 가 있으면 바디캠 960x540 + CCTV 4칸, 없으면 (시연 이야기) 바디캠 1280x720 + 평면도·대장·기록
-LAYOUT = {"solo": False, "body": (0, 70, 960, 610)}
-# 영상에서 잠깐 멈춰 보여줄 행동
-HOLD_KINDS = ("판정 수정", "재확인", "현장 확인", "재확인 취소", "위치 보정", "위험 영역", "음성 경고")
+KIND_COLOR = {"계획": BLUE, "판정": (110, 200, 255), "판정 수정": PURPLE, "주의": AMBER, "현장 확인": RED,
+              "점검표": GREEN, "위험 영역": (255, 110, 110), "음성 경고": (255, 80, 200), "주의 안내": (255, 170, 120),
+              "접근 기록": MUTED, "손동작": (120, 220, 255), "관리자 호출": AMBER, "SOS": RED, "LLM 판단": (190, 150, 255)}
+BODY = (0, 70, 1280, 790)       # 화면 배치: 바디캠 1280x720 (왼쪽), 오른쪽 평면도·대장, 아래 에이전트 기록
+# 영상에서 잠깐 멈춰 보여줄 행동 (CCTV 확대 같은 연출이 없는 바디캠 단독 모드라 "현장 확인"/"주의"는 안 멈춤)
+HOLD_KINDS = ("판정 수정", "위험 영역", "음성 경고", "주의 안내", "LLM 판단")
 HOLD_S = 1.5
 # 자막으로 보여줄 행동 (앞에 있을수록 우선)
-CAPTION_KINDS = ["음성 경고", "위험 영역", "판정 수정", "접근 경고", "현장 확인", "재확인", "재시도", "CCTV 선택", "재확인 계획", "재확인 취소", "점검표", "판정"]
+CAPTION_KINDS = ["음성 경고", "주의 안내", "위험 영역", "판정 수정", "현장 확인", "LLM 판단", "주의", "점검표", "판정"]
 _fonts = {}
 
 
@@ -126,7 +123,7 @@ def mp(x, y, ox, oy):
     return ox + (x - MX0) * MAP_S, oy + (MY1 - y) * MAP_S
 
 
-def draw_map(d, ox, oy, st, alerts, path_pts, cctv=True):
+def draw_map(d, ox, oy, st, alerts, path_pts):
     w, h = 21.6 * MAP_S, 31.0 * MAP_S
     d.rectangle([ox, oy, ox + w, oy + h], fill=(236, 232, 222))
     x0, y0 = mp(-10.3, 18.0, ox, oy)
@@ -142,27 +139,6 @@ def draw_map(d, ox, oy, st, alerts, path_pts, cctv=True):
     pts = [mp(px, py, ox, oy) for px, py in path_pts]
     for i in range(0, len(pts) - 1, 2):
         d.line([pts[i], pts[i + 1]], fill=(80, 130, 210), width=2)
-    for n, cx, cy, cz, yaw, pitch, vfov in (W.CCTVS if cctv else []):
-        c = mp(cx, cy, ox, oy)
-        a = math.radians(yaw)
-        fan = [c] + [mp(cx + 9 * math.cos(a + s), cy + 9 * math.sin(a + s), ox, oy) for s in np.linspace(-0.55, 0.55, 7)]
-        d.polygon(fan, fill=(60, 60, 60, 28))
-        d.rectangle([c[0] - 6, c[1] - 6, c[0] + 6, c[1] + 6], fill=(40, 40, 40))
-        text(d, (c[0], c[1] + (10 if cy < 0 else -24)), n.split("_")[1], 12, (40, 40, 40), True, anchor="ma")
-    ptz = st.get("ptz")
-    if ptz:
-        cam = next(c for c in W.CCTVS if c[0] == ptz["cam"])
-        tgt = ptz.get("target")
-        if tgt is None and str(ptz.get("label", "")).startswith("스캔"):
-            f = next((f for f in st["findings"] if f["id"] == ptz["label"][3:]), None)
-            tgt = (f["x"], f["y"]) if f else None
-        if tgt is None and ptz.get("sos"):
-            tgt = st["worker"][:2]
-        if tgt is not None:
-            col = RED if ptz.get("sos") else (120, 220, 255) if ptz.get("label") else ORANGE
-            d.line([mp(cam[1], cam[2], ox, oy), mp(tgt[0], tgt[1], ox, oy)], fill=col, width=3)
-            tx, ty = mp(tgt[0], tgt[1], ox, oy)
-            d.ellipse([tx - 13, ty - 13, tx + 13, ty + 13], outline=col, width=3)
     for zz in st.get("zones", []):
         poly = [mp(a, b, ox, oy) for a, b in zz["poly"]]
         col = (220, 50, 50) if zz["source"] != "agent" else (230, 120, 30)
@@ -177,10 +153,7 @@ def draw_map(d, ox, oy, st, alerts, path_pts, cctv=True):
         if f["status"] == "기각" or not f["cls"]:
             continue
         x, y = mp(f["x"], f["y"], ox, oy)
-        if f["status"] in ("재확인 대기", "현장 확인 필요"):
-            col = AMBER
-        else:
-            col = RED if HAZARD[f["cls"]] else GREEN
+        col = AMBER if f["status"] in ("주의", "현장 확인 필요") else RED if HAZARD[f["cls"]] else GREEN
         r = 8 if col != GREEN else 6
         d.ellipse([x - r, y - r, x + r, y + r], fill=col, outline=(255, 255, 255), width=2)
         text(d, (x + 9, y - 9), f["id"], 13, fill=(30, 30, 30), bold=True)
@@ -195,12 +168,11 @@ def draw_map(d, ox, oy, st, alerts, path_pts, cctv=True):
 
 
 # ---------------------------------------------------------------- 화면 한 장
-def header(d, t, stage, now_text, live=True):
+def header(d, t, stage, live=True):
     d.rectangle([0, 0, WIDTH, 66], fill=(12, 16, 24))
     text(d, (22, 12), "창고 안전 순찰 AI 에이전트", 30, bold=True)
     text(d, (400, 22), f"Isaac Sim 시뮬레이션 · {'실시간 1배속' if live else ''} · {clock(t)}", 18, fill=MUTED)
-    steps = (["① 입력: 바디캠·손동작", "② 판단: YOLO·위험 영역", "③ 도구: LLM 에이전트·음성", "④ 결과: 대장·조치 지시서"] if LAYOUT["solo"]
-             else ["① 입력: 바디캠·CCTV", "② 판단: YOLO 위험/안전", "③ 도구: CCTV 확대·경고", "④ 결과: 대장·조치 지시서"])
+    steps = ["① 입력: 바디캠·손동작", "② 판단: YOLO·위험 영역", "③ 도구: LLM 에이전트·음성", "④ 결과: 대장·조치 지시서"]
     x = 900
     for i, s in enumerate(steps):
         f = font(18, True)
@@ -218,21 +190,22 @@ def panel_label(d, x, y, s, color=FG):
     d.text((x + 8, y + 3), s, font=f, fill=color)
 
 
-def compose_solo(rec, st, tl, last_ptz, path_pts, cache):
-    """CCTV 없는 시연: 바디캠 1280x720, 오른쪽 평면도·위험물 대장, 아래 에이전트 기록."""
+def compose(rec, st, tl, path_pts, cache):
+    """바디캠 1280x720 (왼쪽), 오른쪽 평면도·위험물 대장, 아래 에이전트 기록."""
     k, t = st["k"], st["t"]
     im = Image.new("RGB", (WIDTH, HEIGHT), BG)
     d = ImageDraw.Draw(im, "RGBA")
     recent = [e for e in tl[:st["n_timeline"]] if e["kind"] != "계획" or e["t"] > 0]
     window = [e for e in recent if t - e["t"] <= 2.0]
-    if any(e["kind"] in ("LLM 판단", "손동작", "관리자 호출", "SOS", "음성 경고", "위험 영역") for e in window) or (st.get("hand") or {}).get("count"):
+    if any(e["kind"] in ("LLM 판단", "손동작", "관리자 호출", "SOS", "음성 경고", "주의 안내", "위험 영역", "주의") for e in window) \
+            or (st.get("hand") or {}).get("count"):
         stage = 2
     elif any(e["kind"] in ("판정", "판정 수정") for e in window):
         stage = 1
     else:
         stage = 0
-    header(d, t, stage, "")
-    bx0, by0, bx1, by1 = LAYOUT["body"]
+    header(d, t, stage)
+    bx0, by0, bx1, by1 = BODY
     body_path = os.path.join(rec, f"body_{k:05d}.jpg")
     if os.path.exists(body_path):
         cache["body"] = body_path
@@ -250,12 +223,20 @@ def compose_solo(rec, st, tl, last_ptz, path_pts, cache):
         text(d, (bx0 + 14, top_y + 8), e["kind"], 26, KIND_COLOR.get(e["kind"], FG), True)
         for i, ln in enumerate(lines):
             text(d, (bx0 + 14, top_y + 46 + 34 * i), ln, 24, FG)
+    # 음성 경고 중인 물체 쪽으로 평면도에 빨간 선 (최근 2초 안의 음성 경고/주의 안내)
+    alerting = [e for e in window if e["kind"] in ("음성 경고", "주의 안내")]
+    alerts = []
+    for e in alerting:
+        fid = e["text"].split("↔ ")[-1].split()[0]
+        f = next((f for f in st["findings"] if f["id"] == fid), None)
+        if f:
+            alerts.append((f["x"], f["y"]))
     # 오른쪽: 평면도 + 위험물 대장
     rx = bx1 + 10
     d.rectangle([bx1, 66, WIDTH, HEIGHT], fill=PANEL)
     text(d, (rx + 6, 76), "평면도 (작업자·위험물·위험 영역)", 20, bold=True)
     mimg = Image.new("RGB", (int(21.6 * MAP_S), int(31.0 * MAP_S)), (236, 232, 222))
-    draw_map(ImageDraw.Draw(mimg, "RGBA"), 0, 0, st, [], path_pts, cctv=False)
+    draw_map(ImageDraw.Draw(mimg, "RGBA"), 0, 0, st, alerts, path_pts)
     mw = 360
     mimg = mimg.resize((mw, int(mimg.height * mw / mimg.width)), Image.LANCZOS)
     im.paste(mimg, (rx + (WIDTH - rx - mw) // 2, 106))
@@ -265,8 +246,10 @@ def compose_solo(rec, st, tl, last_ptz, path_pts, cache):
     rows = [f for f in st["findings"] if f["status"] != "기각" and f["cls"]]
     for f in rows[-((HEIGHT - y) // 28):]:
         col, s_ = (RED, "위험") if HAZARD[f["cls"]] else (GREEN, "안전")
-        if f["status"] in ("재확인 대기", "현장 확인 필요"):
-            col, s_ = AMBER, "확인"
+        if f["status"] == "주의":
+            col, s_ = AMBER, "주의"
+        elif f["status"] == "현장 확인 필요":
+            col, s_ = AMBER, "확인필요"
         d.rounded_rectangle([rx + 6, y, rx + 58, y + 22], 5, fill=col)
         text(d, (rx + 32, y + 11), s_, 14, (255, 255, 255), True, anchor="mm")
         text(d, (rx + 66, y + 1), fit(d, f"{f['id']} {CLASS_KO[f['cls']]}", 16, WIDTH - rx - 80), 16)
@@ -274,7 +257,7 @@ def compose_solo(rec, st, tl, last_ptz, path_pts, cache):
     # 아래: 에이전트 기록
     gy = by1 + 6
     d.rectangle([0, by1, bx1, HEIGHT], fill=PANEL)
-    text(d, (14, gy), "에이전트 기록 (판정 → 위험 영역·경고 → LLM 판단 → 결과)", 20, bold=True)
+    text(d, (14, gy), "에이전트 기록 (판정 → 주의 → 재관측 재판단 → 경고 → 결과)", 20, bold=True)
     y = gy + 32
     for e in recent[-((HEIGHT - y) // 30):]:
         col = KIND_COLOR.get(e["kind"], FG)
@@ -284,127 +267,6 @@ def compose_solo(rec, st, tl, last_ptz, path_pts, cache):
         text(d, (70, y), e["kind"], 16, col, True)
         text(d, (175, y), fit(d, e["text"], 16, bx1 - 195), 16)
         y += 30
-    return im
-
-
-def compose(rec, st, tl, last_ptz, path_pts, cache):
-    k, t = st["k"], st["t"]
-    im = Image.new("RGB", (WIDTH, HEIGHT), BG)
-    d = ImageDraw.Draw(im, "RGBA")
-    recent = [e for e in tl[:st["n_timeline"]] if e["kind"] != "계획" or e["t"] > 0]
-    window = [e for e in recent if t - e["t"] <= 2.0]
-    alerting = [e for e in window if e["kind"] == "접근 경고"]
-    if st.get("ptz") or alerting or any(e["kind"] in ("재확인", "CCTV 선택", "재시도", "재확인 계획", "현장 확인", "음성 경고", "위험 영역")
-                                         for e in window):
-        stage = 2
-    elif any(e["kind"] in ("판정", "판정 수정") for e in window):
-        stage = 1
-    else:
-        stage = 0
-    now = recent[-1]["text"] if recent else ""
-    header(d, t, stage, now)
-    # 바디캠 (순찰이 끝난 뒤 확대 재확인 중이면 확대 화면을 크게)
-    body_path = os.path.join(rec, f"body_{k:05d}.jpg")
-    if os.path.exists(body_path):
-        im.paste(load(body_path, (960, 540)), (0, 70))
-        panel_label(d, 8, 78, "작업자 바디캠 + YOLO 판정")
-        if st.get("story"):
-            panel_label(d, 8, 112, f"작업자: {st['story']}", (120, 220, 255))
-        cache["body"] = body_path
-    elif st.get("ptz") and os.path.exists(os.path.join(rec, f"ptz_{k:05d}.jpg")):
-        im.paste(load(os.path.join(rec, f"ptz_{k:05d}.jpg"), (960, 540)), (0, 70))
-        d.rectangle([0, 70, 959, 609], outline=ORANGE, width=6)
-        what = st["ptz"]["finding"] or st["ptz"]["checkpoint"]
-        panel_label(d, 8, 78, f"순찰 끝: 남은 점검 지점 확인 · CCTV {st['ptz']['cam'].split('_')[1]} 확대 → {what}", ORANGE)
-    elif cache.get("body"):
-        im.paste(load(cache["body"], (960, 540)), (0, 70))
-        panel_label(d, 8, 78, "작업자 바디캠 + YOLO 판정")
-    # 바디캠 아래 자막: 최근 2.5초 안의 중요한 에이전트 행동을 크게
-    key = [e for e in recent if t - e["t"] <= 2.5 and e["kind"] in CAPTION_KINDS]
-    if key:
-        e = max(key, key=lambda e: (CAPTION_KINDS.index(e["kind"]) * -1, e["t"]))
-        lines = wrap(d, e["text"], 22, 930, 2)
-        top_y = 609 - 46 - 32 * len(lines)
-        d.rectangle([0, top_y, 959, 609], fill=(0, 0, 0, 175))
-        text(d, (14, top_y + 8), e["kind"], 24, KIND_COLOR.get(e["kind"], FG), True)
-        for i, ln in enumerate(lines):
-            text(d, (14, top_y + 44 + 32 * i), ln, 22, FG)
-    # CCTV 2x2
-    cells = [("cctv_west", (962, 70)), ("cctv_east", (1442, 70)), ("cctv_south", (962, 342))]
-    alert_cams = {e["text"].split(":")[0] for e in alerting}
-    for n, (x, y) in cells:
-        cp = os.path.join(rec, f"{n}_{k:05d}.jpg")
-        if os.path.exists(cp):
-            cache[n] = cp
-        c = load(cache.get(n), (478, 270))
-        if c:
-            im.paste(c, (x, y))
-        if n in alert_cams:
-            d.rectangle([x, y, x + 477, y + 269], outline=RED, width=5)
-        panel_label(d, x + 6, y + 6, f"CCTV {n.split('_')[1]}", RED if n in alert_cams else FG)
-    px, py = 1442, 342
-    if st.get("ptz"):
-        last_ptz[0] = os.path.join(rec, f"ptz_{k:05d}.jpg")
-        last_ptz[1] = st["ptz"]
-    pimg = load(last_ptz[0], (478, 270))
-    if pimg:
-        im.paste(pimg, (px, py))
-    else:
-        d.rectangle([px, py, px + 477, py + 269], fill=PANEL)
-        text(d, (px + 239, py + 135), "확대 재확인 대기", 22, MUTED, anchor="mm")
-    if st.get("ptz") and st["ptz"].get("sos"):
-        d.rectangle([px, py, px + 477, py + 269], outline=RED, width=6)
-        panel_label(d, px + 6, py + 6, f"SOS · CCTV {st['ptz']['cam'].split('_')[1]} 가 작업자를 확대", RED)
-    elif st.get("ptz") and str(st["ptz"].get("label", "")).startswith("스캔"):
-        d.rectangle([px, py, px + 477, py + 269], outline=(120, 220, 255), width=6)
-        panel_label(d, px + 6, py + 6, f"공장 스캔 · CCTV {st['ptz']['cam'].split('_')[1]} 확대 → {st['ptz']['label'][3:]}", (120, 220, 255))
-    elif st.get("ptz"):
-        d.rectangle([px, py, px + 477, py + 269], outline=ORANGE, width=5)
-        what = st["ptz"]["finding"] or st["ptz"]["checkpoint"]
-        panel_label(d, px + 6, py + 6, f"CCTV {st['ptz']['cam'].split('_')[1]} 확대 → {what}", ORANGE)
-    else:
-        panel_label(d, px + 6, py + 6, "CCTV 확대(PTZ) 최근 화면", MUTED)
-    # 아래: 평면도 | 대장 | 기록
-    top = 618
-    d.rectangle([0, top, WIDTH, HEIGHT], fill=PANEL)
-    alerts = []
-    for e in alerting:
-        fid = e["text"].split("대장 ")[-1].split()[0]
-        f = next((f for f in st["findings"] if f["id"] == fid), None)
-        if f:
-            alerts.append((f["x"], f["y"]))
-    mimg = Image.new("RGB", (int(21.6 * MAP_S), int(31.0 * MAP_S)), (236, 232, 222))
-    draw_map(ImageDraw.Draw(mimg, "RGBA"), 0, 0, st, alerts, path_pts)
-    im.paste(mimg, (8, top + 8))
-    # 위험물 대장
-    lx = 340
-    text(d, (lx, top + 10), "위험물 대장 (기억)", 22, bold=True)
-    rows = [f for f in st["findings"] if f["status"] != "기각" and f["cls"]]
-    y = top + 44
-    for f in rows[-14:]:
-        if f["status"] in ("재확인 대기", "현장 확인 필요"):
-            col, s = AMBER, "확인중" if f["status"] == "재확인 대기" else "현장확인"
-        else:
-            col, s = (RED, "위험") if HAZARD[f["cls"]] else (GREEN, "안전")
-        d.rounded_rectangle([lx, y, lx + 64, y + 24], 5, fill=col)
-        text(d, (lx + 32, y + 12), s, 15, (255, 255, 255), True, anchor="mm")
-        line = f"{f['id']} {CLASS_KO[f['cls']]}" + (" · 재확인" if f["status"] == "재확인 완료" else "") + \
-               (f" · 접근 {f['near_miss']}" if f["near_miss"] else "")
-        text(d, (lx + 72, y + 1), fit(d, line, 17, 430), 17)
-        y += 30
-    # 에이전트 기록
-    gx = 870
-    text(d, (gx, top + 10), "에이전트 기록 (계획 → 판정 → 재확인 → 결과)", 22, bold=True)
-    y = top + 46
-    for e in recent[-12:]:
-        col = KIND_COLOR.get(e["kind"], FG)
-        age = t - e["t"]
-        if age < 1.5:
-            d.rectangle([gx - 6, y - 2, WIDTH - 10, y + 28], fill=(60, 50, 30))
-        text(d, (gx, y), clock(e["t"]), 17, MUTED)
-        text(d, (gx + 58, y), e["kind"], 17, col, True)
-        text(d, (gx + 168, y), fit(d, e["text"], 17, WIDTH - gx - 190), 17)
-        y += 34
     return im
 
 
@@ -434,9 +296,10 @@ def workflow_card():
     d = ImageDraw.Draw(im)
     text(d, (WIDTH // 2, 70), "문제와 에이전트 구조", 46, bold=True, anchor="mt")
     text(d, (WIDTH // 2, 150), "창고 순찰 점검은 사람이 눈으로 확인해서 놓치기 쉽고, 무엇을 어디서 봤는지 기록이 남지 않습니다", 26, MUTED, anchor="mt")
-    boxes = [("입력", "작업자 가슴 바디캠\nCCTV 3대", BLUE), ("판단", "YOLO26 위험/안전 판정\n공구 이름 8종\n라바콘·DANGER 표지", (110, 200, 255)),
-             ("계획·도구", "애매하면 CCTV 선택\nPTZ 확대로 재확인\n위험 영역 자동 설정", AMBER),
-             ("기억·경고", "위험물 대장, 영역\n닿기 직전 음성 경고\n손동작 명령 1~5", PURPLE), ("결과", "조치 지시서\n다국어 음성 안내", GREEN)]
+    boxes = [("입력", "작업자 가슴 바디캠\n(착용자 시점)", BLUE), ("판단", "YOLO26 위험/안전 판정\n공구 이름 8종\n라바콘·DANGER 표지", (110, 200, 255)),
+             ("즉시 반응", "고위험 후보는 즉시 확정\n저위험만 있으면 '주의' 분류\n위험 영역 자동 설정", AMBER),
+             ("에이전트 재판단", "주의 물체를 다시 지나치면\nLangGraph + 로컬 LLM 재판단\n위험/안전 어느 쪽인지 확정", PURPLE),
+             ("결과", "조치 지시서, 1.5m 음성 경고\n다국어 손동작 안내", GREEN)]
     bw, gap = 300, 50
     x = (WIDTH - (bw * 5 + gap * 4)) // 2
     for i, (h, body, col) in enumerate(boxes):
@@ -488,7 +351,7 @@ def dashboard_frames(png):
         im = Image.new("RGB", (WIDTH, HEIGHT), BG)
         im.paste(src.crop((0, off, WIDTH, off + view_h)), (0, 70))
         d = ImageDraw.Draw(im)
-        header(d, 0, 3, "", live=False)
+        header(d, 0, 3, live=False)
         yield im
 
 
@@ -499,15 +362,13 @@ def results_card(eval_dir, gestures=None, langs=None):
     if not rs:
         return None
     tot = lambda part, k: sum(r["agent"]["evaluation"][part][k] for r in rs)  # noqa: E731
-    c = [r["cctv"] for r in rs if r.get("cctv")]
-    ev = sum(x["events_detected"] for x in c), sum(x["events_visible"] for x in c), sum(x["false_alert_episodes"] for x in c)
-    rc = sum(r["agent"]["evaluation"]["recheck"]["recheck_run"] for r in rs)
-    ch = sum(r["agent"]["evaluation"]["recheck"]["recheck_changed"] for r in rs)
+    rc = sum(r["agent"]["evaluation"]["rejudge"]["caution_rejudged"] for r in rs)
+    ch = sum(r["agent"]["evaluation"]["rejudge"]["caution_rejudged_confirmed"] for r in rs)
     im = Image.new("RGB", (WIDTH, HEIGHT), BG)
     d = ImageDraw.Draw(im)
     text(d, (WIDTH // 2, 70), f"평가: 학습에 안 쓴 배치 {len(rs)}개를 정답표와 비교", 44, bold=True, anchor="mt")
     text(d, (WIDTH // 2, 140), "창고 전체 물체 기준 (경로에서 안 보이는 물체 포함)", 24, MUTED, anchor="mt")
-    rows = [("", "바디캠만", "에이전트 (재확인 + 점검표)"),
+    rows = [("", "바디캠 프레임 원시판정", "에이전트 (재판단 + 점검표 포함)"),
             ("위험 물체를 위험으로", f"{tot('before', 'hazard_found')}/{tot('before', 'hazard_total')}",
              f"{tot('after', 'hazard_found')}/{tot('after', 'hazard_total')}"),
             ("안전 물체를 안전으로", f"{tot('before', 'safe_ok')}/{tot('before', 'safe_total')}",
@@ -524,15 +385,15 @@ def results_card(eval_dir, gestures=None, langs=None):
         text(d, (1380, y), cc, 30, ORANGE if bold else FG, True, anchor="ma")
         y += 66
     y += 30
-    text(d, (WIDTH // 2, y), f"CCTV 확대 재확인 {rc}건 (판정 고침 {ch}건) · CCTV 접근 경고 {ev[0]}/{ev[1]}건 · 오경보 {ev[2]}번", 28,
-         AMBER, anchor="mt")
+    text(d, (WIDTH // 2, y), f"주의 분류 {tot('after', 'caution')}건 (실제 물체 {tot('after', 'caution_real')}건) · "
+                             f"주의 재관측 재판단 {rc}건 중 확정 전환 {ch}건", 28, AMBER, anchor="mt")
     ex = [r["agent"]["evaluation"] for r in rs if "zones" in r["agent"]["evaluation"]]
     if ex:
         zs = lambda k: sum(e["zones"][k] for e in ex)   # noqa: E731
         vs = lambda k: sum(e["voice"][k] for e in ex)   # noqa: E731
         ts = lambda k: sum(e["tools"][k] for e in ex)   # noqa: E731
         text(d, (WIDTH // 2, y + 60), f"위험 영역 (라바콘·DANGER 표지) 알아봄 {zs('found')}/{zs('gt')} · 에이전트 판단 영역 {zs('agent')}개 · "
-                                      f"닿기 직전 음성 경고 {vs('warned')}/{vs('events')} · 공구 이름 {ts('named')}/{ts('total')}", 26, (255, 120, 200),
+                                      f"1.5m 음성 경고 {vs('warned')}/{vs('events')} · 공구 이름 {ts('named')}/{ts('total')}", 26, (255, 120, 200),
              anchor="mt")
         y += 60
     if gestures:
@@ -556,14 +417,11 @@ def main():
     final = json.load(open(os.path.join(rec, "final.json"), encoding="utf-8"))
     tl = final["report"]["timeline"]
     path_pts = W.PatrolPath().pts[::3]
-    solo = final.get("cctv") is None
-    LAYOUT.update(solo=solo, body=(0, 70, 1280, 790) if solo else (0, 70, 960, 610))
-    compose_fn = compose_solo if solo else compose
     if a.preview is not None:
         st = next(s for s in states if s["k"] >= a.preview)
         out = os.path.splitext(a.out)[0] + f"_preview_{a.preview}.png"
         os.makedirs(os.path.dirname(out), exist_ok=True)
-        compose_fn(rec, st, tl, [None, None], path_pts, {}).save(out)
+        compose(rec, st, tl, path_pts, {}).save(out)
         print(out)
         return
     import imageio_ffmpeg
@@ -581,34 +439,30 @@ def main():
 
     seed = final["seed"]
     emit(card([(a.team, 30, FG, True), ("제4회 경남AI·SW경진대회 · 제조·피지컬 AI Agent", 26, MUTED, False), ("", 20, FG, False),
-               ("작업자 바디캠으로 창고를 순찰하며 위험/안전을 판정하고, 위험 영역을 잡아 닿기 전에 경고하는 AI 에이전트" if solo else
-                "작업자 바디캠과 CCTV 로 창고를 순찰하며 위험/안전을 판정하고,", 28, FG, False),
-               ("작업자가 손가락 1~5 를 보이면 로컬 LLM (Qwen2.5-7B, LangGraph) 이 상황을 보고 판단해 작업자 언어로 안내" if solo else
-                "애매한 것은 CCTV 를 골라 확대해 다시 확인한 뒤 조치 지시서를 만드는 AI 에이전트", 28, FG, False),
-               ("이 시연: CCTV 없이 바디캠만 · 작업자 영어 · 상자 4개를 카트로 옮기는 하루 작업" if solo else
-                "작업자가 손가락 1~5 를 보이면 작업자 언어로 장비 설명·공장 위험 스캔·TBM 을 안내하고 호출·SOS 를 처리", 26, (120, 220, 255), False),
+               ("작업자 바디캠으로 창고를 순찰하며 위험/안전을 판정하고, 위험 영역을 잡아 닿기 전에 경고하는 AI 에이전트", 28, FG, False),
+               ("애매하면 '주의'로 분류하고, 같은 물체를 바디캠이 다시 지나칠 때 로컬 LLM (Qwen2.5-7B, LangGraph) 이 재판단", 28, FG, False),
+               ("작업자가 손가락 1~5 를 보이면 장비 설명·공장 위험 스캔·TBM 안내·관리자 호출·SOS 를 작업자 언어로 처리", 26, (120, 220, 255), False),
                ("", 20, FG, False), (f"NVIDIA Isaac Sim 6.0 디지털 트윈 · YOLO26 · 시나리오 {seed}", 24, MUTED, False)],
               title="창고 안전 순찰 AI 에이전트"), 5)
     emit(workflow_card(), 8)
     emit(plan_card(tl), 6)
-    last_ptz = [None, None]
     cache = {}
     walk = [s for s in states]
-    prev_n, alerted = 0, False
+    prev_n = 0
     sys.path.insert(0, ROOT)
-    from factory_safety.voice import VOICE_WAV, duration, ensure_voice
+    from factory_safety.config import VOICE_TEXT_CAUTION
+    from factory_safety.voice import VOICE_CAUTION_WAV, VOICE_WAV, duration, ensure_voice
     ensure_voice()
-    vdur = duration(VOICE_WAV)
-    voice_marks, voice_end = [], -1.0
+    ensure_voice(VOICE_CAUTION_WAV, VOICE_TEXT_CAUTION)
+    vdur = {"hazard": duration(VOICE_WAV), "caution": duration(VOICE_CAUTION_WAV)}
+    voice_marks, voice_end, voice_level = [], -1.0, "hazard"
     assist = final["report"].get("assistant", [])
     clips, speaking = [], None          # 손동작 안내 음성 (영상 시각, wav), 지금 나오는 안내 (사건, 시작 시각)
     n_assist = 0
     for i, st in enumerate(walk):
         nxt = walk[i + 1]["t"] if i + 1 < len(walk) else st["t"] + 0.4
         dt = max(0.0, nxt - st["t"])
-        if st.get("ptz") and i > 0 and st["t"] == walk[i - 1]["t"]:
-            dt = 0.6
-        im = compose_fn(rec, st, tl, last_ptz, path_pts, cache)
+        im = compose(rec, st, tl, path_pts, cache)
         new_ev = assist[n_assist:st.get("n_assist", 0)]
         n_assist = max(n_assist, st.get("n_assist", 0))
         for ev in new_ev:
@@ -620,19 +474,18 @@ def main():
         if speaking:
             assist_caption(im, speaking[0], (n[0] / FPS - speaking[1]) / max(speaking[0].get("dur", 1.0), 1.0))
         if st.get("voice"):
-            voice_marks.append(n[0] / FPS)
-            voice_end = n[0] / FPS + vdur
+            for v in st["voice"]:
+                voice_marks.append((n[0] / FPS, v["level"]))
+            voice_level = st["voice"][-1]["level"]
+            voice_end = n[0] / FPS + vdur[voice_level]
         if n[0] / FPS < voice_end:
-            voice_banner(im)
-        emit(im, frames=max(1, int(round(max(dt, 0.6 if st.get("ptz") and dt < 0.05 else dt) * FPS))))
-        # 주요 장면 (판정 수정, 재확인 결과, 현장 확인, 첫 접근 경고) 은 1.5초 멈춰서 읽을 수 있게
+            voice_banner(im, voice_level)
+        emit(im, frames=max(1, int(round(dt * FPS))))
+        # 주요 장면 (판정 수정, 위험 영역, 음성 경고, LLM 판단) 은 1.5초 멈춰서 읽을 수 있게
         new = tl[prev_n:st["n_timeline"]]
         prev_n = st["n_timeline"]
-        # 위험 영역 갱신 (라바콘 수만 바뀜) 은 안 멈춤, CCTV 없는 시연에서는 재확인·현장 확인도 안 멈춤
-        key = [e for e in new if (e["kind"] in HOLD_KINDS and "갱신" not in e["text"]
-                                  and not (LAYOUT["solo"] and e["kind"] in ("재확인", "현장 확인", "재확인 취소")))
-               or (e["kind"] == "접근 경고" and not alerted)]
-        bx1 = LAYOUT["body"][2]
+        key = [e for e in new if e["kind"] in HOLD_KINDS and "갱신" not in e["text"]]
+        bx1 = BODY[2]
         if new_ev:
             # 손동작 인식 순간: 손 관절과 명령이 보이게 잠깐 멈춤
             d = ImageDraw.Draw(im)
@@ -640,7 +493,6 @@ def main():
             text(d, (bx1 - 134, 95), "손동작 명령 인식 · 잠깐 멈춤", 18, (255, 255, 255), True, anchor="mm")
             emit(im, 1.2)
         elif key and dt < 0.3:
-            alerted |= any(e["kind"] == "접근 경고" for e in key)
             d = ImageDraw.Draw(im)
             d.rounded_rectangle([bx1 - 230, 78, bx1 - 8, 112], 8, fill=ORANGE)
             text(d, (bx1 - 119, 95), "주요 장면 · 잠깐 멈춤", 18, (20, 20, 20), True, anchor="mm")
@@ -654,10 +506,11 @@ def main():
     if res:
         emit(res, 10)
     writer.close()
-    clips += [(m, VOICE_WAV) for m in voice_marks]
+    clips += [(m, VOICE_WAV if lvl == "hazard" else VOICE_CAUTION_WAV) for m, lvl in voice_marks]
     if clips:
         add_audio(a.out, clips, n[0] / FPS)
-    print(f"[완료] {a.out}  ({n[0] / FPS:.0f}초, 음성 경고 {len(voice_marks)}번, 손동작 안내 {len(assist)}번)")
+    nh = sum(1 for _, lvl in voice_marks if lvl == "hazard")
+    print(f"[완료] {a.out}  ({n[0] / FPS:.0f}초, 음성 경고 {nh}번 · 주의 안내 {len(voice_marks) - nh}번, 손동작 안내 {len(assist)}번)")
 
 
 def dash_tag(final, states):
@@ -666,18 +519,22 @@ def dash_tag(final, states):
     return f"story_seed{final['seed']}" if story else f"seed{final['seed']}"
 
 
-def voice_banner(im):
-    """음성 경고가 나오는 동안 바디캠 화면 위쪽에 빨간 띠."""
+def voice_banner(im, level="hazard"):
+    """음성 경고가 나오는 동안 바디캠 화면 위쪽에 띠: 위험(빨강, 강한 경고) / 주의(주황, 약한 안내)."""
     d = ImageDraw.Draw(im, "RGBA")
-    bx0, by0, bx1, _ = LAYOUT["body"]
-    d.rectangle([bx0, by0 + 42, bx1 - 1, by0 + 106], fill=(200, 20, 30, 225))
-    text(d, ((bx0 + bx1) // 2, by0 + 74), "음성 경고  \"경고! 경고! 위험 요소가 식별되었습니다\"", 28, (255, 255, 255), True, anchor="mm")
+    bx0, by0, bx1, _ = BODY
+    if level == "hazard":
+        col, msg = (200, 20, 30, 225), "음성 경고 (강함)  \"멈추세요! 위험 요소가 식별되었습니다\""
+    else:
+        col, msg = (190, 120, 20, 225), "주의 안내 (약함)  \"발밑을 확인하세요\""
+    d.rectangle([bx0, by0 + 42, bx1 - 1, by0 + 106], fill=col)
+    text(d, ((bx0 + bx1) // 2, by0 + 74), msg, 28, (255, 255, 255), True, anchor="mm")
 
 
 def _sentences(s):
     """자막을 문장 단위로 (음성 진행에 맞춰 차례로 보여 줌)."""
     import re
-    parts = [p.strip() for p in re.split(r"(?<=[.!?。！？])\s*", s) if p.strip()]
+    parts = [p.strip() for p in re.split(r"(?<=[.!?。!?])\s*", s) if p.strip()]
     return parts or [s]
 
 
@@ -696,9 +553,8 @@ def assist_caption(im, ev, progress):
                 return x
         return sents[-1]
 
-    bx0, _, bx1, by1 = LAYOUT["body"]
-    big = LAYOUT["solo"]
-    f_lang, f_ko = lang_font(lang, 30 if big else 25, True), font(24 if big else 21)
+    bx0, _, bx1, by1 = BODY
+    f_lang, f_ko = lang_font(lang, 30, True), font(24)
     head = f"손가락 {ev['count']} → {ev['cmd']}  ·  {ev['lang_name']} 안내"
     llm = ev.get("llm") or {}
     ai = (f"AI 판단 ({llm.get('model')}): " + " → ".join(llm.get("trace") or [])) if llm.get("llm") else ""
@@ -718,12 +574,12 @@ def assist_caption(im, ev, progress):
     width = bx1 - bx0 - 40
     l1 = lines_of(cur, f_lang, width, 2)
     l2 = lines_of(cur_ko, f_ko, width, 2)
-    lh1, lh2 = (40, 34) if big else (34, 30)
+    lh1, lh2 = 40, 34
     h = 44 + (28 if ai else 0) + lh1 * len(l1) + lh2 * len(l2) + 12
     top = min(by1 - h, by1 - 140)          # 아래 에이전트 자막을 다 덮게
     d.rectangle([bx0, top, bx1 - 1, by1 - 1], fill=(0, 34, 70, 250))
     d.rectangle([bx0, top, bx1 - 1, top + 4], fill=(0, 160, 240))
-    text(d, (bx0 + 14, top + 10), head, 24 if big else 22, (120, 220, 255), True)
+    text(d, (bx0 + 14, top + 10), head, 24, (120, 220, 255), True)
     y = top + 44
     if ai:
         text(d, (bx0 + 14, y), fit(d, ai, 17, width), 17, (190, 150, 255))

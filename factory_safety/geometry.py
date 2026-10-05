@@ -95,6 +95,15 @@ class Projector:
         v = self.h / 2.0 - self.fy * c[:, 1] / safe
         return np.stack([u, v], axis=1), z
 
+    def unproject(self, uv, depth):
+        """project() 의 역: 픽셀 (u, v) 와 z-depth(카메라 정면 축 거리, distance_to_image_plane 어노테이터와 같은 정의)
+        -> 월드 좌표 (N, 3). 바디캠 깊이맵에서 손가락 끝·끼임점의 3D 위치를 복원할 때 씀."""
+        uv = np.atleast_2d(uv).astype(float)
+        depth = np.atleast_1d(depth).astype(float)
+        cx = (uv[:, 0] - self.w / 2.0) * depth / self.fx
+        cy = (self.h / 2.0 - uv[:, 1]) * depth / self.fy
+        return self.pos + cx[:, None] * self.r + cy[:, None] * self.u + depth[:, None] * self.f
+
     def rect_of_points(self, pts, min_front=0.6):
         """점들을 투영한 화면 사각형 (화면 밖은 잘라냄). 안 보이면 None."""
         uv, z = self.project(pts)

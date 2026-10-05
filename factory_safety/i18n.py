@@ -39,6 +39,7 @@ NAMES = {
     "wrench": {"ko": "렌치", "en": "a wrench", "zh": "扳手", "ja": "レンチ"},
     "drill": {"ko": "전동 드릴", "en": "a power drill", "zh": "电钻", "ja": "電動ドリル"},
     "cart": {"ko": "운반 카트", "en": "a hand cart", "zh": "手推运货车", "ja": "台車"},
+    "machine_conveyor": {"ko": "컨베이어", "en": "a conveyor", "zh": "传送带", "ja": "コンベア"},
 }
 
 # 장비 설명 (손가락 하나)
@@ -108,6 +109,13 @@ INFO = {
     "danger_sign": {"ko": "출입 금지 구역을 알리는 DANGER 표지입니다. 표지 너머로 들어가지 마세요.",
                     "en": "It is a DANGER sign for a no-entry zone. Do not go past the sign.",
                     "zh": "这是表示禁止进入区域的“危险”警示牌。请不要越过警示牌。", "ja": "立入禁止区域を示すDANGER標識です。標識の先に入らないでください。"},
+    "machine_conveyor": {"ko": "상자를 옮기는 컨베이어입니다. 작동 중일 때는 롤러가 맞물리는 진입부에 손이나 옷이 끼일 수 있으니 "
+                               "손을 넣지 마세요. 걸린 물건을 뺄 때는 반드시 먼저 기계를 끄세요.",
+                         "en": "It is a conveyor that moves boxes. While it is running, your hand or clothing can get caught "
+                               "at the entry roller nip, so never reach in. Always turn it off before clearing a jam.",
+                         "zh": "这是搬运箱子的传送带。运转时手或衣物可能被入口滚轮的咬合处夹住，请勿将手伸入。清理卡阻物前务必先关闭机器。",
+                         "ja": "箱を運ぶコンベアです。稼働中は入口ローラーの噛み合わせ部に手や衣服が巻き込まれるおそれがあるので、"
+                               "手を入れないでください。詰まりを取り除く前には必ず機械を止めてください。"},
 }
 
 DIRS = {"front": {"ko": "정면", "en": "ahead", "zh": "正前方", "ja": "正面"},
@@ -147,6 +155,10 @@ T = {
     "equip_none": {"ko": "지금 화면에서 알아본 장비가 없습니다. 장비를 화면 가운데에 비춰 주세요.",
                    "en": "I cannot recognize any equipment right now. Please point the camera at it.",
                    "zh": "现在画面中没有识别到设备。请把设备对准画面中央。", "ja": "今の画面では設備を認識できません。設備を画面の中央に映してください。"},
+    "equip_refuse": {"ko": "검증된 매뉴얼에서 이 장비에 대한 근거를 찾지 못해 답변하지 않습니다. 관리자를 불렀으니 직접 확인해 주세요.",
+                     "en": "I could not find a verified manual passage for this, so I will not guess. A manager has been called to help.",
+                     "zh": "未在已验证的手册中找到相关依据，因此不作回答。已呼叫管理人员，请您直接确认。",
+                     "ja": "検証済みのマニュアルに根拠が見つからないため回答しません。管理者を呼びましたので直接確認してください。"},
     "floor_tool": {"ko": "통로 바닥에 놓인 {tool}", "en": "{tool} left on the aisle floor", "zh": "遗留在通道地面上的{tool}", "ja": "通路の床に放置された{tool}"},
     "tool_floor_note": {"ko": "바닥에 있으니 작업대로 옮겨 주세요.", "en": "It is on the floor, so please put it on the workbench.",
                         "zh": "它在地面上，请放回工作台。", "ja": "床にあるので作業台に戻してください。"},

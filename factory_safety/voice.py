@@ -1,6 +1,6 @@
-"""음성 경고: "경고! 경고! 위험 요소가 식별되었습니다." (짧은 경보음 + 한국어 음성).
+"""음성 경고: 위험은 "멈추세요! 위험 요소가 식별되었습니다.", 주의는 "발밑을 확인하세요." (짧은 경보음 + 한국어 음성).
 
-Windows 기본 음성 합성 (System.Speech, 한국어 음성 Microsoft Heami) 으로 한 번 만들어 WAV 로 저장하고,
+Windows 기본 음성 합성 (System.Speech, 한국어 음성 Microsoft Heami) 으로 한 번씩 만들어 WAV 로 저장하고,
 순찰 중에는 winsound 로 비동기 재생한다. 영상에는 같은 WAV 를 경고 시각에 맞춰 소리 트랙으로 넣는다.
 """
 import math
@@ -9,10 +9,11 @@ import struct
 import subprocess
 import wave
 
-from .config import VOICE_TEXT
+from .config import VOICE_TEXT_CAUTION, VOICE_TEXT_HAZARD
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VOICE_WAV = os.path.join(ROOT, "assets", "generated", "voice_warning.wav")
+VOICE_WAV = os.path.join(ROOT, "assets", "generated", "voice_warning_hazard.wav")
+VOICE_CAUTION_WAV = os.path.join(ROOT, "assets", "generated", "voice_warning_caution.wav")
 RATE = 22050
 
 
@@ -51,7 +52,7 @@ def _alarm(seconds=0.6):
     return out
 
 
-def ensure_voice(path=VOICE_WAV, text=VOICE_TEXT):
+def ensure_voice(path=VOICE_WAV, text=VOICE_TEXT_HAZARD):
     """경보음 + 음성 WAV 를 만들어 두고 경로를 돌려준다 (이미 있으면 그대로)."""
     if os.path.exists(path):
         return path

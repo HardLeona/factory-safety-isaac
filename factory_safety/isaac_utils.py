@@ -191,6 +191,16 @@ def rgb_array(data):
     return None
 
 
+def depth_array(data):
+    """distance_to_image_plane 어노테이터 결과 -> (H, W) float32 (카메라 정면 축 방향 미터 거리).
+    geometry.Projector.unproject 와 짝 (같은 깊이 정의라 좌표가 바로 맞음)."""
+    if isinstance(data, dict):
+        data = data.get("data")
+    if data is None:
+        return None
+    return np.asarray(data, dtype=np.float32).reshape(np.asarray(data).shape[:2])
+
+
 def timeline_setter():
     """걷기 애니메이션용: 타임라인 시각(초)을 바꾸는 함수. 타임라인은 재생하지 않고 시각만 맞춘다."""
     import omni.timeline

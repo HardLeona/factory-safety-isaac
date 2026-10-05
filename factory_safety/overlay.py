@@ -54,6 +54,22 @@ def draw(img, dets, tool_state=None, size=17, width=3):
     return im
 
 
+BADGE_COLOR = {"LLM 판단": (90, 170, 255), "판정": (235, 60, 60), "주의": (138, 95, 209)}
+
+
+def draw_status_badge(im, text, kind="판정"):
+    """바디캠 화면 아래쪽에 처리 경로/상태 전환 문구를 찍는다 (시연 영상에서 바로 보이도록, --record 전용)."""
+    d = ImageDraw.Draw(im)
+    f = font(16)
+    col = BADGE_COLOR.get(kind, (90, 90, 90))
+    w, h = im.size
+    tw = d.textlength(text, font=f)
+    x0, y0 = 8, h - 32
+    d.rectangle([x0, y0, min(x0 + tw + 14, w - 8), y0 + 26], fill=col)
+    d.text((x0 + 7, y0 + 4), text, font=f, fill=(255, 255, 255))
+    return im
+
+
 HAND_LINKS = [(0, 1), (1, 2), (2, 3), (3, 4), (0, 5), (5, 6), (6, 7), (7, 8), (5, 9), (9, 10), (10, 11), (11, 12),
               (9, 13), (13, 14), (14, 15), (15, 16), (13, 17), (0, 17), (17, 18), (18, 19), (19, 20)]
 
