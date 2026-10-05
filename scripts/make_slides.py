@@ -120,6 +120,9 @@ def table(slide, rows, x, y, w, col_w, size=12, header_fill=BLUE, row_h=0.36, bo
 
 
 def content_slide(prs, title, layout_idx):
+    """제목 길이가 들쭉날쭉해 기본 글자 크기로는 2줄로 접히며 바로 아래 내용과 겹치는 제목이 있어(특히 영문 용어를
+    괄호로 덧붙인 제목), 제목 글자 크기를 고정해 최대 2줄 높이를 예측 가능하게 만든다. 각 슬라이드의 본문은 이
+    2줄 높이(약 1.5in)보다 아래에서 시작해야 겹치지 않는다."""
     s = prs.slides.add_slide(prs.slide_layouts[layout_idx])
     for ph in list(s.placeholders):
         idx = ph.placeholder_format.idx
@@ -128,6 +131,7 @@ def content_slide(prs, title, layout_idx):
             for p in ph.text_frame.paragraphs:
                 for r in p.runs:
                     r.font.name = FONT
+                    r.font.size = Pt(28)
         elif idx not in (12, 10, 11):
             ph._element.getparent().remove(ph._element)
     return s
@@ -162,37 +166,41 @@ def build(template, out):
     tb(s, 2.5, 1.15, 8.3, 0.45, "제4회 경남AI·SW경진대회 · ③ 제조·피지컬 AI Agent", 16, GRAY, align=PP_ALIGN.CENTER)
 
     # 2. 문제
-    s = content_slide(prs, "1. 문제: 창고 순찰 점검은 사람 눈에 의존한다", L_BODY)
-    tb(s, 0.6, 1.4, 4.2, 2.3, [("25.2%", 66, RED, True), ("2025년 사고재해자 113,305명 중 넘어짐 28,606명, 재해 유형 1위", 14, GRAY),
+    s = content_slide(prs, "1. 문제: 눈으로 보고, 한국어로만 안내한다", L_BODY)
+    # 제목이 길어 2줄로 접히는 경우가 있어(한글 제목 폭이 커 자동 줄바꿈), 아래 내용은 1.8in 부터 시작해 2줄 제목과도 안 겹치게 함
+    tb(s, 0.6, 1.8, 4.2, 2.3, [("25.2%", 66, RED, True), ("2025년 사고재해자 113,305명 중 넘어짐 28,606명, 재해 유형 1위", 14, GRAY),
                                 ("(고용노동부 「2025년 산업재해 현황」)", 11, GRAY)], align=PP_ALIGN.CENTER)
-    tb(s, 0.6, 4.1, 4.2, 2.6, [("창고의 위험 요소", 18, BLUE, True), "• 바닥 유출 → 미끄러짐", "• 통로에 방치된 공구·자재 → 걸려 넘어짐",
+    tb(s, 0.6, 4.5, 4.2, 2.6, [("공장·창고의 위험 요소", 18, BLUE, True), "• 바닥 유출 → 미끄러짐", "• 통로에 방치된 공구·자재 → 걸려 넘어짐",
                                 "• 불안정 적재 → 무너짐·맞음", "• 쓰러지거나 가로막힌 소화기 → 화재 초기 대응 실패"], 15)
-    tb(s, 5.3, 1.4, 7.5, 0.5, ("지금의 순찰 점검", 20, BLUE, True))
+    tb(s, 5.3, 1.8, 7.5, 0.5, ("지금의 현장 점검", 20, BLUE, True))
     for k, (h, body) in enumerate([("놓치기 쉽다", "작업자가 걸으며 눈으로만 확인. 잠깐 보고 지나친 것, 경로에서 먼 것은 빠짐"),
                                    ("기록이 남지 않는다", "무엇을 어디서 어떤 근거로 위험하다고 봤는지 남지 않아 조치 지시와 추적이 어려움"),
-                                   ("다가가는 순간을 모른다", "작업자가 위험물 바로 옆을 지나가는 아차사고를 관리자가 알 수 없음")]):
-        tb(s, 5.3, 2.0 + k * 1.55, 7.5, 1.35, [(h, 18, INK, True), (body, 14, GRAY)], fill=LIGHT, anchor=MSO_ANCHOR.MIDDLE)
+                                   ("다가가는 순간을 모른다", "작업자가 위험물 바로 옆을 지나가는 아차사고를 관리자가 알 수 없음"),
+                                   ("한국어로만 안내된다", "외국인 근로자는 표지판·방송을 알아듣지 못해 위험을 더 늦게 알아차림")]):
+        tb(s, 5.3, 2.4 + k * 1.25, 7.5, 1.1, [(h, 18, INK, True), (body, 13, GRAY)], fill=LIGHT, anchor=MSO_ANCHOR.MIDDLE)
 
     # 3. 해결 방안
     X = A["x"]
     s = content_slide(prs, "2. 해결: 판정·경고하고 작업자 언어로 답하는 AI 에이전트", L_BODY)
-    tb(s, 0.6, 1.3, 12.1, 0.9, [("바디캠 하나로 위험/안전과 **공구 이름**을 판정하고, 애매한 것은 **'주의'로 분류**해 바디캠이 다시 지나칠 때 **재판단**한다. "
+    # 제목이 2줄로 접혀 아래 내용과 안 겹치게 전체를 조금 내려서 배치 (1. 문제 슬라이드와 같은 이유)
+    tb(s, 0.6, 1.65, 12.1, 0.9, [("바디캠 하나로 위험/안전과 **공구 이름**을 판정하고, 애매한 것은 **'주의'로 분류**해 바디캠이 다시 지나칠 때 **재판단**한다. "
                                  "**위험 영역**에 닿기 직전이면 **음성으로 경고**하고, 작업자가 **손가락 1~3개**를 보이면 **작업자 언어**로 안내·호출·SOS 를 처리한다", 15, INK)])
-    pic(s, os.path.join(FIG, "workflow.png"), 0.6, 2.25, w=12.1)
+    pic(s, os.path.join(FIG, "workflow.png"), 0.6, 2.6, w=12.1)
     feats = [("① 판정", "위험/안전 상태\n공구 이름 8종", BLUE), ("② 재관측 재판단", "'주의' 분류 →\n재관측 시 LLM 판단", ORANGE),
              ("③ 위험 영역", "라바콘·DANGER 표지\n스스로 판단한 주변", RED), ("④ 음성 경고", "위험 \"멈추세요\"\n주의 \"발밑 확인\"", RGBColor(0x9B, 0x4D, 0xCA)),
              ("⑤ 손동작 명령", "손가락 1~3 → LLM 판단\n중·영·일 음성 안내",RGBColor(0x0A, 0x7C, 0xC4)), ("⑥ 조치 지시서", "우선순위·위치\n영역 지도와 기록", GREEN)]
     for k, (h, body, col) in enumerate(feats):
-        tb(s, 0.6 + k * 2.04, 4.5, 1.94, 1.9, [(h, 15, col, True), (body, 12, INK)], fill=LIGHT, align=PP_ALIGN.CENTER)
-    tb(s, 0.6, 6.5, 12.1, 0.4, "로봇 없이 작업자 바디캠(스피커)만으로 동작, 별도 CCTV 설비 불필요 · 위험 데이터는 디지털 트윈에서 합성", 13, GRAY, align=PP_ALIGN.CENTER)
+        tb(s, 0.6 + k * 2.04, 4.85, 1.94, 1.75, [(h, 15, col, True), (body, 12, INK)], fill=LIGHT, align=PP_ALIGN.CENTER)
+    tb(s, 0.6, 6.75, 12.1, 0.4, "로봇 없이 작업자 바디캠(스피커)만으로 동작, 별도 CCTV 설비 불필요 · 위험 데이터는 디지털 트윈에서 합성", 13, GRAY, align=PP_ALIGN.CENTER)
 
     # 4. 구조
     s = content_slide(prs, "3. 에이전트 구조 (Goal · Plan · Reasoning · Tool · Memory · Feedback)", L_BODY)
-    pic(s, os.path.join(FIG, "architecture.png"), 0.5, 1.2, w=12.3)
+    # 제목이 2줄이라(28pt) 그림을 조금 내리고 작게(11.3in) 줄여 아래 표와 안 겹치게 함
+    pic(s, os.path.join(FIG, "architecture.png"), 1.0, 1.5, w=11.3)
     table(s, [["Goal", "Planning", "Reasoning", "Tool Use", "Memory", "Feedback"],
               ["판정, 위험 영역, 경고, 작업자 요청 응답, 조치 지시서", "도면으로 점검표 8곳 계산", "애매한 판정 2단계 분류, 공구 자리, 영역 설정, 경고 시점·톤, 손동작 → 명령",
                "바디캠, 손 인식, LLM(Qwen2.5-7B)이 부르는 도구(매뉴얼 RAG 포함), 음성", "위험물 대장, 위험 영역, 경고·요청 기록", "주의 물체 재관측 재판단, 현장 확인 권고"]],
-          0.5, 5.85, 12.3, [2.05] * 6, size=11, row_h=0.5)
+          0.5, 5.9, 12.3, [2.05] * 6, size=11, row_h=0.5)
 
     # 5. 디지털 트윈과 데이터
     s = content_slide(prs, "4. 디지털 트윈과 학습 데이터", L_BODY)
@@ -220,17 +228,19 @@ def build(template, out):
 
     # 7. 핵심 구현 2
     s = content_slide(prs, "6. 핵심 구현 ②  애매한 판정 2단계 분류와 재관측 재판단", L_BODY)
-    pic(s, os.path.join(FIG, "fig_rejudge.jpg"), 0.5, 1.3, w=5.6)
-    tb(s, 0.5, 4.5, 5.6, 2.3, [("즉시 분류 (규칙)", 15, ORANGE, True), "• 바디캠에 잠깐 보이거나 판정이 엇갈린 물체",
+    # 제목이 2줄이라 전체를 조금 내려 배치 (1. 문제 슬라이드와 같은 이유)
+    pic(s, os.path.join(FIG, "fig_rejudge.jpg"), 0.5, 1.6, w=5.6)
+    tb(s, 0.5, 4.8, 5.6, 2.3, [("즉시 분류 (규칙)", 15, ORANGE, True), "• 바디캠에 잠깐 보이거나 판정이 엇갈린 물체",
                                 "• 후보 중 고위험 클래스가 하나라도 있으면 즉시 위험으로 확정", "• 전부 저위험이면 '주의'로 분류 (안전·위험 미확정)",
                                 ("재관측 재판단", 15, ORANGE, True), "• 주의 물체를 바디캠이 같은 자리에서 다시 포착하면 트리거",
                                 "• 로컬 LLM(LangGraph)이 이전+새 증거로 재판단, 실패하면 규칙 폴백", "• 끝까지 안 보이면 주의 유지 → 조치 지시서에 현장 확인 권고"], 12)
-    pic(s, os.path.join(FIG, "fig_dashboard_crop.png"), 6.4, 1.3, w=6.45)
-    tb(s, 6.4, 6.35, 6.45, 0.45, "조치 지시서: 평면도(번호 = 우선순위, 빨간 영역 = 위험 영역), 조치 목록, 음성 경고 기록", 12, GRAY, align=PP_ALIGN.CENTER)
+    pic(s, os.path.join(FIG, "fig_dashboard_crop.png"), 6.4, 1.6, w=6.45)
+    tb(s, 6.4, 6.65, 6.45, 0.45, "조치 지시서: 평면도(번호 = 우선순위, 빨간 영역 = 위험 영역), 조치 목록, 음성 경고 기록", 12, GRAY, align=PP_ALIGN.CENTER)
 
     # 8. 손동작 명령 (시연 영상은 따로 제출)
     s = content_slide(prs, "7. 핵심 구현 ③  손동작 명령 → 작업자 언어 안내", L_BODY)
-    pic(s, os.path.join(FIG, "fig_gestures.jpg"), 0.5, 1.2, w=12.3)
+    # fig_gestures.jpg 가 이제 3칸(손가락 1~3)이라 5칸일 때보다 가로세로 비율이 달라져, 너비 대신 높이로 맞춰 아래 내용과 안 겹치게 함
+    pic(s, os.path.join(FIG, "fig_gestures.jpg"), 0.5, 1.2, h=1.9)
     pic(s, os.path.join(FIG, "fig_gesture.jpg"), 0.5, 3.75, w=5.0)
     tb(s, 5.75, 3.7, 3.6, 2.95, [("어떻게 처리하나", 15, BLUE, True), "• MediaPipe 손 관절 21점 → 손가락 1~3, 멈춘 손에서 3번 연속이면 명령",
                                   "• LangGraph + 로컬 Qwen2.5-7B 가 도구 (화면 물체, 장비 정보, 위험물 대장, TBM) 로 보고 무엇을 말할지·근거 결정",
@@ -272,10 +282,10 @@ def build(template, out):
                                 f"• 작은 공구를 놓침 (못 찾은 위험 {sum(miss.values())}개 중 {miss.get('tool_floor', 0)}개가 바닥 공구)",
                                 "• Isaac 6.0.1 torch 가 CPU 전용이라 시뮬 안 YOLO 는 CPU (실배치는 GPU·엣지)",
                                 "• 영역 크기·경고 거리·즉시 분류 기준은 규칙 (재판단만 LLM)", "• 손동작은 시뮬 맨손만, 다국어 음성은 온라인 TTS",
-                                "• 움직이는 위험(지게차)은 아직 없음"], 13, fill=LIGHT)
+                                "• 움직이는 위험(지게차)은 위치추적 태그(RTLS/UWB) 개념으로 접근만 감지, 영상 인식은 아직 없음"], 13, fill=LIGHT)
     tb(s, 4.7, 1.3, 4.0, 5.4, [("발전 계획", 16, BLUE, True), ("1단계 실사 검증", 14, INK, True), "실습실·창고 사진으로 미세조정, 실제 라바콘·표지",
                                 ("2단계 파일럿 (Level 4)", 14, INK, True), "바디캠(스피커) 현장 시험, 재관측 재판단 기준 보정",
-                                ("3단계 연동", 14, INK, True), "MES·작업지시 연동, 조치 완료 피드백으로 기준 보정, 지게차 등 동적 위험"], 13, fill=LIGHT)
+                                ("3단계 연동", 14, INK, True), "MES·작업지시 연동, 조치 완료 피드백으로 기준 보정, 지게차 영상 인식 추가"], 13, fill=LIGHT)
     tb(s, 8.9, 1.3, 3.95, 5.4, [("비즈니스 모델", 16, GREEN, True), ("대상", 14, INK, True), "중소 물류창고·제조공장 (사고재해 40%가 5~49인 사업장)",
                                  ("제공", 14, INK, True), "작업자 바디캠에 붙이는 소프트웨어 구독, 별도 CCTV 설비 불필요 (사업장·인원 수 기준)",
                                  ("차별점", 14, INK, True), "현장 표시(라바콘·표지)를 그대로 위험 영역으로 읽고, 디지털 트윈으로 그 현장 데이터를 만들어 학습",
