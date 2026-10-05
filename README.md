@@ -28,6 +28,7 @@
 | | 기능 | 스크립트 | 실행 환경 |
 |---|---|---|---|
 | 📥 | **공구 모델 받기**: Poly Haven 실물 스캔 공구 (망치, 드라이버, 톱, 곡괭이, 삽, 렌치) | `get_assets.py` | 일반 파이썬 |
+| 📥 | **학습된 YOLO 가중치 받기**: Hugging Face ([IBDPLab/factory-safety-isaac-yolo](https://huggingface.co/IBDPLab/factory-safety-isaac-yolo))에서 `warehouse_v3`·`pinch_v1` 내려받기 | `get_model.py` | 일반 파이썬 |
 | 🏗 | **장면 만들기**: NVIDIA 창고 + 위험/안전 물체 + 걷는 작업자, 정답표 저장 | `build_scene.py` | Isaac Sim |
 | 📸 | **학습 데이터 자동 생성**: 바디캠·자유 시점에서 촬영 + 정답 박스 자동 계산 | `generate_dataset.py` | Isaac Sim |
 | 🧠 | **YOLO 학습**: 위험한 상태와 안전한 상태를 따로 가르쳐서 YOLO 가 직접 구분, 공구는 종류별로 | `train_yolo.py`, `val_yolo.py` | 일반 파이썬 |
@@ -220,7 +221,8 @@
 
 <p align="center"><img src="docs/yolo_confusion.png" width="440" alt="정규화 혼동 행렬"> <img src="docs/yolo_training.png" width="440" alt="학습 곡선"></p>
 
-학습된 가중치는 `outputs/yolo/warehouse_v3/weights/best.pt` 에 들어 있어서 데이터 생성과 학습 없이 바로 순찰을 돌릴 수 있습니다.
+학습된 가중치는 저장소에 들어있지 않고 Hugging Face ([IBDPLab/factory-safety-isaac-yolo](https://huggingface.co/IBDPLab/factory-safety-isaac-yolo))에 올려 두었습니다.
+`python scripts/get_model.py` 로 `outputs/yolo/warehouse_v3/weights/best.pt` 에 받으면 데이터 생성과 학습 없이 바로 순찰을 돌릴 수 있습니다.
 
 **실제 사진 시험** (`detect_image.py`): 책상 위 공구를 위에서 가까이 찍은 휴대폰 사진 3장 (커터칼, 일자 드라이버, 가위) 에서 학습한 클래스인 드라이버를 놓치고 손잡이를 작업자로 봤습니다.
 학습 데이터의 드라이버는 화면의 0.05~4% 크기 (바디캠으로 1~5 m 앞 바닥) 인데 이 사진은 화면의 13% 를 채워서, 실제 현장 적용 전에 현장 사진으로 미세조정이 필요합니다.
@@ -296,6 +298,7 @@ factory-safety-isaac/
 │   └── report.py             터미널 로그
 ├── scripts/
 │   ├── get_assets.py         [파이썬] Poly Haven 공구 모델 받기
+│   ├── get_model.py          [파이썬] 학습된 YOLO 가중치 받기 (Hugging Face)
 │   ├── build_scene.py        [Isaac] 장면 + 정답표
 │   ├── generate_dataset.py   [Isaac] YOLO 합성 데이터
 │   ├── generate_pinch_dataset.py [Isaac] 끼임점(pinch_point) 합성 데이터
@@ -318,7 +321,7 @@ factory-safety-isaac/
 ├── data/tbm_today.json       오늘 TBM (작업, 위험, 지킬 것, 지난 순찰 조치)
 ├── data/manuals/*.md         안전 매뉴얼 RAG 원문 (공구·카트·적재·유출·소화기·위험구역·컨베이어, 공개 산업안전 자료 기반 큐레이션)
 ├── tests/test_core.py        Isaac 없이 도는 테스트
-└── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서, yolo/warehouse_v3·pinch_v1/weights/best.pt 만)
+└── outputs/                  결과물 (저장소에는 eval/ 채점 결과, agent/ 조치 지시서만. yolo/warehouse_v3·pinch_v1/weights/best.pt 는 Hugging Face, get_model.py 로 받음)
 ```
 
 `★` 두 파일을 고치면 경로, 물체 자리, 배치 확률이 장면, 학습 데이터, 순찰, 채점에 한꺼번에 반영됩니다.
@@ -377,13 +380,14 @@ ollama pull nomic-embed-text
 ## 🚀 빠른 시작
 
 ```powershell
-# 0) 공구 모델 받기 (Poly Haven, 처음 한 번)
+# 0) 공구 모델 (Poly Haven) + 학습된 YOLO 가중치 (Hugging Face) 받기, 처음 한 번
 .venv\Scripts\python scripts/get_assets.py
+.venv\Scripts\python scripts/get_model.py
 
 # 1) 장면 확인 (위에서 본 창고, 정답표 저장)
 & $env:ISAACSIM_PYTHON scripts/build_scene.py
 
-# 2) 학습 데이터 5000장 + 공구 가까이 1500장 + 운반 카트 1200장 → YOLO 학습 (약 2시간). 학습된 가중치가 들어 있으니 건너뛰어도 됨
+# 2) 학습 데이터 5000장 + 공구 가까이 1500장 + 운반 카트 1200장 → YOLO 학습 (약 2시간). get_model.py 로 받았으면 건너뛰어도 됨
 & $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 5000 --scenario-every 40 --seed 7
 & $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 1500 --scenario-every 30 --seed 11 --focus tools --prefix wt --out outputs/dataset_tools
 & $env:ISAACSIM_PYTHON scripts/generate_dataset.py --num 1200 --scenario-every 30 --seed 21 --carts 2 --focus cart --prefix wc --out outputs/dataset_cart

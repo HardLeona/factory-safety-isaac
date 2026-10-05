@@ -5,6 +5,7 @@ pillow
 matplotlib
 ultralytics>=8.4
 lap>=0.5.12      # YOLO 추적 (ByteTrack)
+huggingface_hub  # 학습된 YOLO 가중치 내려받기 (scripts/get_model.py)
 pytest
 
 # 선택: Isaac Sim 없이 USD 장면 테스트 (tests/test_core.py 의 USD 테스트)

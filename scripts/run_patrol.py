@@ -82,7 +82,8 @@ from factory_safety import warehouse as W  # noqa: E402
 from factory_safety.walker import PathWalker  # noqa: E402
 
 if not os.path.exists(args.weights):
-    sys.exit(f"[오류] YOLO 가중치가 없어요: {args.weights}\n       python scripts/train_yolo.py 로 먼저 학습하세요.")
+    sys.exit(f"[오류] YOLO 가중치가 없어요: {args.weights}\n"
+             f"       python scripts/get_model.py 로 학습된 가중치를 받거나, python scripts/train_yolo.py 로 직접 학습하세요.")
 
 # ---------------------------------------------------------------- 장면 (배치는 첫 렌더 전에)
 stage = new_stage()
@@ -124,7 +125,8 @@ if os.path.exists(args.pinch_weights):
     pinch_yolo = YoloDetector(args.pinch_weights)
     print(f"[끼임점] 경량 탐지 모델 사용: {args.pinch_weights}")
 else:
-    print(f"[끼임점] 탐지 모델 없음 ({args.pinch_weights}) → 등록 위치 폴백만 사용")
+    print(f"[끼임점] 탐지 모델 없음 ({args.pinch_weights}) → 등록 위치 폴백만 사용 "
+          f"(python scripts/get_model.py --only pinch_v1 로 받을 수 있음)")
 proj_cam = Projector(IMG_W, IMG_H)
 MACHINE_ID = "M1"
 agent.on_machine_visual = lambda mid, on: scene.set_machine_state(scene.machine_paths[mid], on)
