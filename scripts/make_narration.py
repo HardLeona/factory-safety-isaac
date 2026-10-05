@@ -6,7 +6,8 @@
 각 대본을 WAV 로 만들어 outputs/video/narration/ 에 저장하고, (id, text, path, dur) 목록을
 narration.json 에 적는다. make_video2.py 가 이 목록 순서대로 장면 앞에 내레이션을 깔고 길이를 읽는다.
 베트남어 경보 2개(지게차/끼임)는 outputs/video/narration/alerts_vi/ 에 따로 저장하고 alerts_vi.json 에 적는다
-(스토리보드에 이미 쓰여 있는 문구를 그대로 씀 — 임의 번역이 아니라 팀이 검수해 둔 문구).
+(스토리보드에 이미 쓰여 있는 문구를 그대로 씀 — 임의 번역이 아니라 팀이 검수해 둔 문구). 음성 앞에는
+factory_safety/voice.py 의 경보음(두 음 사이렌)을 붙여서, 말이 시작되기 전에 급박함이 먼저 느껴지게 한다.
 """
 import asyncio
 import json
@@ -17,6 +18,8 @@ import wave
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+
+from factory_safety.voice import with_alarm  # noqa: E402
 
 OUT_DIR = os.path.join(ROOT, "outputs", "video", "narration")
 ALERT_DIR = os.path.join(OUT_DIR, "alerts_vi")
@@ -90,9 +93,13 @@ def main():
     for nid, text in ALERTS_VI:
         path = os.path.join(ALERT_DIR, f"{nid}.wav")
         tts(text, path, voice=ALERT_VOICE, rate=ALERT_SPEED, pitch=ALERT_PITCH)
+        alarm_path = path[:-4] + "_alarm.wav"
+        if os.path.exists(alarm_path):
+            os.remove(alarm_path)      # 말이 바뀌었을 수 있으니 항상 새로 붙임
+        path = with_alarm(path, seconds=1.0)
         dur = round(wav_duration(path), 2)
         alerts.append({"id": nid, "text": text, "path": path, "dur": dur})
-        print(f"[베트남어 경보] {nid}: {dur}초  {text}")
+        print(f"[베트남어 경보] {nid}: {dur}초 (경보음+음성)  {text}")
     with open(os.path.join(ALERT_DIR, "alerts_vi.json"), "w", encoding="utf-8") as f:
         json.dump(alerts, f, ensure_ascii=False, indent=1)
     print(f"[완료] {len(alerts)}개 -> {ALERT_DIR}")
