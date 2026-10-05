@@ -66,8 +66,8 @@ LEVEL_STYLE = {
 
 
 def load_notifications():
-    """outputs/record/v2_*/final.json 에서 실제 manager_notifications 를 모아, 시연 순서(끼임→지게차→주의)로 정렬."""
-    order = {"v2_pinch": 0, "v2_forklift": 1, "v2_spill": 2, "v2_sign": 3}
+    """outputs/record/v2_*/final.json 에서 실제 manager_notifications 를 모아, 시연 순서(지게차→끼임→주의)로 정렬."""
+    order = {"v2_forklift": 0, "v2_pinch": 1, "v2_spill": 2, "v2_sign": 3}
     items = []
     for path in sorted(glob.glob(os.path.join(args.record_dir, "v2_*", "final.json"))):
         name = os.path.basename(os.path.dirname(path))

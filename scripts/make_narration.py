@@ -1,9 +1,12 @@
-"""BodyGuard v2 시연 영상 내레이션 (한국어, edge-tts 신경망 음성). .venv-assistant 에서 실행.
+"""BodyGuard v2 시연 영상 내레이션 (한국어, edge-tts 신경망 음성) + 지게차·끼임 경보용 베트남어 음성.
+.venv-assistant 에서 실행.
 
     .venv-assistant/Scripts/python scripts/make_narration.py
 
 각 대본을 WAV 로 만들어 outputs/video/narration/ 에 저장하고, (id, text, path, dur) 목록을
 narration.json 에 적는다. make_video2.py 가 이 목록 순서대로 장면 앞에 내레이션을 깔고 길이를 읽는다.
+베트남어 경보 2개(지게차/끼임)는 outputs/video/narration/alerts_vi/ 에 따로 저장하고 alerts_vi.json 에 적는다
+(스토리보드에 이미 쓰여 있는 문구를 그대로 씀 — 임의 번역이 아니라 팀이 검수해 둔 문구).
 """
 import asyncio
 import json
@@ -16,9 +19,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 OUT_DIR = os.path.join(ROOT, "outputs", "video", "narration")
+ALERT_DIR = os.path.join(OUT_DIR, "alerts_vi")
 VOICE = "ko-KR-SunHiNeural"
-SPEED = "+8%"     # 다큐멘터리 내레이션이라 작업자 안내(+20%)보다 조금 차분하게
+SPEED = "-6%"      # 다큐멘터리 내레이션: 차분하고 부드러운 톤 (기존 +8% 보다 느리게)
+PITCH = "-4Hz"     # 조금 낮춰 더 부드럽게
 RATE = 22050
+
+ALERT_VOICE = "vi-VN-HoaiMyNeural"
+ALERT_SPEED = "+2%"    # 경보 문구라 내레이션보다는 또렷하게, 그래도 소리치듯 급하진 않게
+ALERT_PITCH = "+0Hz"
+
+# 지게차 접근 / 끼임 경보 — 스토리보드(agent_senario)에 이미 쓰여 있는 베트남어 문구 그대로
+ALERTS_VI = [
+    ("forklift", "Cảnh báo! Xe nâng đang đến gần. Hãy lùi lại."),
+    ("pinch", "Dừng lại! Tay của bạn sắp bị kẹt."),
+]
 
 # (id, 대본) — 스토리보드 4장과 1:1 대응 + 인트로/아웃트로/관리자 화면
 SCRIPT = [
@@ -44,10 +59,10 @@ def _ffmpeg():
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
-def tts(text, path):
+def tts(text, path, voice=VOICE, rate=SPEED, pitch=PITCH):
     import edge_tts
     mp3 = path[:-4] + ".mp3"
-    asyncio.run(edge_tts.Communicate(text, VOICE, rate=SPEED).save(mp3))
+    asyncio.run(edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(mp3))
     subprocess.run([_ffmpeg(), "-y", "-loglevel", "error", "-i", mp3, "-ac", "1", "-ar", str(RATE), path], check=True)
     os.remove(mp3)
 
@@ -59,17 +74,28 @@ def wav_duration(path):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    os.makedirs(ALERT_DIR, exist_ok=True)
     manifest = []
     for nid, text in SCRIPT:
         path = os.path.join(OUT_DIR, f"{nid}.wav")
-        if not os.path.exists(path):
-            tts(text, path)
+        tts(text, path)     # 톤 설정(rate/pitch)을 바꿨으면 항상 다시 만듦
         dur = round(wav_duration(path), 2)
         manifest.append({"id": nid, "text": text, "path": path, "dur": dur})
         print(f"[내레이션] {nid}: {dur}초  {text[:30]}...")
     with open(os.path.join(OUT_DIR, "narration.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=1)
     print(f"[완료] {len(manifest)}개 -> {OUT_DIR}")
+
+    alerts = []
+    for nid, text in ALERTS_VI:
+        path = os.path.join(ALERT_DIR, f"{nid}.wav")
+        tts(text, path, voice=ALERT_VOICE, rate=ALERT_SPEED, pitch=ALERT_PITCH)
+        dur = round(wav_duration(path), 2)
+        alerts.append({"id": nid, "text": text, "path": path, "dur": dur})
+        print(f"[베트남어 경보] {nid}: {dur}초  {text}")
+    with open(os.path.join(ALERT_DIR, "alerts_vi.json"), "w", encoding="utf-8") as f:
+        json.dump(alerts, f, ensure_ascii=False, indent=1)
+    print(f"[완료] {len(alerts)}개 -> {ALERT_DIR}")
 
 
 if __name__ == "__main__":

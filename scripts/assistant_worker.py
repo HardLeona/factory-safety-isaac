@@ -34,7 +34,8 @@ from factory_safety.hand_count import count_fingers  # noqa: E402
 MODEL = os.path.join(ROOT, "assets", "models", "hand_landmarker.task")
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
 CACHE = os.path.join(ROOT, "assets", "generated", "tts")
-VOICES = {"ko": "ko-KR-SunHiNeural", "en": "en-US-JennyNeural", "zh": "zh-CN-XiaoxiaoNeural", "ja": "ja-JP-NanamiNeural"}
+VOICES = {"ko": "ko-KR-SunHiNeural", "en": "en-US-JennyNeural", "zh": "zh-CN-XiaoxiaoNeural", "ja": "ja-JP-NanamiNeural",
+          "vi": "vi-VN-HoaiMyNeural"}
 SAPI = {"ko": "ko-KR", "en": "en-US", "ja": "ja-JP"}
 SPEED = "+20%"          # 안내를 조금 빠르게 (순찰 중 짧게)
 RATE = 22050

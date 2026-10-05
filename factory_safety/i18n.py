@@ -1,12 +1,14 @@
-"""작업자 언어별 안내 문장 (한국어, 영어, 중국어, 일본어).
+"""작업자 언어별 안내 문장 (한국어, 영어, 중국어, 일본어 + 베트남어 일부).
 
 안전 안내는 잘못 번역되면 위험해서, 정해진 문장 틀과 현장 용어집(사람이 검수한 번역)으로 만든다.
 번역 모델(NLLB) 시험에서 "곡괭이 -> gravel pit", "안전화 -> seat belt", "지게차 -> traffic zone" 처럼
 현장 용어를 틀리는 경우가 많았기 때문. 틀에 없는 자유 문장(관리자 메모)만 번역 모델을 쓰고 "자동 번역" 으로 표시한다.
+베트남어(vi)는 시연(손가락 1, DANGER 표지 설명) 범위만 넣었다 — 전체 TBM/위험 안내 문구까지는 아직 현장 용어집 검수가
+안 끝나서, 실제 배포 전에는 반드시 원어민 검수가 필요하다.
 """
 import math
 
-LANGS = {"ko": "한국어", "en": "English", "zh": "中文", "ja": "日本語"}
+LANGS = {"ko": "한국어", "en": "English", "zh": "中文", "ja": "日本語", "vi": "Tiếng Việt"}
 
 # 경고 음성
 VOICE = {
@@ -29,7 +31,7 @@ NAMES = {
     "ext_blocked": {"ko": "앞이 가로막힌 소화기", "en": "a fire extinguisher blocked by boxes", "zh": "被箱子挡住的灭火器", "ja": "前を箱でふさがれた消火器"},
     "ext_ok": {"ko": "제자리에 있는 소화기", "en": "a fire extinguisher in its proper place", "zh": "放在规定位置的灭火器", "ja": "所定の位置にある消火器"},
     "cone": {"ko": "라바콘", "en": "a traffic cone", "zh": "交通锥", "ja": "カラーコーン"},
-    "danger_sign": {"ko": "DANGER 표지", "en": "a DANGER sign", "zh": "“危险”警示牌", "ja": "DANGER標識"},
+    "danger_sign": {"ko": "DANGER 표지", "en": "a DANGER sign", "zh": "“危险”警示牌", "ja": "DANGER標識", "vi": "biển báo NGUY HIỂM"},
     "hammer": {"ko": "망치", "en": "a hammer", "zh": "锤子", "ja": "ハンマー"},
     "screwdriver": {"ko": "드라이버", "en": "a screwdriver", "zh": "螺丝刀", "ja": "ドライバー"},
     "saw": {"ko": "톱", "en": "a hand saw", "zh": "手锯", "ja": "のこぎり"},
@@ -108,7 +110,8 @@ INFO = {
              "zh": "这是标示危险区域的交通锥。请不要进入锥桶围起的区域。", "ja": "危険エリアを示すカラーコーンです。コーンで囲まれた場所に入らないでください。"},
     "danger_sign": {"ko": "출입 금지 구역을 알리는 DANGER 표지입니다. 표지 너머로 들어가지 마세요.",
                     "en": "It is a DANGER sign for a no-entry zone. Do not go past the sign.",
-                    "zh": "这是表示禁止进入区域的“危险”警示牌。请不要越过警示牌。", "ja": "立入禁止区域を示すDANGER標識です。標識の先に入らないでください。"},
+                    "zh": "这是表示禁止进入区域的“危险”警示牌。请不要越过警示牌。", "ja": "立入禁止区域を示すDANGER標識です。標識の先に入らないでください。",
+                    "vi": "Đây là biển báo NGUY HIỂM, cho biết khu vực cấm vào. Không được đi qua biển báo này."},
     "machine_conveyor": {"ko": "상자를 옮기는 컨베이어입니다. 작동 중일 때는 롤러가 맞물리는 진입부에 손이나 옷이 끼일 수 있으니 "
                                "손을 넣지 마세요. 걸린 물건을 뺄 때는 반드시 먼저 기계를 끄세요.",
                          "en": "It is a conveyor that moves boxes. While it is running, your hand or clothing can get caught "
@@ -118,10 +121,10 @@ INFO = {
                                "手を入れないでください。詰まりを取り除く前には必ず機械を止めてください。"},
 }
 
-DIRS = {"front": {"ko": "정면", "en": "ahead", "zh": "正前方", "ja": "正面"},
-        "left": {"ko": "왼쪽", "en": "on your left", "zh": "左侧", "ja": "左側"},
-        "right": {"ko": "오른쪽", "en": "on your right", "zh": "右侧", "ja": "右側"},
-        "back": {"ko": "뒤쪽", "en": "behind you", "zh": "后方", "ja": "後方"}}
+DIRS = {"front": {"ko": "정면", "en": "ahead", "zh": "正前方", "ja": "正面", "vi": "phía trước"},
+        "left": {"ko": "왼쪽", "en": "on your left", "zh": "左侧", "ja": "左側", "vi": "bên trái"},
+        "right": {"ko": "오른쪽", "en": "on your right", "zh": "右侧", "ja": "右側", "vi": "bên phải"},
+        "back": {"ko": "뒤쪽", "en": "behind you", "zh": "后方", "ja": "後方", "vi": "phía sau"}}
 ZONES = {"남쪽 작업 구역": {"en": "the south work area", "zh": "南侧作业区", "ja": "南側作業エリア"},
          "북쪽 보관 구역": {"en": "the north storage area", "zh": "北侧存放区", "ja": "北側保管エリア"},
          "북쪽 구역": {"en": "the north area", "zh": "北侧区域", "ja": "北側エリア"},
@@ -142,21 +145,25 @@ ACTIONS = {"spill": {"ko": "유출물 제거, 표지판·라바콘 설치", "en"
            "tool_floor": {"ko": "바닥 공구 작업대로 회수", "en": "return the tools on the floor to the workbench", "zh": "将地面工具收回工作台", "ja": "床の工具を作業台に戻す"}}
 
 # 손동작 명령
-COMMANDS = {1: {"ko": "장비 설명", "en": "Equipment info", "zh": "设备说明", "ja": "設備の説明"},
-            2: {"ko": "오늘의 TBM", "en": "Today's TBM", "zh": "今日班前会", "ja": "本日のTBM"},
-            3: {"ko": "관리자 호출", "en": "Call manager", "zh": "呼叫管理人员", "ja": "管理者の呼び出し"}}
+COMMANDS = {1: {"ko": "장비 설명", "en": "Equipment info", "zh": "设备说明", "ja": "設備の説明", "vi": "Thông tin thiết bị"},
+            2: {"ko": "오늘의 TBM", "en": "Today's TBM", "zh": "今日班前会", "ja": "本日のTBM", "vi": "TBM hôm nay"},
+            3: {"ko": "관리자 호출", "en": "Call manager", "zh": "呼叫管理人员", "ja": "管理者の呼び出し", "vi": "Gọi quản lý"}}
 
 T = {
-    "ack": {"ko": "{n}번, {cmd}.", "en": "{n}: {cmd}.", "zh": "{n}号：{cmd}。", "ja": "{n}番、{cmd}。"},
+    "ack": {"ko": "{n}번, {cmd}.", "en": "{n}: {cmd}.", "zh": "{n}号：{cmd}。", "ja": "{n}番、{cmd}。", "vi": "Số {n}: {cmd}."},
     "equip": {"ko": "{dir} {d}미터, {name}. {info}", "en": "{name_cap}, {d} meters {dir}. {info}",
-              "zh": "{dir}{d}米处是{name}。{info}", "ja": "{dir}{d}メートル先に{name}があります。{info}"},
+              "zh": "{dir}{d}米处是{name}。{info}", "ja": "{dir}{d}メートル先に{name}があります。{info}",
+              "vi": "{name_cap}, cách {d} mét {dir}. {info}"},
     "equip_none": {"ko": "지금 화면에서 알아본 장비가 없습니다. 장비를 화면 가운데에 비춰 주세요.",
                    "en": "I cannot recognize any equipment right now. Please point the camera at it.",
-                   "zh": "现在画面中没有识别到设备。请把设备对准画面中央。", "ja": "今の画面では設備を認識できません。設備を画面の中央に映してください。"},
+                   "zh": "现在画面中没有识别到设备。请把设备对准画面中央。", "ja": "今の画面では設備を認識できません。設備を画面の中央に映してください。",
+                   "vi": "Hiện tại không nhận diện được thiết bị nào trong khung hình. Vui lòng hướng camera vào thiết bị."},
     "equip_refuse": {"ko": "검증된 매뉴얼에서 이 장비에 대한 근거를 찾지 못해 답변하지 않습니다. 관리자를 불렀으니 직접 확인해 주세요.",
                      "en": "I could not find a verified manual passage for this, so I will not guess. A manager has been called to help.",
                      "zh": "未在已验证的手册中找到相关依据，因此不作回答。已呼叫管理人员，请您直接确认。",
-                     "ja": "検証済みのマニュアルに根拠が見つからないため回答しません。管理者を呼びましたので直接確認してください。"},
+                     "ja": "検証済みのマニュアルに根拠が見つからないため回答しません。管理者を呼びましたので直接確認してください。",
+                     "vi": "Không tìm thấy căn cứ trong tài liệu đã được kiểm chứng cho thiết bị này nên tôi sẽ không đoán. "
+                           "Đã gọi quản lý, vui lòng xác nhận trực tiếp."},
     "floor_tool": {"ko": "통로 바닥에 놓인 {tool}", "en": "{tool} left on the aisle floor", "zh": "遗留在通道地面上的{tool}", "ja": "通路の床に放置された{tool}"},
     "tool_floor_note": {"ko": "바닥에 있으니 작업대로 옮겨 주세요.", "en": "It is on the floor, so please put it on the workbench.",
                         "zh": "它在地面上，请放回工作台。", "ja": "床にあるので作業台に戻してください。"},

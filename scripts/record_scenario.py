@@ -115,7 +115,9 @@ def render(cam, rt=RT_SUBFRAMES):
 
 # ---------------------------------------------------------------- ① 지게차 접근
 def run_forklift():
-    """순찰하며 걷는 중 뒤쪽 통로에서 지게차가 다가온다 (위치는 RTLS 태그 개념, 영상 인식 아님)."""
+    """순찰하며 걷는 중 뒤쪽 통로에서 지게차가 다가온다 (위치는 RTLS 태그 개념, 영상 인식 아님).
+    위험 경보(음성 경고)가 실제로 뜨면, 그 직후 작업자가 뒤로 물러나며 지게차 쪽으로 돌아서서 보는
+    회피 행동을 한다 (경보만 내고 가만히 서 있지 않음). 지게차가 지나가면 다시 정상 순찰로 돌아온다."""
     walker = PathWalker(seed=args.seed, speed=1.1)
     path = walker.path
     s_walker0 = path.length * 0.12
@@ -123,12 +125,14 @@ def run_forklift():
     lag_m, fork_speed = 7.0, 2.3
     s_fork = s_walker0 - lag_m
     t = 0.0
-    trigger_t, active_until = 2.0, None
-    total_s = 16.0
+    trigger_t = 2.0
+    total_s = 18.0
+    RETREAT_SPEED = 0.9     # 뒤로 물러나는 속도 (m/s)
+    AVOID_HOLD_S = 2.0      # 경보 뒤 최소 이만큼은 물러나 지켜봄 (지게차가 금방 지나가도 회피 동작이 보이게)
+    warned, avoiding, avoid_t0, voice_n0 = False, False, None, 0
     while t < total_s and app.is_running():
         dt = args.sim_dt
         t += dt
-        cam = walker.step(dt)
         if t >= trigger_t:
             s_fork += fork_speed * dt
         fxy = path.point_at(s_fork)
@@ -137,6 +141,17 @@ def run_forklift():
         gap = s_fork - walker.s
         fk_active = t >= trigger_t and -lag_m - 1.0 < gap < 2.5
         agent.update_forklift(t, FORKLIFT_ID, fxy, fk_active)
+        cam = walker.step(dt)
+        if warned and (fk_active or (avoid_t0 is not None and t - avoid_t0 < AVOID_HOLD_S)):
+            if avoid_t0 is None:
+                avoid_t0 = t
+            avoiding = True
+            walker.s = max(0.0, walker.s - (RETREAT_SPEED + walker.speed) * dt)
+            wp = path.point_at(walker.s)
+            walker.face(math.atan2(fxy[1] - wp[1], fxy[0] - wp[0]))     # 돌아서서 다가오는 지게차를 봄
+        elif avoiding:
+            avoiding = False
+            walker.face(None)
         x, y, yaw, at = walker.base_pose
         scene.set_worker(x, y, yaw, at)
         frame[0] += 1
@@ -144,10 +159,16 @@ def run_forklift():
             app.update()
             continue
         agent.on_bodycam(t, cam, [], worker_xy=(x, y))
+        if not warned and any(v["level"] == "hazard" for v in agent.voice_events[voice_n0:]):
+            warned = True       # 위험 경보가 실제로 뜬 다음부터만 회피 행동 시작
+        voice_n0 = len(agent.voice_events)
         # 녹화 화면은 3인칭 추격 카메라로: 작업자 바디캠(1인칭)은 원래 뒤에서 오는 지게차가 안 보여야
         # 맞지만(그래서 에이전트가 위치 신호로 대신 경고하는 것), 시연 영상에서는 지게차가 다가오는
         # 모습 자체를 시청자에게 보여줘야 설득력이 있어 녹화용 카메라만 따로 둔다 (에이전트 판단은 그대로 cam/worker_xy 기준)
-        chase_xy = path.point_at(s_fork - 3.0)
+        # 지게차보다 3m, 작업자보다 1.5m 는 뒤에 (둘 중 더 뒤쪽) 카메라를 둬서, 작업자가 회피 행동으로
+        # 뒤로 물러날 때도 카메라가 작업자 쪽으로 너무 가까워지며 각도가 무너지지 않게 함
+        chase_s = min(s_fork - 3.0, walker.s - 1.5)
+        chase_xy = path.point_at(chase_s)
         chase_pos = np.array([chase_xy[0], chase_xy[1], 2.3])
         d = np.array([x, y, 1.2]) - chase_pos
         chase_yaw = math.atan2(d[1], d[0])
@@ -189,14 +210,16 @@ def run_spill():
 
 
 # ---------------------------------------------------------------- ③ 표지판이 궁금할 때 (손동작 1 + 매뉴얼 RAG)
-# 지원 언어(한국어 검수 틀이 있는 ko/en/zh/ja)만 쓴다. 베트남어 등은 사람이 검수한 문장 틀이 아직 없어
-# (i18n.py 의 번역 품질 원칙), 안전 안내에 임의로 기계번역을 넣지 않는다.
-SIGN_DEMO_LANG = "zh"
+# 작업자 페르소나(베트남에서 온 민 씨)에 맞춰 베트남어로 답한다 (i18n.py 에 이 흐름에 필요한 범위만 검수해 넣음).
+SIGN_DEMO_LANG = "vi"
+assistant_events = []   # run_sign() 이 채우면 final.json 에 report["assistant"] 로 저장 (실제 음성 wav 포함)
 
 
 def run_sign():
-    """DANGER 표지 앞에 서서 손가락 1개로 가리키면, 장비 설명이 매뉴얼 근거로 답한다 (LLM 필요).
-    표지는 시나리오 무작위 배치에 기대지 않고 이 클립 전용으로 경로 옆에 직접 세운다 (첫 렌더 전)."""
+    """DANGER 표지 앞에서 실제로 손가락 1개를 들어 올리는 손동작을 보여주고, 매뉴얼 근거로 답한다 (LLM 필요).
+    표지는 시나리오 무작위 배치에 기대지 않고 이 클립 전용으로 경로 옆에 직접 세운다 (첫 렌더 전).
+    이 장면은 '궁금해서 묻는' 흐름이지 위험 장면이 아니라서, 표지판에 다가가도 평소의 자동 위험 경보(음성 경고)는
+    울리지 않게 한다 (agent.on_bodycam 에는 빈 dets 만 넘기고, 표지판은 assistant.observe() 로만 보여줌)."""
     from factory_safety.assistant import SiteAssistant
     from factory_safety.assistant_client import AssistantClient
     walker = PathWalker(seed=args.seed, speed=1.1)
@@ -214,15 +237,12 @@ def run_sign():
     if assistant:
         assistant.planner = lambda snap: client.agent(snap, "qwen2.5:7b")
     walker.reset(s0=max(0.0, s_sign - 3.0))
-    t, total_s, asked, pause_t0 = 0.0, 9.0, False, None
+    t, total_s, asked = 0.0, 9.5, False
     while t < total_s and app.is_running():
         dt = args.sim_dt
         t += dt
-        if walker.s >= s_sign - 0.8 and not asked and pause_t0 is None:
-            walker.pause()
-            p2 = walker.path.point_at(walker.s)
-            walker.face(math.atan2(zy - p2[1], zx - p2[0]), pitch=-0.1)
-            pause_t0 = t
+        if walker.s >= s_sign - 0.8 and not asked and not walker.gesture:
+            walker.start_gesture(1, hold=2.2)     # 멈춰 서서 손가락 1개를 들어 보임 (실제 제스처 애니메이션)
         cam = walker.step(dt)
         x, y, yaw, at = walker.base_pose
         scene.set_worker(x, y, yaw, at)
@@ -233,16 +253,19 @@ def run_sign():
         img = render(cam)
         if img is not None:
             dets, _ = yolo.track(img, "bodycam")
-            agent.on_bodycam(t, cam, dets, worker_xy=(x, y))
+            agent.on_bodycam(t, cam, [], worker_xy=(x, y))   # 빈 dets: 이 클립은 위험 경보 대상이 아님
             if assistant and not asked:
                 # 이 데모 클립은 표지판+RAG 흐름만 보여주는 게 목적이라, 기본 창고 선반의 오탐(먼 "적재" 등)이
                 # LLM 의 장비 선택(거리 제한 없음, assistant.py 기존 동작)을 가로채지 않게 표지판만 넘긴다
                 assistant.observe(t, cam, [d for d in dets if d[0] == "danger_sign"])
-            if assistant and not asked and pause_t0 is not None and t - pause_t0 >= 1.5:
+            if assistant and not asked and walker.gesture and walker.gesture_alpha >= 0.999:
                 ev = assistant.run(t, 1, cam, (x, y), yaw, lang=SIGN_DEMO_LANG)
-                print(f"[손동작 1] {ev['text']}")
+                wav, dur = client.tts(ev["text"], SIGN_DEMO_LANG)
+                ev["wav"], ev["dur"] = wav, round(dur, 2)
+                assistant_events.append(ev)
+                total_s = max(total_s, t + dur + 1.0)   # 음성 답변이 길면, 다 끝날 때까지 클립이 안 끊기게 늘림
+                print(f"[손동작 1] {ev['text']} (wav={wav}, {dur:.1f}초)")
                 asked = True
-                walker.resume()
             save_frame(img, cam, dets)
         record_state(t, x, y, yaw, cam)
     if client:
@@ -258,7 +281,7 @@ def run_pinch():
     syaw = info["stand_yaw"]
     pinch_world = info["pinch_world"]
     raise_s = info["raise_s"]
-    cam_h = 1.38
+    cam_h = 1.18   # 가슴 높이(1.38)보다 조금 아래서 찍어, 손-롤러 간격(위험 상황)이 화면에 더 크게 보이게
 
     def bodycam(alpha):
         # 끼임점을 계속 조준 (손이 거기로 다가가는 걸 보는 시점이라, 평소 걷기보다 훨씬 아래를 봐야 함:
@@ -267,8 +290,15 @@ def run_pinch():
         pos = np.array([sx + ahead * math.cos(syaw), sy + ahead * math.sin(syaw), cam_h])
         d = pinch_world - pos
         yaw = math.atan2(d[1], d[0])
-        pitch = math.atan2(d[2], math.hypot(d[0], d[1])) - 0.12   # 끼임점보다 살짝 위를 봐서 다가오는 손도 같이 보이게
+        pitch = math.atan2(d[2], math.hypot(d[0], d[1])) - 0.08   # 끼임점보다 살짝 위를 봐서 다가오는 손도 같이 보이게
         return CameraPose(pos=pos, yaw=yaw, pitch=pitch, roll=0.0, vfov=68.0)
+
+    def fingertip_at(alpha):
+        """alpha(0 내림~1 다 뻗음) 에서 손 끝의 대략적인 세계 좌표 (끼임점 위쪽에서 다가오는 근사).
+        '닿기 직전' 이 아니라 '가까워지는 중'에도 실제 거리로 경보가 뜨게 하려고, 손 끝 위치를 alpha 로 보간한다."""
+        e = max(0.0, min(1.0, alpha)) ** 0.5
+        far, near = 0.45, 0.05
+        return pinch_world + np.array([0.0, 0.0, far * (1 - e) + near * e])
 
     # 타임라인: 1.0s 평소 서 있는 모습 -> 1.0s 손 뻗기 -> 1.6s 유지(끼임 경보 발생) -> 1.0s 손 빼기 -> 0.8s 정지 뒤 끝
     phases = [("idle", 1.0, lambda u: 0.0), ("raise", raise_s, lambda u: u),
@@ -292,7 +322,9 @@ def run_pinch():
             img = render(cam)
             depth_map = depth_array(a_depth.get_data())
             if img is not None:
-                if name == "hold" and not fired:
+                if name in ("raise", "hold") and not fired:
+                    # raise 단계부터 매 프레임 실제 거리로 검사 -> 손이 끼임점에 닿기 직전, 가까워지는 중에
+                    # (hold 에 이르러서야가 아니라) 실제 임계 거리를 넘는 순간 바로 경보가 뜬다
                     pinch_xyxy = None
                     if pinch_yolo is not None:
                         pdets, _ = pinch_yolo(img)
@@ -300,11 +332,11 @@ def run_pinch():
                         muv, _ = proj_cam.project(pinch_world[None])
                         pinch_xyxy = PD.best_pinch_box(pdets, muv[0])
                     detected = PD.pinch_point_xyz(proj_cam, pinch_xyxy, depth_map) if pinch_xyxy is not None else None
-                    fingertip = pinch_world + np.array([0.0, 0.0, 0.02])   # 거의 닿기 직전 (실제 손 끝 위치, 시각과 일치)
+                    fingertip = fingertip_at(alpha)
                     ev = agent.check_pinch(t, MACHINE_ID, fingertip, detected)
                     if ev:
                         fired = True
-                        print(f"[끼임 경보] {ev['dist_cm']} cm, 폴백={ev['fallback']}")
+                        print(f"[끼임 경보] alpha={alpha:.2f}, {ev['dist_cm']} cm, 폴백={ev['fallback']}")
                 save_frame(img, cam)
             record_state(t, sx, sy, syaw, cam, {"reach_alpha": round(alpha, 2)})
     agent.machines.set(MACHINE_ID, False)
@@ -331,6 +363,8 @@ RUN[args.which]()
 state_f.close()
 
 report = agent.report()
+if assistant_events:
+    report["assistant"] = assistant_events
 print("\n" + action_summary(report))
 with open(os.path.join(args.record, "final.json"), "w", encoding="utf-8") as f:
     json.dump({"which": args.which, "seed": args.seed, "report": report}, f, ensure_ascii=False, indent=1)
