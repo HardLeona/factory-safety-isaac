@@ -321,7 +321,7 @@ factory-safety-isaac/
 `★` 두 파일을 고치면 경로, 물체 자리, 배치 확률이 장면, 학습 데이터, 순찰, 채점에 한꺼번에 반영됩니다.
 
 **`_legacy_pre_cctv_removal/` 폴더 관례**: 구조를 크게 바꿀 때(예: CCTV 제거) 지금 코드와 안 맞게 된 결과물은 지우지 않고
-`outputs/eval/_legacy_pre_cctv_removal/`, `submission/_legacy_pre_cctv_removal/` 처럼 같은 이름의 하위 폴더로 옮겨 둡니다.
+`outputs/eval/_legacy_pre_cctv_removal/`, `submission/_legacy_pre_cctv_removal/`, `docs/_legacy_pre_cctv_removal/` 처럼 같은 이름의 하위 폴더로 옮겨 둡니다.
 평가·제출 문서 스크립트는 이 폴더를 보지 않으므로 최신 결과와 섞이지 않고, 과거 수치가 왜 다른지 추적할 때만 참고합니다.
 
 ---
