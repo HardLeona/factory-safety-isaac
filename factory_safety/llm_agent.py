@@ -24,10 +24,8 @@ COMMAND_GOAL = {
        "Before finishing, call retrieve_manual with a short query about that equipment or hazard. "
        "If it returns no relevant passage, you must not explain from guesswork: call finish with say_ids=[] and refuse=true "
        "so the worker is told to ask a manager instead.",
-    2: "scan the whole factory for hazards using the hazard log and tell the worker the most important ones",
-    3: "brief the worker on today's TBM (toolbox meeting): work, risks and rules",
-    4: "call the supervisor: write a short Korean message for the supervisor with the worker's location and situation",
-    5: "SOS emergency: alert the supervisor and safety team with the worker's location immediately",
+    2: "brief the worker on today's TBM (toolbox meeting): work, risks and rules",
+    3: "call the supervisor: write a short Korean message for the supervisor with the worker's location and situation",
 }
 SYSTEM = """You are the safety agent of a warehouse patrol system. A worker wearing a chest bodycam showed a hand gesture command.
 Your goal: {goal}.

@@ -26,8 +26,8 @@ import numpy as np
 
 from . import warehouse as W
 from . import zones as Z
-from .config import CLASS_KO, EQUIPMENT, HAZARD, KIND, MACHINE_ZONE_M, PINCH_ALERT_M, PROXIMITY_WARN_M, TOOL_KO, \
-    TOOL_TYPES, TOUCH_WARN_M, VOICE_TEXT_CAUTION, VOICE_TEXT_HAZARD
+from .config import CLASS_KO, EQUIPMENT, FORKLIFT_ZONE_M, HAZARD, KIND, MACHINE_ZONE_M, PINCH_ALERT_M, \
+    PROXIMITY_WARN_M, TOOL_KO, TOOL_TYPES, TOUCH_WARN_M, VOICE_TEXT_CAUTION, VOICE_TEXT_HAZARD
 from .geometry import Projector
 from .inspection import BodycamInspector, floor_point
 from .machines import MachineRegistry
@@ -193,7 +193,10 @@ class SafetyAgent:
         # 끼임 위험 기계: 작동 상태 의존 위험 (정적 HAZARD 체계와 별도, T0 규칙, LLM 없음)
         self.machines = MachineRegistry(on_change=self._on_machine_change)
         self.pinch_events = []        # 끼임 경보 기록 (관리자 보고 대상)
+        self.manager_notifications = []   # 관리자 알림 피드: [{id, t, zone, level, summary, source, ack}]
         self._machine_stats = defaultdict(lambda: {"zone_alerts": 0, "pinch_alerts": 0, "pinch_fallback": 0})
+        self._forklift_stats = defaultdict(lambda: {"zone_alerts": 0})
+        self._forklift_ids = []     # 등록된 순서 (report 에 0 회라도 빠짐없이 나오게)
         self.on_machine_visual = None  # 기계 on/off 가 바뀔 때 (machine_id, on) 으로 불림 (장면 표시등 등, 선택)
 
     def set_task_context(self, tbm):
@@ -209,6 +212,14 @@ class SafetyAgent:
         self.timeline.append({"t": float(t), "kind": kind, "text": text})
         if self.log:
             self.log(f"[{clock(t)}] <{kind}> {text}")
+
+    def _notify_manager(self, t, level, zone, summary, source):
+        """관리자 알림 피드에 한 건 쌓는다 (작업자가 손동작으로 직접 부른 게 아니라, 에이전트가 스스로 판단해 보내는 알림).
+        level: "critical"(즉시 경보) | "caution"(주의, 현장 확인 권고). 대시보드·보고서의 '남기기' 단계가 이걸 읽는다."""
+        nid = f"N{len(self.manager_notifications) + 1:02d}"
+        note = {"id": nid, "t": float(t), "zone": zone, "level": level, "summary": summary, "source": source, "ack": False}
+        self.manager_notifications.append(note)
+        return note
 
     # ------------------------------------------------------------ 1. 계획
     def plan(self, path_len):
@@ -533,6 +544,8 @@ class SafetyAgent:
             f.status = "주의"
             self.stats["ambiguous_caution"] += 1
             self.say(t, "주의", f"{f.fid} {why} → 안전·위험을 가르지 못해 주의로 분류 ({CLASS_KO[f.cls]}), 다시 보이면 재판단")
+            zone = W.zone_name(*f.xy)
+            self._notify_manager(t, "caution", zone, f"{f.fid} {CLASS_KO[f.cls]} ({zone}) - 현장 사진·위치 확인 필요", f.fid)
         return f
 
     def _rejudge_caution(self, t, f, prior_body, new_votes):
@@ -675,6 +688,9 @@ class SafetyAgent:
             z = next((zz for zz in self.zones.values() if zz.zid == key[2:]), None)
             if z is not None and z.source == "machine":
                 self._machine_stats[z.members[0]]["zone_alerts"] += 1
+            elif z is not None and z.source == "forklift":
+                self._forklift_stats[z.members[0]]["zone_alerts"] += 1
+                self._notify_manager(t, "critical", W.zone_name(*wxy), f"지게차 {z.members[0]} 접근 경보: {what}", z.members[0])
         self.say(t, "음성 경고" if level == "hazard" else "주의 안내", f"\"{text}\" ← 작업자 ↔ {what}")
         if self.on_voice:
             self.on_voice(t, level)
@@ -722,6 +738,8 @@ class SafetyAgent:
               "say": "손 빼세요", "level": "critical"}
         self.pinch_events.append(ev)
         self.stats["pinch_alert"] += 1
+        zone = W.zone_name(*pinch[:2])
+        self._notify_manager(t, "critical", zone, f"{m['name']} 끼임 경보: 손 끝 - 끼임점 {d * 100:.0f} cm{note}", machine_id)
         return ev
 
     def machine_report(self):
@@ -733,6 +751,33 @@ class SafetyAgent:
                        "zone_alerts": s["zone_alerts"], "pinch_alerts": s["pinch_alerts"],
                        "pinch_fallback": s["pinch_fallback"]})
         return out
+
+    # ------------------------------------------------------------ 지게차 접근 (위치 추적 태그 개념, T0 규칙)
+    def update_forklift(self, t, forklift_id, xy, active):
+        """지게차의 지금 위치로 위험구역을 매 프레임 다시 그린다 (기계처럼 on/off 가 아니라 계속 움직임).
+        active=False 면 위험구역을 지운다. 위치는 실제로는 RTLS/UWB 위치 추적 태그로 안다고 가정 (영상 인식 아님)."""
+        if forklift_id not in self._forklift_ids:
+            self._forklift_ids.append(forklift_id)
+        key = f"forklift:{forklift_id}"
+        if not active:
+            z = self.zones.pop(key, None)
+            if z is not None:
+                self.say(t, "위험구역", f"{z.zid} 지게차 {forklift_id} 지나감 → 위험구역 해제")
+            return
+        xy = np.asarray(xy, float)
+        poly = Z.circle(xy, FORKLIFT_ZONE_M)
+        z = self.zones.get(key)
+        if z is None:
+            z = Z.Zone(f"Z{len(self.zones) + 1}", "forklift", key, poly, f"지게차 {forklift_id} 접근 중", [forklift_id], float(t))
+            self.zones[key] = z
+            self.stats["zones"] += 1
+            self.say(t, "위험구역", f"{z.zid} 지게차 {forklift_id} 접근 감지 → 반경 {FORKLIFT_ZONE_M:.1f} m 위험구역 설정")
+        else:
+            z.poly = poly
+
+    def forklift_report(self):
+        """report()/대시보드용: 지게차 ID, 접근 경보 횟수."""
+        return [{"id": fid, "zone_alerts": self._forklift_stats[fid]["zone_alerts"]} for fid in self._forklift_ids]
 
     # ------------------------------------------------------------ 순찰 끝
     def finish_patrol(self, t):
@@ -817,7 +862,8 @@ class SafetyAgent:
                   "poly": [[round(float(a), 2), round(float(b), 2)] for a, b in z.poly], "members": z.members,
                   "n_cones": z.n_cones, "sign": z.has_sign} for z in sorted(self.zones.values(), key=lambda z: z.zid)]
         return {"summary": summary, "findings": items, "checkpoints": cps, "zones": zones, "voice": self.voice_events,
-                "machines": self.machine_report(), "pinch_events": self.pinch_events,
+                "machines": self.machine_report(), "pinch_events": self.pinch_events, "forklifts": self.forklift_report(),
+                "manager_notifications": self.manager_notifications,
                 "stats": dict(self.stats), "timeline": self.timeline}
 
     # ------------------------------------------------------------ 채점 (정답표, 판정에는 안 씀)

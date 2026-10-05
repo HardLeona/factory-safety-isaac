@@ -15,6 +15,8 @@ import math
 
 import numpy as np
 
+from . import warehouse as W
+
 PERIOD = 1.1        # 한 걸음 주기 (초, 왼발-오른발 한 번씩)
 FPS = 30
 HIP_SWING = math.radians(22)
@@ -55,6 +57,9 @@ REST_THUMB_DIR = np.array([-0.69, -0.73, 0.0])  # 기본 자세에서 엄지 방
 # 카트 끌기: 왼손을 뒤로 뻗어 핸드트럭 손잡이를 잡음 (손잡이는 몸 뒤 PULL_HAND, 뼈대 공간)
 PULL_T0 = 2000              # 끌며 걷기 클립 시작 타임코드
 PULL_GESTURE_T0 = 3000      # 끌다가 멈춰 손동작 클립 (k 번은 PULL_GESTURE_T0 + k * GESTURE_STRIDE)
+REACH_T0 = 4000             # 끼임점 쪽으로 손 뻗기 클립 시작 타임코드 (끼임 경보 시연용)
+REACH_RAISE_S = 1.0         # 손을 뻗는 데 걸리는 시간 (내릴 때도 같은 길이로 거꾸로 재생)
+REACH_DX = -0.35            # 접근 지점: 기계 진입 쪽에서 기계가 보는 방향으로 이만큼 떨어져 섬 (팔 길이 안에 끼임점이 오게)
 PULL_HAND = np.array([0.20, 0.37, 1.05])
 REST_THUMB_SIDE = np.array([0.0, -1.0, 0.0])    # 기본 자세에서 오른손 엄지 쪽
 REST_PALM = np.array([0.0, 0.0, -1.0])          # 기본 자세에서 손바닥이 보는 쪽
@@ -246,6 +251,45 @@ def pull_arm(rig, dirs):
     return out
 
 
+def reach_arm(rig, dirs, target, pole=np.array([-0.3, -1.0, -0.3])):
+    """dirs 의 오른팔을 target(뼈대 공간) 쪽으로 뻗는 방향으로 바꾼다 (끼임점에 손 뻗기 시연용)."""
+    sh = rig.pos_rest("R_Upperarm")
+    l1 = np.linalg.norm(rig.pos_rest("R_Forearm") - sh)
+    l2 = np.linalg.norm(rig.pos_rest("R_Hand") - rig.pos_rest("R_Forearm"))
+    elbow, wrist = _two_bone(sh, target, l1, l2, pole)
+    out = dict(dirs)
+    out["R_Upperarm"], out["R_Forearm"] = elbow - sh, wrist - elbow
+    return out
+
+
+def _reach_bone_target():
+    """끼임점(세계 좌표)을, 그 앞 REACH_DX 만큼 떨어져 기계를 보고 선 몸 기준 뼈대 공간 좌표로.
+    반환: (뼈대 공간 목표, 서는 자리 (x, y), 서는 방향 yaw)."""
+    m = W.MACHINE_CONVEYOR
+    yaw = m["yaw"]
+    stand = (m["x"] + REACH_DX * math.cos(yaw), m["y"] + REACH_DX * math.sin(yaw))
+    pinch = (m["x"], m["y"], m["pinch_z"])
+    dx, dy = pinch[0] - stand[0], pinch[1] - stand[1]
+    th = yaw + math.pi / 2       # 뼈대 공간 -Y(앞) -> 세계 yaw 방향으로 놓는 USD 회전(yaw+90도)의 역변환
+    bx = dx * math.cos(th) + dy * math.sin(th)
+    by = -dx * math.sin(th) + dy * math.cos(th)
+    return np.array([bx, by, pinch[2]]), stand, yaw
+
+
+def reach_info():
+    """끼임점 손 뻗기 시연에 필요한 값: 서는 자리(x, y, yaw), 끼임점 세계 좌표, 뻗는 시간(초)."""
+    _, stand_xy, stand_yaw = _reach_bone_target()
+    m = W.MACHINE_CONVEYOR
+    return {"stand_xy": stand_xy, "stand_yaw": stand_yaw,
+            "pinch_world": np.array([m["x"], m["y"], m["pinch_z"]]), "raise_s": REACH_RAISE_S}
+
+
+def reach_time(alpha):
+    """손 뻗기 alpha (0 내림 ~ 1 다 뻗음) 의 타임라인 시각 (초)."""
+    n = int(round(REACH_RAISE_S * FPS))
+    return (REACH_T0 + max(0.0, min(1.0, alpha)) * n) / FPS
+
+
 def _quat(r):
     """3x3 회전 (열 벡터 규약) -> 쿼터니언 (w, x, y, z)."""
     m = r
@@ -333,5 +377,15 @@ def build_walk_animation(stage, skel_prim, anim_path, cam_h=1.38):
             for k in range(n + 1):
                 a = k / n
                 put(gesture_quats(rig, count, a * a * (3 - 2 * a), cam_h, pull), t0 + count * GESTURE_STRIDE + k)
+    reach_target, _, _ = _reach_bone_target()
+    _, stand_world = rig.solve(_stand())             # 가만히 선 자세의 손 위치 (T 자세가 아니라 옆으로 내린 손에서 시작)
+    stand_wrist = stand_world[rig.idx["R_Hand"]][:3, 3]
+    rn = int(round(REACH_RAISE_S * FPS))
+    for k in range(rn + 1):
+        a = k / rn
+        u = a * a * (3 - 2 * a)
+        wrist_t = stand_wrist + (reach_target - stand_wrist) * u
+        dirs = reach_arm(rig, _stand(), wrist_t)
+        put([_quat(r) for r in rig.solve(dirs)[0]], REACH_T0 + k)
     UsdSkel.BindingAPI.Apply(skel_prim).CreateAnimationSourceRel().SetTargets([anim.GetPath()])
     return PERIOD

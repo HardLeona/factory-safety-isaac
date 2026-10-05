@@ -792,6 +792,52 @@ def test_pinch_fallback_logs_and_counts():
     assert a.machine_report()[0]["pinch_fallback"] == 1                # 더 안 늘어남
 
 
+def test_forklift_zone_tracks_moving_position():
+    """지게차는 기계처럼 on/off 가 아니라 계속 움직인다: update_forklift 가 매번 위험구역 중심을 다시 그리고,
+    active=False 면 즉시 해제한다."""
+    from factory_safety.config import FORKLIFT_ZONE_M
+    a = _agent()
+    assert a.zones == {}
+    a.update_forklift(1.0, "F1", (3.0, 4.0), True)
+    assert list(a.zones.keys()) == ["forklift:F1"]
+    z = a.zones["forklift:F1"]
+    assert z.source == "forklift" and abs(z.radius - FORKLIFT_ZONE_M) < 1e-6
+    assert np.linalg.norm(z.center - np.array([3.0, 4.0])) < 1e-6
+    a.update_forklift(1.2, "F1", (3.5, 4.0), True)          # 움직임: 같은 영역, 중심만 갱신
+    assert list(a.zones.keys()) == ["forklift:F1"]
+    assert np.linalg.norm(a.zones["forklift:F1"].center - np.array([3.5, 4.0])) < 1e-6
+    a.update_forklift(1.4, "F1", (10.0, 4.0), False)        # 지나감: 즉시 해제
+    assert a.zones == {}
+
+
+def test_forklift_proximity_warns_and_notifies_manager():
+    """작업자가 지게차 위험구역에 들어오면 기존 경고 규칙대로 강한 경고가 나고, 관리자 알림 피드에도 쌓인다."""
+    a = _agent()
+    heard = []
+    a.on_voice = lambda t, level: heard.append((t, level))
+    a.update_forklift(1.0, "F1", (0.0, 0.0), True)
+    cam = CameraPose(pos=np.array([0.0, -2.0, 1.4]), yaw=math.pi / 2, pitch=0.0, vfov=66)
+    a.on_bodycam(1.0, cam, [], worker_xy=(0.0, -0.5))        # 위험구역 안
+    assert heard and heard[-1][1] == "hazard"
+    assert any(n["source"] == "F1" and n["level"] == "critical" for n in a.manager_notifications)
+    assert a.forklift_report() == [{"id": "F1", "zone_alerts": 1}]
+
+
+def test_manager_notifications_feed_pinch_and_caution():
+    """끼임 경보와 '주의' 분류는 관리자 알림 피드에도 자동으로 쌓인다 (작업자가 직접 호출하지 않아도)."""
+    a = _agent()
+    a.machines.set("M1", True)
+    pinch = a.machines.pinch_xyz("M1")
+    a.check_pinch(1.0, "M1", pinch + np.array([0.02, 0.0, 0.0]))
+    assert any(n["level"] == "critical" and n["source"] == "M1" for n in a.manager_notifications)
+
+    cam = CameraPose(pos=np.array([-4.5, -2.0, 1.38]), yaw=math.pi / 2, pitch=-0.2, vfov=70)
+    box = _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False)
+    a.on_bodycam(3.0, cam, [("tool_floor", 0.5, box, 11)])
+    a.on_bodycam(4.0, cam, [])                                # 1프레임만 보이고 사라짐 -> 주의
+    assert any(n["level"] == "caution" for n in a.manager_notifications)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

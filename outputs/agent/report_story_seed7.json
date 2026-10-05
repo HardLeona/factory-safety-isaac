@@ -1,0 +1,1636 @@
+{
+ "summary": {
+  "hazards": 8,
+  "safe": 5,
+  "need_check": 0,
+  "caution": 2,
+  "urgent": 3,
+  "checkpoints_done": 5,
+  "checkpoints": 8,
+  "zones": 7,
+  "voice": 1
+ },
+ "findings": [
+  {
+   "id": "F06",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": -0.45,
+   "y": 17.35,
+   "confidence": 0.5,
+   "n_body": 99,
+   "near_miss": 3,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill",
+   "checkpoint": null,
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치. 바닥이 미끄러지기 쉬우므로 미끄럼 방지 패드를 설치하거나 미끄럼 방지 안전화를 착용한다.",
+   "action_source": "한국산업안전보건공단(KOSHA) 미끄럼·전도 재해 예방 지침 및 작업장 정리정돈 기준을 바탕으로 재구성",
+   "priority": "긴급",
+   "score": 9,
+   "rank": 1
+  },
+  {
+   "id": "F03",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "동쪽 통로",
+   "x": 3.84,
+   "y": 6.17,
+   "confidence": 1.0,
+   "n_body": 31,
+   "near_miss": 1,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill",
+   "checkpoint": null,
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치. 바닥이 미끄러지기 쉬우므로 미끄럼 방지 패드를 설치하거나 미끄럼 방지 안전화를 착용한다.",
+   "action_source": "한국산업안전보건공단(KOSHA) 미끄럼·전도 재해 예방 지침 및 작업장 정리정돈 기준을 바탕으로 재구성",
+   "priority": "긴급",
+   "score": 5,
+   "rank": 2
+  },
+  {
+   "id": "F15",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": 2.85,
+   "y": -5.02,
+   "confidence": 1.0,
+   "n_body": 20,
+   "near_miss": 1,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill",
+   "checkpoint": null,
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치. 바닥 균열이나 단차도 함께 점검한다.",
+   "action_source": "한국산업안전보건공단(KOSHA) 미끄럼·전도 재해 예방 지침 및 작업장 정리정돈 기준을 바탕으로 재구성",
+   "priority": "긴급",
+   "score": 5,
+   "rank": 3
+  },
+  {
+   "id": "F01",
+   "class": "stack_unstable",
+   "label": "무너질 듯한 적재",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": -6.72,
+   "y": -5.49,
+   "confidence": 1.0,
+   "n_body": 140,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_unstable",
+   "checkpoint": null,
+   "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한. 렌치를 사용할 때는 볼트·너트 크기에 맞는 렌치를 사용하고, 힘을 줄 때는 몸 쪽으로 당기는 방향으로 자세를 잡아 미끄러졌을 때 반대쪽으로 넘어지지 않게 한다.",
+   "action_source": "수공구 안전 사용 수칙",
+   "priority": "높음",
+   "score": 3,
+   "rank": 4
+  },
+  {
+   "id": "F05",
+   "class": "stack_unstable",
+   "label": "무너질 듯한 적재",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 6.94,
+   "y": 16.64,
+   "confidence": 0.9,
+   "n_body": 26,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "기울어진 상단 상자를 내려 다시 쌓고, 떨어진 상자 회수. 또한, 힘을 줄 때는 몸 쪽으로 당기는 방향으로 자세를 잡아 미끄러졌을 때 반대쪽으로 넘어지지 않도록 한다.",
+   "action_source": "수공구 안전 사용 수칙",
+   "priority": "높음",
+   "score": 3,
+   "rank": 5
+  },
+  {
+   "id": "F04",
+   "class": "ext_blocked",
+   "label": "앞이 가로막힌 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 0.14,
+   "y": 12.45,
+   "confidence": 0.86,
+   "n_body": 39,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": true,
+   "body_class": "ext_blocked",
+   "checkpoint": "C3",
+   "action": "소화기 앞 적재물 치우기 (소화기 앞 통로 확보)",
+   "action_source": null,
+   "priority": "보통",
+   "score": 2,
+   "rank": 6
+  },
+  {
+   "id": "F08",
+   "class": "ext_fallen",
+   "label": "쓰러진 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": -8.86,
+   "y": 12.45,
+   "confidence": 1.0,
+   "n_body": 3,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_fallen",
+   "checkpoint": "C1",
+   "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+   "action_source": null,
+   "priority": "보통",
+   "score": 2,
+   "rank": 7
+  },
+  {
+   "id": "F14",
+   "class": "ext_blocked",
+   "label": "앞이 가로막힌 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": 9.09,
+   "y": -3.81,
+   "confidence": 0.96,
+   "n_body": 27,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": true,
+   "body_class": "ext_blocked",
+   "checkpoint": "C6",
+   "action": "소화기 앞 적재물 치우기 (소화기 앞 통로 확보)",
+   "action_source": null,
+   "priority": "보통",
+   "score": 2,
+   "rank": 8
+  },
+  {
+   "id": "F17",
+   "class": "tool_floor",
+   "label": "통로에 방치된 공구 (전동톱)",
+   "tools": [
+    "전동톱"
+   ],
+   "tool_types": [
+    "power_saw"
+   ],
+   "state": "주의",
+   "hazard": true,
+   "status": "주의",
+   "zone": "남쪽 작업 구역",
+   "x": 6.5,
+   "y": -8.85,
+   "confidence": 1.0,
+   "n_body": 4,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "tool_floor",
+   "checkpoint": null,
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 9
+  },
+  {
+   "id": "F16",
+   "class": "ext_ok",
+   "label": "정상 비치 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "주의",
+   "hazard": false,
+   "status": "주의",
+   "zone": "남쪽 작업 구역",
+   "x": 0.09,
+   "y": -3.81,
+   "confidence": 1.0,
+   "n_body": 1,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": "C4",
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 10
+  },
+  {
+   "id": "F02",
+   "class": "ext_ok",
+   "label": "정상 비치 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": -8.91,
+   "y": -3.81,
+   "confidence": 1.0,
+   "n_body": 116,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": "C2",
+   "action": "소화기 정상 비치",
+   "action_source": null,
+   "priority": "-",
+   "score": 0,
+   "rank": 11
+  },
+  {
+   "id": "F10",
+   "class": "stack_stable",
+   "label": "반듯한 적재",
+   "tools": [],
+   "tool_types": [],
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 0.45,
+   "y": 17.03,
+   "confidence": 0.72,
+   "n_body": 41,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "적재 상태 양호",
+   "action_source": null,
+   "priority": "-",
+   "score": 0,
+   "rank": 12
+  },
+  {
+   "id": "F11",
+   "class": "ext_ok",
+   "label": "정상 비치 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 9.14,
+   "y": 12.45,
+   "confidence": 1.0,
+   "n_body": 3,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": "C5",
+   "action": "소화기 정상 비치",
+   "action_source": null,
+   "priority": "-",
+   "score": 0,
+   "rank": 13
+  },
+  {
+   "id": "F12",
+   "class": "stack_stable",
+   "label": "반듯한 적재",
+   "tools": [],
+   "tool_types": [],
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": 1.83,
+   "y": -10.17,
+   "confidence": 1.0,
+   "n_body": 53,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": true,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "적재 상태 양호",
+   "action_source": null,
+   "priority": "-",
+   "score": 0,
+   "rank": 14
+  },
+  {
+   "id": "F13",
+   "class": "stack_stable",
+   "label": "반듯한 적재",
+   "tools": [],
+   "tool_types": [],
+   "state": "안전",
+   "hazard": false,
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": 6.69,
+   "y": -5.02,
+   "confidence": 0.94,
+   "n_body": 46,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": true,
+   "changed_by_recheck": true,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "적재 상태 양호",
+   "action_source": null,
+   "priority": "-",
+   "score": 0,
+   "rank": 15
+  }
+ ],
+ "checkpoints": [
+  {
+   "id": "C1",
+   "name": "소화기 1 (서쪽 랙 북쪽 끝)",
+   "status": "바디캠 확인",
+   "finding": "F08",
+   "x": -8.86,
+   "y": 12.45
+  },
+  {
+   "id": "C2",
+   "name": "소화기 2 (서쪽 랙 남쪽 끝)",
+   "status": "바디캠 확인",
+   "finding": "F02",
+   "x": -8.91,
+   "y": -3.81
+  },
+  {
+   "id": "C3",
+   "name": "소화기 3 (가운데 랙 북쪽 끝)",
+   "status": "바디캠 확인",
+   "finding": "F04",
+   "x": 0.14,
+   "y": 12.45
+  },
+  {
+   "id": "C4",
+   "name": "소화기 4 (가운데 랙 남쪽 끝)",
+   "status": "주의",
+   "finding": "F16",
+   "x": 0.09,
+   "y": -3.81
+  },
+  {
+   "id": "C5",
+   "name": "소화기 5 (동쪽 랙 북쪽 끝)",
+   "status": "바디캠 확인",
+   "finding": "F11",
+   "x": 9.14,
+   "y": 12.45
+  },
+  {
+   "id": "C6",
+   "name": "소화기 6 (동쪽 랙 남쪽 끝)",
+   "status": "바디캠 확인",
+   "finding": "F14",
+   "x": 9.09,
+   "y": -3.81
+  },
+  {
+   "id": "C7",
+   "name": "작업대 1 (서쪽)",
+   "status": "미확인",
+   "finding": null,
+   "x": -6.0,
+   "y": -11.45
+  },
+  {
+   "id": "C8",
+   "name": "작업대 2 (동쪽)",
+   "status": "미확인",
+   "finding": null,
+   "x": 6.0,
+   "y": -11.45
+  }
+ ],
+ "zones": [
+  {
+   "id": "Z2",
+   "source": "sign",
+   "reason": "DANGER 표지가 세워진 영역",
+   "zone": "남쪽 작업 구역",
+   "x": -2.24,
+   "y": -5.74,
+   "radius": 1.2,
+   "poly": [
+    [
+     -1.04,
+     -5.74
+    ],
+    [
+     -1.1,
+     -5.37
+    ],
+    [
+     -1.27,
+     -5.03
+    ],
+    [
+     -1.54,
+     -4.77
+    ],
+    [
+     -1.87,
+     -4.6
+    ],
+    [
+     -2.24,
+     -4.54
+    ],
+    [
+     -2.61,
+     -4.6
+    ],
+    [
+     -2.95,
+     -4.77
+    ],
+    [
+     -3.21,
+     -5.03
+    ],
+    [
+     -3.38,
+     -5.37
+    ],
+    [
+     -3.44,
+     -5.74
+    ],
+    [
+     -3.38,
+     -6.11
+    ],
+    [
+     -3.21,
+     -6.44
+    ],
+    [
+     -2.95,
+     -6.71
+    ],
+    [
+     -2.61,
+     -6.88
+    ],
+    [
+     -2.24,
+     -6.94
+    ],
+    [
+     -1.87,
+     -6.88
+    ],
+    [
+     -1.54,
+     -6.71
+    ],
+    [
+     -1.27,
+     -6.44
+    ],
+    [
+     -1.1,
+     -6.11
+    ]
+   ],
+   "members": [
+    "S01"
+   ],
+   "n_cones": 0,
+   "sign": true
+  },
+  {
+   "id": "Z3",
+   "source": "agent",
+   "reason": "무너질 듯한 적재 주변 붕괴 위험",
+   "zone": "남쪽 작업 구역",
+   "x": -6.72,
+   "y": -5.49,
+   "radius": 1.6,
+   "poly": [
+    [
+     -5.12,
+     -5.49
+    ],
+    [
+     -5.2,
+     -5.0
+    ],
+    [
+     -5.43,
+     -4.55
+    ],
+    [
+     -5.78,
+     -4.2
+    ],
+    [
+     -6.23,
+     -3.97
+    ],
+    [
+     -6.72,
+     -3.89
+    ],
+    [
+     -7.22,
+     -3.97
+    ],
+    [
+     -7.66,
+     -4.2
+    ],
+    [
+     -8.02,
+     -4.55
+    ],
+    [
+     -8.25,
+     -5.0
+    ],
+    [
+     -8.32,
+     -5.49
+    ],
+    [
+     -8.25,
+     -5.98
+    ],
+    [
+     -8.02,
+     -6.43
+    ],
+    [
+     -7.66,
+     -6.78
+    ],
+    [
+     -7.22,
+     -7.01
+    ],
+    [
+     -6.72,
+     -7.09
+    ],
+    [
+     -6.23,
+     -7.01
+    ],
+    [
+     -5.78,
+     -6.78
+    ],
+    [
+     -5.43,
+     -6.43
+    ],
+    [
+     -5.2,
+     -5.98
+    ]
+   ],
+   "members": [
+    "F01"
+   ],
+   "n_cones": 0,
+   "sign": false
+  },
+  {
+   "id": "Z4",
+   "source": "sign",
+   "reason": "DANGER 표지가 세워진 영역",
+   "zone": "북쪽 구역",
+   "x": -2.31,
+   "y": 13.74,
+   "radius": 1.2,
+   "poly": [
+    [
+     -1.11,
+     13.74
+    ],
+    [
+     -1.17,
+     14.11
+    ],
+    [
+     -1.34,
+     14.44
+    ],
+    [
+     -1.61,
+     14.71
+    ],
+    [
+     -1.94,
+     14.88
+    ],
+    [
+     -2.31,
+     14.94
+    ],
+    [
+     -2.68,
+     14.88
+    ],
+    [
+     -3.02,
+     14.71
+    ],
+    [
+     -3.28,
+     14.44
+    ],
+    [
+     -3.45,
+     14.11
+    ],
+    [
+     -3.51,
+     13.74
+    ],
+    [
+     -3.45,
+     13.36
+    ],
+    [
+     -3.28,
+     13.03
+    ],
+    [
+     -3.02,
+     12.76
+    ],
+    [
+     -2.68,
+     12.59
+    ],
+    [
+     -2.31,
+     12.54
+    ],
+    [
+     -1.94,
+     12.59
+    ],
+    [
+     -1.61,
+     12.76
+    ],
+    [
+     -1.34,
+     13.03
+    ],
+    [
+     -1.17,
+     13.36
+    ]
+   ],
+   "members": [
+    "S02"
+   ],
+   "n_cones": 0,
+   "sign": true
+  },
+  {
+   "id": "Z5",
+   "source": "agent",
+   "reason": "방치된 유출 주변 미끄럼 위험",
+   "zone": "동쪽 통로",
+   "x": 3.84,
+   "y": 6.17,
+   "radius": 1.3,
+   "poly": [
+    [
+     5.14,
+     6.17
+    ],
+    [
+     5.08,
+     6.57
+    ],
+    [
+     4.9,
+     6.93
+    ],
+    [
+     4.61,
+     7.22
+    ],
+    [
+     4.25,
+     7.4
+    ],
+    [
+     3.84,
+     7.47
+    ],
+    [
+     3.44,
+     7.4
+    ],
+    [
+     3.08,
+     7.22
+    ],
+    [
+     2.79,
+     6.93
+    ],
+    [
+     2.61,
+     6.57
+    ],
+    [
+     2.54,
+     6.17
+    ],
+    [
+     2.61,
+     5.76
+    ],
+    [
+     2.79,
+     5.4
+    ],
+    [
+     3.08,
+     5.11
+    ],
+    [
+     3.44,
+     4.93
+    ],
+    [
+     3.84,
+     4.87
+    ],
+    [
+     4.25,
+     4.93
+    ],
+    [
+     4.61,
+     5.11
+    ],
+    [
+     4.9,
+     5.4
+    ],
+    [
+     5.08,
+     5.76
+    ]
+   ],
+   "members": [
+    "F03"
+   ],
+   "n_cones": 0,
+   "sign": false
+  },
+  {
+   "id": "Z6",
+   "source": "agent",
+   "reason": "무너질 듯한 적재 주변 붕괴 위험",
+   "zone": "북쪽 구역",
+   "x": 6.94,
+   "y": 16.64,
+   "radius": 1.6,
+   "poly": [
+    [
+     8.54,
+     16.64
+    ],
+    [
+     8.46,
+     17.14
+    ],
+    [
+     8.23,
+     17.58
+    ],
+    [
+     7.88,
+     17.94
+    ],
+    [
+     7.43,
+     18.16
+    ],
+    [
+     6.94,
+     18.24
+    ],
+    [
+     6.44,
+     18.16
+    ],
+    [
+     6.0,
+     17.94
+    ],
+    [
+     5.64,
+     17.58
+    ],
+    [
+     5.42,
+     17.14
+    ],
+    [
+     5.34,
+     16.64
+    ],
+    [
+     5.42,
+     16.15
+    ],
+    [
+     5.64,
+     15.7
+    ],
+    [
+     6.0,
+     15.35
+    ],
+    [
+     6.44,
+     15.12
+    ],
+    [
+     6.94,
+     15.04
+    ],
+    [
+     7.43,
+     15.12
+    ],
+    [
+     7.88,
+     15.35
+    ],
+    [
+     8.23,
+     15.7
+    ],
+    [
+     8.46,
+     16.15
+    ]
+   ],
+   "members": [
+    "F05"
+   ],
+   "n_cones": 0,
+   "sign": false
+  },
+  {
+   "id": "Z7",
+   "source": "agent",
+   "reason": "방치된 유출 주변 미끄럼 위험",
+   "zone": "북쪽 구역",
+   "x": -0.45,
+   "y": 17.35,
+   "radius": 1.3,
+   "poly": [
+    [
+     0.85,
+     17.35
+    ],
+    [
+     0.78,
+     17.75
+    ],
+    [
+     0.6,
+     18.11
+    ],
+    [
+     0.31,
+     18.4
+    ],
+    [
+     -0.05,
+     18.59
+    ],
+    [
+     -0.45,
+     18.65
+    ],
+    [
+     -0.85,
+     18.59
+    ],
+    [
+     -1.22,
+     18.4
+    ],
+    [
+     -1.5,
+     18.11
+    ],
+    [
+     -1.69,
+     17.75
+    ],
+    [
+     -1.75,
+     17.35
+    ],
+    [
+     -1.69,
+     16.95
+    ],
+    [
+     -1.5,
+     16.59
+    ],
+    [
+     -1.22,
+     16.3
+    ],
+    [
+     -0.85,
+     16.11
+    ],
+    [
+     -0.45,
+     16.05
+    ],
+    [
+     -0.05,
+     16.11
+    ],
+    [
+     0.31,
+     16.3
+    ],
+    [
+     0.6,
+     16.59
+    ],
+    [
+     0.78,
+     16.95
+    ]
+   ],
+   "members": [
+    "F06"
+   ],
+   "n_cones": 0,
+   "sign": false
+  },
+  {
+   "id": "Z7",
+   "source": "agent",
+   "reason": "방치된 유출 주변 미끄럼 위험",
+   "zone": "남쪽 작업 구역",
+   "x": 2.85,
+   "y": -5.02,
+   "radius": 1.3,
+   "poly": [
+    [
+     4.15,
+     -5.02
+    ],
+    [
+     4.08,
+     -4.62
+    ],
+    [
+     3.9,
+     -4.26
+    ],
+    [
+     3.61,
+     -3.97
+    ],
+    [
+     3.25,
+     -3.79
+    ],
+    [
+     2.85,
+     -3.72
+    ],
+    [
+     2.44,
+     -3.79
+    ],
+    [
+     2.08,
+     -3.97
+    ],
+    [
+     1.79,
+     -4.26
+    ],
+    [
+     1.61,
+     -4.62
+    ],
+    [
+     1.55,
+     -5.02
+    ],
+    [
+     1.61,
+     -5.42
+    ],
+    [
+     1.79,
+     -5.79
+    ],
+    [
+     2.08,
+     -6.07
+    ],
+    [
+     2.44,
+     -6.26
+    ],
+    [
+     2.85,
+     -6.32
+    ],
+    [
+     3.25,
+     -6.26
+    ],
+    [
+     3.61,
+     -6.07
+    ],
+    [
+     3.9,
+     -5.79
+    ],
+    [
+     4.08,
+     -5.42
+    ]
+   ],
+   "members": [
+    "F15"
+   ],
+   "n_cones": 0,
+   "sign": false
+  }
+ ],
+ "voice": [
+  {
+   "t": 20.013300000000168,
+   "target": "Z:Z2",
+   "dist": 0.37,
+   "what": "위험 영역 Z2 (DANGER 표지가 세워진 영역) 0.4 m",
+   "level": "hazard",
+   "vibration": "strong",
+   "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+  }
+ ],
+ "machines": [
+  {
+   "id": "M1",
+   "name": "컨베이어",
+   "on": false,
+   "zone_alerts": 0,
+   "pinch_alerts": 1,
+   "pinch_fallback": 1
+  }
+ ],
+ "pinch_events": [
+  {
+   "t": 59.040899999997926,
+   "machine": "M1",
+   "dist_cm": 3.0,
+   "fallback": true,
+   "say": "손 빼세요",
+   "level": "critical"
+  }
+ ],
+ "stats": {
+  "zones": 9,
+  "voice": 1,
+  "ambiguous_caution": 6,
+  "caution_rejudged": 6,
+  "caution_rejudged_confirmed": 4,
+  "ambiguous_hazard": 5,
+  "pinch_alert": 1
+ },
+ "timeline": [
+  {
+   "t": 0.0,
+   "kind": "위험구역",
+   "text": "Z1 컨베이어 작동 시작 → 끼임점 반경 1.5 m 위험구역 설정"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "목표: 순찰 한 바퀴(59 m) 동안 위험물을 찾아 위험/안전을 판정하고, 작업자 접근을 경고하고, 조치 지시서를 만든다"
+  },
+  {
+   "t": 0.0,
+   "kind": "계획",
+   "text": "통로 바닥(유출, 공구, 적재)과 점검표 8곳 모두 바디캠으로 확인한다. 애매하면 고위험 후보가 있는 쪽은 즉시 위험으로, 없으면 주의로 분류해 다시 지나칠 때 재판단한다"
+  },
+  {
+   "t": 0.6327,
+   "kind": "위험 영역",
+   "text": "Z2 DANGER 표지가 세워진 영역 (남쪽 작업 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
+  },
+  {
+   "t": 0.8325,
+   "kind": "판정",
+   "text": "바디캠 위험 무너질 듯한 적재  |  남쪽 작업 구역  |  YOLO 95%  → 대장 F01"
+  },
+  {
+   "t": 0.8325,
+   "kind": "판정",
+   "text": "바디캠 안전 정상 비치 소화기  |  남쪽 작업 구역  |  YOLO 81%  → 대장 F02"
+  },
+  {
+   "t": 0.8325,
+   "kind": "점검표",
+   "text": "C2 소화기 2 (서쪽 랙 남쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F02)"
+  },
+  {
+   "t": 0.8325,
+   "kind": "위험 영역",
+   "text": "Z3 무너질 듯한 적재 주변 붕괴 위험 (남쪽 작업 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 2.031300000000003,
+   "kind": "LLM 판단",
+   "text": "qwen2.5:7b: look_around() → todays_tbm() → hazard_log(limit=3) → equipment_info(object_id=V1) → finish(say_ids=['V2', 'V3']) | 무너질 듯한 적재물과 DANGER 표지가 가까워 작업 중에 위험할 수 있으므로 주의해야 합니다."
+  },
+  {
+   "t": 2.031300000000003,
+   "kind": "손동작",
+   "text": "손가락 2개 → 오늘의 TBM (English): 오늘 작업: 운반 카트로 북쪽 보관 구역의 상자 4개를 남쪽 작업 구역으로 옮기기. 주의할 위험: 미끄러운 바닥, 떨어지는 적재물. 지킬 것: 안전모와 안전화 착용, 라바콘과 DANGER 표지 안쪽 출입 금지."
+  },
+  {
+   "t": 20.013300000000168,
+   "kind": "음성 경고",
+   "text": "\"경고! 경고! 멈추세요! 위험 요소가 식별되었습니다.\" ← 작업자 ↔ 위험 영역 Z2 (DANGER 표지가 세워진 영역) 0.4 m"
+  },
+  {
+   "t": 22.61070000000021,
+   "kind": "위험 영역",
+   "text": "Z4 DANGER 표지가 세워진 영역 (북쪽 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
+  },
+  {
+   "t": 26.007300000000267,
+   "kind": "판정",
+   "text": "바디캠 위험 방치된 유출 (기름/물)  |  동쪽 통로  |  YOLO 83%  → 대장 F03"
+  },
+  {
+   "t": 26.007300000000267,
+   "kind": "위험 영역",
+   "text": "Z5 방치된 유출 주변 미끄럼 위험 (동쪽 통로, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 26.406900000000274,
+   "kind": "주의",
+   "text": "F04 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (앞이 가로막힌 소화기), 다시 보이면 재판단"
+  },
+  {
+   "t": 27.805500000000297,
+   "kind": "LLM 판단",
+   "text": "F04 qwen2.5:7b: evidence(prior_observations=[{'category': 'ext', 'elapsed_s': 3600, 'zone': 'entrance'}], new_observations=[{'category': 'ext', 'zone': 'entrance'}]) → retrieve_manual(query=ext_blocked) → finish(verdict_class=ext_blocked, confident=True) | 처음과 이번 관찰에서 'ext' 카테고리의 물체가 동일한 위치에서 발견되었으며, 확률이 높은 'ext_blocked' 상태로 추정됩니다. 안전 수칙에 따르면, 이 구역은 출입을 통제해야 하는 위험구역입니다."
+  },
+  {
+   "t": 27.805500000000297,
+   "kind": "판정",
+   "text": "F04 재관측 재판단 → 위험 앞이 가로막힌 소화기"
+  },
+  {
+   "t": 27.805500000000297,
+   "kind": "점검표",
+   "text": "C3 소화기 3 (가운데 랙 북쪽 끝) 확인: 위험 앞이 가로막힌 소화기 (대장 F04)"
+  },
+  {
+   "t": 30.203100000000337,
+   "kind": "판정",
+   "text": "F05 바디캠에 1프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 무너질 듯한 적재 로 확정"
+  },
+  {
+   "t": 30.203100000000337,
+   "kind": "위험 영역",
+   "text": "Z6 무너질 듯한 적재 주변 붕괴 위험 (북쪽 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 30.802500000000347,
+   "kind": "판정",
+   "text": "F06 바디캠에 2프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 방치된 유출 (기름/물) 로 확정"
+  },
+  {
+   "t": 30.802500000000347,
+   "kind": "위험 영역",
+   "text": "Z7 방치된 유출 주변 미끄럼 위험 (북쪽 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 32.60070000000031,
+   "kind": "판정",
+   "text": "바디캠 안전 반듯한 적재  |  북쪽 구역  |  YOLO 80%  → 대장 F07"
+  },
+  {
+   "t": 33.7995000000002,
+   "kind": "판정",
+   "text": "F08 바디캠에 2프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 쓰러진 소화기 로 확정"
+  },
+  {
+   "t": 33.7995000000002,
+   "kind": "점검표",
+   "text": "C1 소화기 1 (서쪽 랙 북쪽 끝) 확인: 위험 쓰러진 소화기 (대장 F08)"
+  },
+  {
+   "t": 34.39890000000015,
+   "kind": "판정",
+   "text": "바디캠 위험 무너질 듯한 적재  |  북쪽 구역  |  YOLO 50%  → 대장 F09"
+  },
+  {
+   "t": 34.39890000000015,
+   "kind": "위험 영역",
+   "text": "Z8 무너질 듯한 적재 주변 붕괴 위험 (북쪽 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 34.59870000000013,
+   "kind": "판정 수정",
+   "text": "F09 가까이서 다시 보니 무너질 듯한 적재 → 위험 앞이 가로막힌 소화기"
+  },
+  {
+   "t": 34.59870000000013,
+   "kind": "판정 수정",
+   "text": "F09 는 F04 와 같은 물체 (위험 앞이 가로막힌 소화기) → 대장에서 합침"
+  },
+  {
+   "t": 42.39089999999943,
+   "kind": "판정",
+   "text": "F07 판정이 엇갈림 → 고위험 후보 포함, 즉시 위험 방치된 유출 (기름/물) 로 확정"
+  },
+  {
+   "t": 42.39089999999943,
+   "kind": "판정 수정",
+   "text": "F07 는 F06 와 같은 물체 (위험 방치된 유출 (기름/물)) → 대장에서 합침"
+  },
+  {
+   "t": 43.190099999999354,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.8 m (2 m 안, 경고 없음) → 대장 F06 우선순위 올림"
+  },
+  {
+   "t": 43.98929999999928,
+   "kind": "판정",
+   "text": "바디캠 안전 반듯한 적재  |  북쪽 구역  |  YOLO 85%  → 대장 F10"
+  },
+  {
+   "t": 46.98629999999901,
+   "kind": "LLM 판단",
+   "text": "qwen2.5:7b: look_around() → equipment_info(object_id=V6) → retrieve_manual(query=소화기 가로막힘) → finish(say_ids=['V6']) | 가장 가까운 위험인자는 V6의 소화기 가로막힘입니다. 이 장소에서 일할 때는 소화기를 쉽게 접근할 수 있도록 공간을 정리해야 합니다."
+  },
+  {
+   "t": 46.98629999999901,
+   "kind": "손동작",
+   "text": "손가락 1개 → 장비 설명 (English): 뒤쪽 3미터, 앞이 가로막힌 소화기. 작은 불을 초기에 끄는 소화기입니다. 안전핀을 뽑고 호스를 불 쪽으로 향한 뒤 손잡이를 누르세요. 지금 앞이 상자로 막혀 있어 급할 때 꺼내기 어렵습니다. 앞을 비워 주세요."
+  },
+  {
+   "t": 48.384899999998886,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.8 m (2 m 안, 경고 없음) → 대장 F06 우선순위 올림"
+  },
+  {
+   "t": 53.57969999999842,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.8 m (2 m 안, 경고 없음) → 대장 F06 우선순위 올림"
+  },
+  {
+   "t": 54.57869999999833,
+   "kind": "판정",
+   "text": "바디캠 안전 정상 비치 소화기  |  북쪽 구역  |  YOLO 80%  → 대장 F11"
+  },
+  {
+   "t": 54.57869999999833,
+   "kind": "점검표",
+   "text": "C5 소화기 5 (동쪽 랙 북쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F11)"
+  },
+  {
+   "t": 59.040899999997926,
+   "kind": "끼임 경보",
+   "text": "컨베이어 손 끝 - 끼임점 3 cm (작동 중) [폴백: 등록 위치 사용 - 끼임점 탐지 실패] → 손 빼세요! (최고 등급)"
+  },
+  {
+   "t": 59.57369999999788,
+   "kind": "주의",
+   "text": "F12 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (반듯한 적재), 다시 보이면 재판단"
+  },
+  {
+   "t": 60.77249999999777,
+   "kind": "LLM 판단",
+   "text": "F12 qwen2.5:7b: evidence(new_observations=[{'category': 'stack', 'zone': 'entrance'}], prior_observations=[{'category': 'stack', 'elapsed_s': 3600, 'zone': 'entrance'}]) → retrieve_manual(query=stack_stable) → finish(confident=True, verdict_class=stack_stable) | 처음 관찰 때와 비교해 현재 스택의 안정성 점수가 증가하여 위험하지 않음을 확인할 수 있었기 때문에 안전한 상태로 판단합니다."
+  },
+  {
+   "t": 60.77249999999777,
+   "kind": "판정",
+   "text": "F12 재관측 재판단 → 안전 반듯한 적재"
+  },
+  {
+   "t": 60.77249999999777,
+   "kind": "주의",
+   "text": "F13 바디캠에 2프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (반듯한 적재), 다시 보이면 재판단"
+  },
+  {
+   "t": 60.77249999999777,
+   "kind": "주의",
+   "text": "F14 바디캠에 2프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (앞이 가로막힌 소화기), 다시 보이면 재판단"
+  },
+  {
+   "t": 61.172099999997734,
+   "kind": "LLM 판단",
+   "text": "F13 qwen2.5:7b: evidence(prior_observations=[{'category': 'stack', 'elapsed_s': 3600, 'zone': 'entrance'}], new_observations=[{'category': 'stack', 'zone': 'entrance'}]) → retrieve_manual(query=stack_stable) → finish(confident=True, verdict_class=stack_stable) | 처음 관찰 때보다 더 안정적으로 보였으며, 출입구라는 중요한 위치에서 이 상태는 안전하다는 판단이 가능합니다."
+  },
+  {
+   "t": 61.172099999997734,
+   "kind": "판정",
+   "text": "F13 재관측 재판단 → 안전 반듯한 적재"
+  },
+  {
+   "t": 61.77149999999768,
+   "kind": "LLM 판단",
+   "text": "F14 qwen2.5:7b: evidence(prior_observations=[{'category': 'ext', 'elapsed_s': 3600, 'zone': 'entrance'}], new_observations=[{'category': 'ext', 'zone': 'entrance'}]) → retrieve_manual(query=ext_blocked) → finish(confident=False, verdict_class=ext_blocked) | 처음과 이번 관찰에서 둘 다 'ext' 카테고리의 물체가 관찰되었으며, 'ext_blocked' 지표가 0.85로 감소하여 위험 상태로 추정됩니다. 안전 수칙에 따르면, 이 구역은 출입을 통제해야 하는 위험구역입니다. 그러나 여전히 확신이 서지 않아 'ext' 카테고리로 분류합니다."
+  },
+  {
+   "t": 61.77149999999768,
+   "kind": "판정",
+   "text": "F14 재관측 재판단 → 위험 앞이 가로막힌 소화기"
+  },
+  {
+   "t": 61.77149999999768,
+   "kind": "점검표",
+   "text": "C6 소화기 6 (동쪽 랙 남쪽 끝) 확인: 위험 앞이 가로막힌 소화기 (대장 F14)"
+  },
+  {
+   "t": 61.97129999999766,
+   "kind": "위험구역",
+   "text": "Z1 컨베이어 정지 → 위험구역 즉시 해제"
+  },
+  {
+   "t": 62.97029999999757,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.8 m (2 m 안, 경고 없음) → 대장 F03 우선순위 올림"
+  },
+  {
+   "t": 65.96729999999731,
+   "kind": "판정",
+   "text": "F15 바디캠에 1프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 방치된 유출 (기름/물) 로 확정"
+  },
+  {
+   "t": 65.96729999999731,
+   "kind": "위험 영역",
+   "text": "Z7 방치된 유출 주변 미끄럼 위험 (남쪽 작업 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 67.1660999999972,
+   "kind": "주의",
+   "text": "F16 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (정상 비치 소화기), 다시 보이면 재판단"
+  },
+  {
+   "t": 72.7604999999967,
+   "kind": "주의",
+   "text": "F17 바디캠에 2프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (통로에 방치된 공구), 다시 보이면 재판단"
+  },
+  {
+   "t": 72.7604999999967,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.9 m (2 m 안, 경고 없음) → 대장 F15 우선순위 올림"
+  },
+  {
+   "t": 74.35889999999655,
+   "kind": "LLM 판단",
+   "text": "F17 LLM 을 못 써서 규칙으로 정함 (finish 를 안 부름 (또는 근거 없는 클래스))"
+  },
+  {
+   "t": 74.35889999999655,
+   "kind": "주의",
+   "text": "F17 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 74.9582999999965,
+   "kind": "LLM 판단",
+   "text": "F17 LLM 을 못 써서 규칙으로 정함 (finish 를 안 부름 (또는 근거 없는 클래스))"
+  },
+  {
+   "t": 74.9582999999965,
+   "kind": "주의",
+   "text": "F17 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 79.15409999999612,
+   "kind": "LLM 판단",
+   "text": "qwen2.5:7b: worker_status() → look_around() → equipment_info(object_id=V3) → equipment_info(object_id=V5) → hazard_log(limit=5) → finish(say_ids=['V10', 'V12']) | 무너질 수 있는 적재물과 방치된 기름·물 유출이 근처에 있어 안전에 위협을 줄 수 있습니다."
+  },
+  {
+   "t": 79.15409999999612,
+   "kind": "관리자 호출",
+   "text": "손가락 3개 → 관리자 호출 (English): 관리자를 불렀습니다. 위치(남쪽 작업 구역)와 바디캠 화면을 보냈으니 잠시 기다려 주세요."
+  }
+ ],
+ "assistant": [
+  {
+   "t": 2.03,
+   "count": 2,
+   "kind": "tbm",
+   "cmd": "오늘의 TBM",
+   "cmd_lang": "Today's TBM",
+   "lang": "en",
+   "lang_name": "English",
+   "text": "2: Today's TBM. Today's work: moving 4 boxes from the north storage area to the south work area with the hand cart. Watch out for: slippery floors, falling loads. Rules: wear a hard hat and safety shoes, do not enter areas marked by cones or DANGER signs.",
+   "text_ko": "2번, 오늘의 TBM. 오늘 작업: 운반 카트로 북쪽 보관 구역의 상자 4개를 남쪽 작업 구역으로 옮기기. 주의할 위험: 미끄러운 바닥, 떨어지는 적재물. 지킬 것: 안전모와 안전화 착용, 라바콘과 DANGER 표지 안쪽 출입 금지.",
+   "zone": "남쪽 작업 구역",
+   "worker": [
+    -0.36,
+    -7.46
+   ],
+   "date": "2026-10-03",
+   "llm": {
+    "llm": true,
+    "model": "qwen2.5:7b",
+    "say_ids": [
+     "V2",
+     "V3"
+    ],
+    "reason_ko": "무너질 듯한 적재물과 DANGER 표지가 가까워 작업 중에 위험할 수 있으므로 주의해야 합니다.",
+    "manager_ko": "관리자님, 작업자가 무너질 듯한 적재물과 DANGER 표지 근처에 있습니다.",
+    "refuse": false,
+    "trace": [
+     "look_around()",
+     "todays_tbm()",
+     "hazard_log(limit=3)",
+     "equipment_info(object_id=V1)",
+     "finish(say_ids=['V2', 'V3'])"
+    ],
+    "sec": 4.41,
+    "error": null
+   },
+   "wav": "C:\\Users\\user\\Desktop\\AI_SW_CONTEST\\factory-safety-isaac\\.claude\\worktrees\\feature+pinch\\assets\\generated\\tts\\en_f1c51d86c490ef81.wav",
+   "dur": 16.39
+  },
+  {
+   "t": 46.99,
+   "count": 1,
+   "kind": "equip",
+   "cmd": "장비 설명",
+   "cmd_lang": "Equipment info",
+   "lang": "en",
+   "lang_name": "English",
+   "text": "1: Equipment info. A fire extinguisher blocked by boxes, 3 meters behind you. It is a fire extinguisher for putting out small fires. Pull the pin, aim the hose at the fire, and squeeze the handle. Boxes are blocking it, so it is hard to reach in an emergency. Please clear the space in front.",
+   "text_ko": "1번, 장비 설명. 뒤쪽 3미터, 앞이 가로막힌 소화기. 작은 불을 초기에 끄는 소화기입니다. 안전핀을 뽑고 호스를 불 쪽으로 향한 뒤 손잡이를 누르세요. 지금 앞이 상자로 막혀 있어 급할 때 꺼내기 어렵습니다. 앞을 비워 주세요.",
+   "zone": "북쪽 구역",
+   "worker": [
+    -0.29,
+    15.6
+   ],
+   "items": [
+    {
+     "cls": "ext_blocked",
+     "tool": null,
+     "xy": [
+      0.14,
+      12.45
+     ],
+     "dist": 3.2,
+     "dir": "back"
+    }
+   ],
+   "llm": {
+    "llm": true,
+    "model": "qwen2.5:7b",
+    "say_ids": [
+     "V6"
+    ],
+    "reason_ko": "가장 가까운 위험인자는 V6의 소화기 가로막힘입니다. 이 장소에서 일할 때는 소화기를 쉽게 접근할 수 있도록 공간을 정리해야 합니다.",
+    "manager_ko": "직원이 소화기 접근이 어려운 상태로 작업하고 있습니다. 즉시 공간을 정리해 주시기 바랍니다.",
+    "refuse": false,
+    "trace": [
+     "look_around()",
+     "equipment_info(object_id=V6)",
+     "retrieve_manual(query=소화기 가로막힘)",
+     "finish(say_ids=['V6'])"
+    ],
+    "sec": 5.91,
+    "error": null
+   },
+   "wav": "C:\\Users\\user\\Desktop\\AI_SW_CONTEST\\factory-safety-isaac\\.claude\\worktrees\\feature+pinch\\assets\\generated\\tts\\en_b4fff13a4c908091.wav",
+   "dur": 18.43
+  },
+  {
+   "t": 79.15,
+   "count": 3,
+   "kind": "manager",
+   "cmd": "관리자 호출",
+   "cmd_lang": "Call manager",
+   "lang": "en",
+   "lang_name": "English",
+   "text": "3: Call manager. Your manager has been called with your location, the south work area, and bodycam view. Please wait.",
+   "text_ko": "3번, 관리자 호출. 관리자를 불렀습니다. 위치(남쪽 작업 구역)와 바디캠 화면을 보냈으니 잠시 기다려 주세요.",
+   "zone": "남쪽 작업 구역",
+   "worker": [
+    1.22,
+    -7.33
+   ],
+   "notify": "관리자",
+   "manager_ko": "작업자 위치 남쪽 작업 구역 (+1.2, -7.3), 가까운 위험: F15 방치된 유출 (기름/물) (남쪽 작업 구역), F01 무너질 듯한 적재 (남쪽 작업 구역) | AI 요약: 남쪽 작업 구역에 무너질 수 있는 적재물과 방치된 기름·물 유출이 있어 주의가 필요합니다.",
+   "llm": {
+    "llm": true,
+    "model": "qwen2.5:7b",
+    "say_ids": [
+     "V10",
+     "V12"
+    ],
+    "reason_ko": "무너질 수 있는 적재물과 방치된 기름·물 유출이 근처에 있어 안전에 위협을 줄 수 있습니다.",
+    "manager_ko": "남쪽 작업 구역에 무너질 수 있는 적재물과 방치된 기름·물 유출이 있어 주의가 필요합니다.",
+    "refuse": false,
+    "trace": [
+     "worker_status()",
+     "look_around()",
+     "equipment_info(object_id=V3)",
+     "equipment_info(object_id=V5)",
+     "hazard_log(limit=5)",
+     "finish(say_ids=['V10', 'V12'])"
+    ],
+    "sec": 5.38,
+    "error": null
+   },
+   "wav": "C:\\Users\\user\\Desktop\\AI_SW_CONTEST\\factory-safety-isaac\\.claude\\worktrees\\feature+pinch\\assets\\generated\\tts\\en_6dc66df05eedac29.wav",
+   "dur": 8.18
+  }
+ ]
+}

@@ -122,7 +122,7 @@ def write_dashboard(path, rep, evaluation=None, seed=None, title="바디캠 안�
     s = rep["summary"]
     tl = "".join(f'<li><span class="t">{clock(e["t"])}</span><span class="k k{e["kind"].replace(" ", "")}">{e["kind"]}</span>'
                  f'{html.escape(e["text"])}</li>' for e in rep["timeline"] if e["kind"] != "계획" or "점검표" not in e["text"])
-    srcname = {"cone": "라바콘 표시", "sign": "DANGER 표지", "agent": "에이전트 판단", "machine": "작동 중 기계"}
+    srcname = {"cone": "라바콘 표시", "sign": "DANGER 표지", "agent": "에이전트 판단", "machine": "작동 중 기계", "forklift": "지게차 접근"}
     zrows = "".join(f'<tr><td>{z["id"]}</td><td><b>{srcname[z["source"]]}</b>: {html.escape(z["reason"])}</td>'
                     f'<td>{html.escape(z["zone"])} <small>({z["x"]:+.1f}, {z["y"]:+.1f})</small></td><td>반지름 {z["radius"]:.1f} m</td></tr>'
                     for z in rep.get("zones", [])) or '<tr><td colspan="4">없음</td></tr>'

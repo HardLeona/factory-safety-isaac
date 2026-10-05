@@ -55,7 +55,10 @@ class SiteAssistant:
             self.frames.popleft()
 
     def on_hand(self, t, count, cam, worker_xy, worker_yaw, pts=None):
-        """손가락 수 (0 = 손 없음/정해진 모양 아님) 와 손 관절. 멈춘 손에서 같은 수가 이어져 확정되면 명령을 실행하고 기록을 돌려준다."""
+        """손가락 수 (0 = 손 없음/정해진 모양 아님) 와 손 관절. 멈춘 손에서 같은 수가 이어져 확정되면 명령을 실행하고 기록을 돌려준다.
+        4, 5 는 더 이상 명령이 아니라서 (손가락 1~3개만 씀) 보여도 그냥 무시한다."""
+        if count not in (1, 2, 3):
+            count = 0
         c = self.filter.update(t, count, pts)
         return self.run(t, c, cam, worker_xy, worker_yaw) if c else None
 
@@ -215,7 +218,9 @@ class SiteAssistant:
 
     # ------------------------------------------------------------ 3. 관리자 호출·SOS (안전팀 구분 없이 관리자에게만, 동급으로 즉시 전달)
     def _manager_sos(self, ctx, lang):
-        return i18n.fmt("manager_sos", lang, zone=i18n.zone(ctx["zone"], lang)), {"notify": "관리자", "manager_ko": self._manager_note(ctx)}
+        note = self._manager_note(ctx)
+        self.agent._notify_manager(ctx["t"], "caution", ctx["zone"], f"작업자 관리자 호출: {note}", "worker")
+        return i18n.fmt("manager_sos", lang, zone=i18n.zone(ctx["zone"], lang)), {"notify": "관리자", "manager_ko": note}
 
     def _manager_note(self, ctx):
         """관리자에게 보내는 한국어 메시지: 확인된 사실 (위치, 가까운 위험) + LLM 요약."""

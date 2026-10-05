@@ -1,63 +1,64 @@
 {
  "summary": {
-  "hazards": 9,
-  "safe": 9,
+  "hazards": 8,
+  "safe": 0,
   "need_check": 2,
+  "caution": 8,
   "urgent": 3,
-  "checkpoints_done": 7,
+  "checkpoints_done": 3,
   "checkpoints": 8,
-  "zones": 8,
+  "zones": 9,
   "voice": 4
  },
  "findings": [
   {
-   "id": "F01",
-   "class": "stack_unstable",
-   "label": "무너질 듯한 적재",
-   "tools": [],
-   "tool_types": [],
-   "state": "위험",
-   "hazard": true,
-   "status": "확정",
-   "zone": "남쪽 작업 구역",
-   "x": -6.66,
-   "y": -5.43,
-   "confidence": 0.94,
-   "n_body": 33,
-   "n_ptz": 0,
-   "near_miss": 1,
-   "source": "바디캠",
-   "rechecked": false,
-   "changed_by_recheck": false,
-   "body_class": "stack_unstable",
-   "checkpoint": null,
-   "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
-   "priority": "긴급",
-   "score": 5,
-   "rank": 1
-  },
-  {
-   "id": "F05",
+   "id": "F04",
    "class": "spill",
    "label": "방치된 유출 (기름/물)",
    "tools": [],
    "tool_types": [],
    "state": "위험",
    "hazard": true,
-   "status": "재확인 완료",
+   "status": "확정",
    "zone": "동쪽 통로",
-   "x": 3.8,
-   "y": 6.45,
+   "x": 3.79,
+   "y": 6.31,
    "confidence": 1.0,
-   "n_body": 29,
-   "n_ptz": 2,
+   "n_body": 23,
    "near_miss": 1,
    "source": "바디캠",
-   "rechecked": true,
+   "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "spill",
    "checkpoint": null,
    "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+   "action_source": null,
+   "priority": "긴급",
+   "score": 5,
+   "rank": 1
+  },
+  {
+   "id": "F07",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 0.42,
+   "y": 17.0,
+   "confidence": 1.0,
+   "n_body": 31,
+   "near_miss": 1,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "spill",
+   "checkpoint": null,
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+   "action_source": null,
    "priority": "긴급",
    "score": 5,
    "rank": 2
@@ -70,131 +71,153 @@
    "tool_types": [],
    "state": "위험",
    "hazard": true,
-   "status": "재확인 완료",
+   "status": "확정",
    "zone": "남쪽 작업 구역",
-   "x": 2.93,
-   "y": -4.93,
+   "x": 2.9,
+   "y": -4.96,
    "confidence": 1.0,
-   "n_body": 16,
-   "n_ptz": 2,
+   "n_body": 19,
    "near_miss": 1,
-   "source": "바디캠",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": "spill",
-   "checkpoint": null,
-   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
-   "priority": "긴급",
-   "score": 5,
-   "rank": 3
-  },
-  {
-   "id": "F07",
-   "class": "spill",
-   "label": "방치된 유출 (기름/물)",
-   "tools": [],
-   "tool_types": [],
-   "state": "위험",
-   "hazard": true,
-   "status": "확정",
-   "zone": "북쪽 구역",
-   "x": 0.14,
-   "y": 12.45,
-   "confidence": 0.67,
-   "n_body": 10,
-   "n_ptz": 0,
-   "near_miss": 0,
-   "source": "바디캠",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": "spill",
-   "checkpoint": null,
-   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
-   "priority": "높음",
-   "score": 3,
-   "rank": 4
-  },
-  {
-   "id": "F08",
-   "class": "spill",
-   "label": "방치된 유출 (기름/물)",
-   "tools": [],
-   "tool_types": [],
-   "state": "위험",
-   "hazard": true,
-   "status": "확정",
-   "zone": "북쪽 구역",
-   "x": 0.4,
-   "y": 17.0,
-   "confidence": 1.0,
-   "n_body": 29,
-   "n_ptz": 0,
-   "near_miss": 0,
    "source": "바디캠",
    "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "spill",
    "checkpoint": null,
    "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
-   "priority": "높음",
-   "score": 3,
-   "rank": 5
+   "action_source": null,
+   "priority": "긴급",
+   "score": 5,
+   "rank": 3
   },
   {
-   "id": "F02",
-   "class": "tool_floor",
-   "label": "통로에 방치된 공구 (삽)",
-   "tools": [
-    "삽"
-   ],
-   "tool_types": [
-    "shovel"
-   ],
-   "state": "위험",
-   "hazard": true,
-   "status": "재확인 완료",
-   "zone": "남쪽 작업 구역",
-   "x": -5.99,
-   "y": -9.59,
-   "confidence": 1.0,
-   "n_body": 3,
-   "n_ptz": 2,
-   "near_miss": 0,
-   "source": "바디캠",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": "tool_floor",
-   "checkpoint": null,
-   "action": "통로 바닥의 공구를 작업대로 회수",
-   "priority": "보통",
-   "score": 2,
-   "rank": 6
-  },
-  {
-   "id": "F04",
-   "class": "ext_blocked",
-   "label": "앞이 가로막힌 소화기",
+   "id": "F01",
+   "class": "stack_unstable",
+   "label": "무너질 듯한 적재",
    "tools": [],
    "tool_types": [],
    "state": "위험",
    "hazard": true,
-   "status": "재확인 완료",
+   "status": "확정",
+   "zone": "남쪽 작업 구역",
+   "x": -6.69,
+   "y": -5.42,
+   "confidence": 0.94,
+   "n_body": 35,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_unstable",
+   "checkpoint": null,
+   "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+   "action_source": null,
+   "priority": "높음",
+   "score": 3,
+   "rank": 4
+  },
+  {
+   "id": "F03",
+   "class": "spill",
+   "label": "방치된 유출 (기름/물)",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
    "zone": "북쪽 구역",
    "x": 0.14,
    "y": 12.45,
-   "confidence": 0.94,
-   "n_body": 26,
-   "n_ptz": 2,
+   "confidence": 0.53,
+   "n_body": 10,
    "near_miss": 0,
    "source": "바디캠",
    "rechecked": true,
    "changed_by_recheck": false,
    "body_class": "ext_blocked",
    "checkpoint": "C3",
+   "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+   "action_source": null,
+   "priority": "높음",
+   "score": 3,
+   "rank": 5
+  },
+  {
+   "id": "F05",
+   "class": "stack_unstable",
+   "label": "무너질 듯한 적재",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 6.85,
+   "y": 16.58,
+   "confidence": 0.9,
+   "n_body": 22,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "stack_stable",
+   "checkpoint": null,
+   "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+   "action_source": null,
+   "priority": "높음",
+   "score": 3,
+   "rank": 6
+  },
+  {
+   "id": "F06",
+   "class": "ext_blocked",
+   "label": "앞이 가로막힌 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": 0.14,
+   "y": 12.45,
+   "confidence": 0.87,
+   "n_body": 17,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_blocked",
+   "checkpoint": "C3",
    "action": "소화기 앞 적재물 치우기 (소화기 앞 통로 확보)",
+   "action_source": null,
    "priority": "보통",
    "score": 2,
    "rank": 7
+  },
+  {
+   "id": "F08",
+   "class": "ext_fallen",
+   "label": "쓰러진 소화기",
+   "tools": [],
+   "tool_types": [],
+   "state": "위험",
+   "hazard": true,
+   "status": "확정",
+   "zone": "북쪽 구역",
+   "x": -8.86,
+   "y": 12.45,
+   "confidence": 1.0,
+   "n_body": 3,
+   "near_miss": 0,
+   "source": "바디캠",
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_fallen",
+   "checkpoint": "C1",
+   "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+   "action_source": null,
+   "priority": "보통",
+   "score": 2,
+   "rank": 8
   },
   {
    "id": "F13",
@@ -202,28 +225,28 @@
    "label": "앞이 가로막힌 소화기",
    "tools": [],
    "tool_types": [],
-   "state": "위험",
+   "state": "주의",
    "hazard": true,
-   "status": "재확인 완료",
+   "status": "주의",
    "zone": "남쪽 작업 구역",
    "x": 9.09,
    "y": -3.81,
-   "confidence": 0.96,
+   "confidence": 0.92,
    "n_body": 25,
-   "n_ptz": 2,
    "near_miss": 0,
    "source": "바디캠",
-   "rechecked": true,
+   "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "ext_blocked",
    "checkpoint": "C6",
-   "action": "소화기 앞 적재물 치우기 (소화기 앞 통로 확보)",
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
    "priority": "보통",
-   "score": 2,
-   "rank": 8
+   "score": 1,
+   "rank": 9
   },
   {
-   "id": "F17",
+   "id": "F16",
    "class": "tool_floor",
    "label": "통로에 방치된 공구 (전동톱)",
    "tools": [
@@ -232,127 +255,123 @@
    "tool_types": [
     "power_saw"
    ],
-   "state": "위험",
+   "state": "주의",
    "hazard": true,
-   "status": "재확인 완료",
+   "status": "주의",
    "zone": "남쪽 작업 구역",
-   "x": 6.61,
-   "y": -9.04,
-   "confidence": 1.0,
-   "n_body": 6,
-   "n_ptz": 2,
-   "near_miss": 0,
-   "source": "바디캠",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": "tool_floor",
-   "checkpoint": null,
-   "action": "통로 바닥의 공구를 작업대로 회수",
-   "priority": "보통",
-   "score": 2,
-   "rank": 9
-  },
-  {
-   "id": "F09",
-   "class": "ext_fallen",
-   "label": "쓰러진 소화기",
-   "tools": [],
-   "tool_types": [],
-   "state": "확인 필요",
-   "hazard": true,
-   "status": "현장 확인 필요",
-   "zone": "북쪽 구역",
-   "x": -8.86,
-   "y": 12.45,
+   "x": 6.54,
+   "y": -8.87,
    "confidence": 1.0,
    "n_body": 4,
-   "n_ptz": 0,
    "near_miss": 0,
    "source": "바디캠",
    "rechecked": false,
    "changed_by_recheck": false,
-   "body_class": "ext_fallen",
+   "body_class": "tool_floor",
    "checkpoint": null,
-   "action": "현장에서 직접 확인 (카메라로 확정 못 함)",
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
    "priority": "보통",
    "score": 1,
    "rank": 10
   },
   {
-   "id": "C1",
+   "id": "C7",
    "class": null,
-   "label": "소화기 1 (서쪽 랙 북쪽 끝) 상태 미확인",
+   "label": "작업대 1 (서쪽) 상태 미확인",
    "state": "확인 필요",
    "hazard": false,
    "status": "현장 확인 필요",
-   "zone": "북쪽 구역",
-   "x": -8.86,
-   "y": 12.45,
+   "zone": "남쪽 작업 구역",
+   "x": -6.0,
+   "y": -11.45,
    "confidence": 0.0,
    "n_body": 0,
-   "n_ptz": 0,
    "near_miss": 0,
    "source": "점검표",
    "rechecked": true,
    "changed_by_recheck": false,
    "body_class": null,
-   "checkpoint": "C1",
-   "action": "현장에서 소화기 상태 직접 확인 (CCTV 로 볼 수 없음)",
+   "checkpoint": "C7",
+   "action": "현장에서 작업대 상태 직접 확인 (바디캠으로 확인 못 함)",
    "priority": "보통",
    "score": 1,
    "rank": 11
   },
   {
-   "id": "F03",
+   "id": "C8",
+   "class": null,
+   "label": "작업대 2 (동쪽) 상태 미확인",
+   "state": "확인 필요",
+   "hazard": false,
+   "status": "현장 확인 필요",
+   "zone": "남쪽 작업 구역",
+   "x": 6.0,
+   "y": -11.45,
+   "confidence": 0.0,
+   "n_body": 0,
+   "near_miss": 0,
+   "source": "점검표",
+   "rechecked": true,
+   "changed_by_recheck": false,
+   "body_class": null,
+   "checkpoint": "C8",
+   "action": "현장에서 작업대 상태 직접 확인 (바디캠으로 확인 못 함)",
+   "priority": "보통",
+   "score": 1,
+   "rank": 12
+  },
+  {
+   "id": "F02",
    "class": "ext_ok",
    "label": "정상 비치 소화기",
    "tools": [],
    "tool_types": [],
-   "state": "안전",
+   "state": "주의",
    "hazard": false,
-   "status": "재확인 완료",
+   "status": "주의",
    "zone": "남쪽 작업 구역",
    "x": -8.91,
    "y": -3.81,
    "confidence": 1.0,
-   "n_body": 1,
-   "n_ptz": 2,
+   "n_body": 3,
    "near_miss": 0,
    "source": "바디캠",
-   "rechecked": true,
+   "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "ext_ok",
    "checkpoint": "C2",
-   "action": "소화기 정상 비치",
-   "priority": "-",
-   "score": 0,
-   "rank": 12
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 13
   },
   {
-   "id": "F06",
+   "id": "F09",
    "class": "stack_stable",
    "label": "반듯한 적재",
    "tools": [],
    "tool_types": [],
-   "state": "안전",
+   "state": "주의",
    "hazard": false,
-   "status": "재확인 완료",
+   "status": "주의",
    "zone": "북쪽 구역",
-   "x": 6.79,
-   "y": 16.89,
-   "confidence": 0.87,
-   "n_body": 25,
-   "n_ptz": 2,
+   "x": 9.14,
+   "y": 12.45,
+   "confidence": 0.5,
+   "n_body": 4,
    "near_miss": 0,
    "source": "바디캠",
-   "rechecked": true,
+   "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "stack_stable",
-   "checkpoint": null,
-   "action": "적재 상태 양호",
-   "priority": "-",
-   "score": 0,
-   "rank": 13
+   "checkpoint": "C5",
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 14
   },
   {
    "id": "F10",
@@ -360,25 +379,25 @@
    "label": "정상 비치 소화기",
    "tools": [],
    "tool_types": [],
-   "state": "안전",
+   "state": "주의",
    "hazard": false,
-   "status": "재확인 완료",
+   "status": "주의",
    "zone": "북쪽 구역",
    "x": 9.14,
    "y": 12.45,
-   "confidence": 0.73,
-   "n_body": 4,
-   "n_ptz": 2,
+   "confidence": 0.66,
+   "n_body": 3,
    "near_miss": 0,
    "source": "바디캠",
-   "rechecked": true,
-   "changed_by_recheck": true,
-   "body_class": "ext_blocked",
-   "checkpoint": "C5",
-   "action": "소화기 정상 비치",
-   "priority": "-",
-   "score": 0,
-   "rank": 14
+   "rechecked": false,
+   "changed_by_recheck": false,
+   "body_class": "ext_ok",
+   "checkpoint": null,
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 15
   },
   {
    "id": "F11",
@@ -386,25 +405,25 @@
    "label": "반듯한 적재",
    "tools": [],
    "tool_types": [],
-   "state": "안전",
+   "state": "주의",
    "hazard": false,
-   "status": "확정",
+   "status": "주의",
    "zone": "남쪽 작업 구역",
-   "x": 1.87,
-   "y": -10.41,
+   "x": 1.94,
+   "y": -10.28,
    "confidence": 1.0,
-   "n_body": 52,
-   "n_ptz": 0,
+   "n_body": 54,
    "near_miss": 0,
    "source": "바디캠",
    "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "stack_stable",
    "checkpoint": null,
-   "action": "적재 상태 양호",
-   "priority": "-",
-   "score": 0,
-   "rank": 15
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 16
   },
   {
    "id": "F12",
@@ -412,25 +431,25 @@
    "label": "반듯한 적재",
    "tools": [],
    "tool_types": [],
-   "state": "안전",
+   "state": "주의",
    "hazard": false,
-   "status": "확정",
+   "status": "주의",
    "zone": "남쪽 작업 구역",
-   "x": 6.59,
-   "y": -5.14,
-   "confidence": 0.95,
-   "n_body": 62,
-   "n_ptz": 0,
+   "x": 6.63,
+   "y": -5.15,
+   "confidence": 0.94,
+   "n_body": 66,
    "near_miss": 0,
    "source": "바디캠",
    "rechecked": false,
    "changed_by_recheck": false,
    "body_class": "stack_stable",
    "checkpoint": null,
-   "action": "적재 상태 양호",
-   "priority": "-",
-   "score": 0,
-   "rank": 16
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
+   "rank": 17
   },
   {
    "id": "F14",
@@ -438,127 +457,41 @@
    "label": "정상 비치 소화기",
    "tools": [],
    "tool_types": [],
-   "state": "안전",
+   "state": "주의",
    "hazard": false,
-   "status": "재확인 완료",
+   "status": "주의",
    "zone": "남쪽 작업 구역",
    "x": 0.09,
    "y": -3.81,
    "confidence": 1.0,
-   "n_body": 9,
-   "n_ptz": 2,
-   "near_miss": 0,
-   "source": "바디캠",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": "ext_ok",
-   "checkpoint": "C4",
-   "action": "소화기 정상 비치",
-   "priority": "-",
-   "score": 0,
-   "rank": 17
-  },
-  {
-   "id": "F16",
-   "class": "stack_stable",
-   "label": "반듯한 적재",
-   "tools": [],
-   "tool_types": [],
-   "state": "안전",
-   "hazard": false,
-   "status": "확정",
-   "zone": "남쪽 작업 구역",
-   "x": 4.8,
-   "y": -7.5,
-   "confidence": 1.0,
-   "n_body": 3,
-   "n_ptz": 0,
+   "n_body": 10,
    "near_miss": 0,
    "source": "바디캠",
    "rechecked": false,
    "changed_by_recheck": false,
-   "body_class": "stack_stable",
-   "checkpoint": null,
-   "action": "적재 상태 양호",
-   "priority": "-",
-   "score": 0,
+   "body_class": "ext_ok",
+   "checkpoint": "C4",
+   "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+   "action_source": null,
+   "priority": "보통",
+   "score": 1,
    "rank": 18
-  },
-  {
-   "id": "F18",
-   "class": "tool_stored",
-   "label": "작업대에 정리된 공구 (렌치)",
-   "tools": [
-    "렌치"
-   ],
-   "tool_types": [
-    "wrench"
-   ],
-   "state": "안전",
-   "hazard": false,
-   "status": "재확인 완료",
-   "zone": "남쪽 작업 구역",
-   "x": -6.0,
-   "y": -11.45,
-   "confidence": 1.0,
-   "n_body": 0,
-   "n_ptz": 2,
-   "near_miss": 0,
-   "source": "CCTV 확대",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": null,
-   "checkpoint": "C7",
-   "action": "작업대 정리 상태 양호",
-   "priority": "-",
-   "score": 0,
-   "rank": 19
-  },
-  {
-   "id": "F19",
-   "class": "tool_stored",
-   "label": "작업대에 정리된 공구 (망치)",
-   "tools": [
-    "망치"
-   ],
-   "tool_types": [
-    "hammer"
-   ],
-   "state": "안전",
-   "hazard": false,
-   "status": "재확인 완료",
-   "zone": "남쪽 작업 구역",
-   "x": 6.0,
-   "y": -11.45,
-   "confidence": 1.0,
-   "n_body": 0,
-   "n_ptz": 2,
-   "near_miss": 0,
-   "source": "CCTV 확대",
-   "rechecked": true,
-   "changed_by_recheck": false,
-   "body_class": null,
-   "checkpoint": "C8",
-   "action": "작업대 정리 상태 양호",
-   "priority": "-",
-   "score": 0,
-   "rank": 20
   }
  ],
  "checkpoints": [
   {
    "id": "C1",
    "name": "소화기 1 (서쪽 랙 북쪽 끝)",
-   "status": "현장 확인 필요",
-   "finding": null,
+   "status": "바디캠 확인",
+   "finding": "F08",
    "x": -8.86,
    "y": 12.45
   },
   {
    "id": "C2",
    "name": "소화기 2 (서쪽 랙 남쪽 끝)",
-   "status": "CCTV 확대 확인",
-   "finding": "F03",
+   "status": "주의",
+   "finding": "F02",
    "x": -8.91,
    "y": -3.81
   },
@@ -566,14 +499,14 @@
    "id": "C3",
    "name": "소화기 3 (가운데 랙 북쪽 끝)",
    "status": "바디캠 확인",
-   "finding": "F04",
+   "finding": "F06",
    "x": 0.14,
    "y": 12.45
   },
   {
    "id": "C4",
    "name": "소화기 4 (가운데 랙 남쪽 끝)",
-   "status": "CCTV 확대 확인",
+   "status": "주의",
    "finding": "F14",
    "x": 0.09,
    "y": -3.81
@@ -581,15 +514,15 @@
   {
    "id": "C5",
    "name": "소화기 5 (동쪽 랙 북쪽 끝)",
-   "status": "CCTV 확대 확인",
-   "finding": "F10",
+   "status": "바디캠 확인",
+   "finding": "F09",
    "x": 9.14,
    "y": 12.45
   },
   {
    "id": "C6",
    "name": "소화기 6 (동쪽 랙 남쪽 끝)",
-   "status": "CCTV 확대 확인",
+   "status": "주의",
    "finding": "F13",
    "x": 9.09,
    "y": -3.81
@@ -597,109 +530,109 @@
   {
    "id": "C7",
    "name": "작업대 1 (서쪽)",
-   "status": "CCTV 확대 확인",
-   "finding": "F18",
+   "status": "현장 확인 필요",
+   "finding": null,
    "x": -6.0,
    "y": -11.45
   },
   {
    "id": "C8",
    "name": "작업대 2 (동쪽)",
-   "status": "CCTV 확대 확인",
-   "finding": "F19",
+   "status": "현장 확인 필요",
+   "finding": null,
    "x": 6.0,
    "y": -11.45
   }
  ],
  "zones": [
   {
-   "id": "Z1",
+   "id": "Z2",
    "source": "sign",
    "reason": "DANGER 표지가 세워진 영역",
    "zone": "남쪽 작업 구역",
-   "x": -2.51,
-   "y": -5.77,
+   "x": -2.45,
+   "y": -5.64,
    "radius": 1.2,
    "poly": [
     [
+     -1.25,
+     -5.64
+    ],
+    [
      -1.31,
-     -5.77
+     -5.27
     ],
     [
-     -1.36,
-     -5.4
+     -1.48,
+     -4.94
     ],
     [
-     -1.54,
-     -5.07
+     -1.74,
+     -4.67
     ],
     [
-     -1.8,
-     -4.8
+     -2.08,
+     -4.5
     ],
     [
-     -2.14,
-     -4.63
+     -2.45,
+     -4.44
     ],
     [
-     -2.51,
-     -4.57
+     -2.82,
+     -4.5
     ],
     [
-     -2.88,
-     -4.63
+     -3.15,
+     -4.67
     ],
     [
-     -3.21,
-     -4.8
+     -3.42,
+     -4.94
     ],
     [
-     -3.48,
-     -5.07
-    ],
-    [
-     -3.65,
-     -5.4
-    ],
-    [
-     -3.71,
-     -5.77
+     -3.59,
+     -5.27
     ],
     [
      -3.65,
-     -6.15
+     -5.64
     ],
     [
-     -3.48,
-     -6.48
+     -3.59,
+     -6.01
     ],
     [
-     -3.21,
-     -6.75
+     -3.42,
+     -6.35
     ],
     [
-     -2.88,
-     -6.92
+     -3.15,
+     -6.61
     ],
     [
-     -2.51,
-     -6.97
+     -2.82,
+     -6.78
     ],
     [
-     -2.14,
-     -6.92
+     -2.45,
+     -6.84
     ],
     [
-     -1.8,
-     -6.75
+     -2.08,
+     -6.78
     ],
     [
-     -1.54,
-     -6.48
+     -1.74,
+     -6.61
     ],
     [
-     -1.36,
-     -6.15
+     -1.48,
+     -6.35
+    ],
+    [
+     -1.31,
+     -6.01
     ]
    ],
    "members": [
@@ -709,93 +642,93 @@
    "sign": true
   },
   {
-   "id": "Z2",
+   "id": "Z3",
    "source": "agent",
    "reason": "무너질 듯한 적재 주변 붕괴 위험",
    "zone": "남쪽 작업 구역",
-   "x": -6.66,
-   "y": -5.43,
+   "x": -6.69,
+   "y": -5.42,
    "radius": 1.6,
    "poly": [
     [
-     -5.06,
-     -5.43
+     -5.09,
+     -5.42
     ],
     [
-     -5.14,
-     -4.94
+     -5.16,
+     -4.92
     ],
     [
-     -5.37,
-     -4.49
+     -5.39,
+     -4.47
     ],
     [
-     -5.72,
-     -4.14
+     -5.75,
+     -4.12
     ],
     [
-     -6.17,
-     -3.91
+     -6.19,
+     -3.89
     ],
     [
-     -6.66,
-     -3.83
+     -6.69,
+     -3.82
     ],
     [
-     -7.16,
-     -3.91
+     -7.18,
+     -3.89
     ],
     [
-     -7.6,
-     -4.14
+     -7.63,
+     -4.12
     ],
     [
-     -7.96,
-     -4.49
+     -7.98,
+     -4.47
     ],
     [
-     -8.18,
-     -4.94
+     -8.21,
+     -4.92
     ],
     [
-     -8.26,
-     -5.43
+     -8.29,
+     -5.42
     ],
     [
-     -8.18,
-     -5.92
+     -8.21,
+     -5.91
     ],
     [
-     -7.96,
-     -6.37
+     -7.98,
+     -6.36
     ],
     [
-     -7.6,
-     -6.72
+     -7.63,
+     -6.71
     ],
     [
-     -7.16,
-     -6.95
+     -7.18,
+     -6.94
     ],
     [
-     -6.66,
-     -7.03
+     -6.69,
+     -7.02
     ],
     [
-     -6.17,
-     -6.95
+     -6.19,
+     -6.94
     ],
     [
-     -5.72,
-     -6.72
+     -5.75,
+     -6.71
     ],
     [
-     -5.37,
-     -6.37
+     -5.39,
+     -6.36
     ],
     [
-     -5.14,
-     -5.92
+     -5.16,
+     -5.91
     ]
    ],
    "members": [
@@ -805,93 +738,93 @@
    "sign": false
   },
   {
-   "id": "Z3",
+   "id": "Z4",
    "source": "sign",
    "reason": "DANGER 표지가 세워진 영역",
    "zone": "북쪽 구역",
-   "x": -2.12,
-   "y": 14.32,
+   "x": -2.03,
+   "y": 14.15,
    "radius": 1.2,
    "poly": [
     [
-     -0.92,
-     14.32
+     -0.83,
+     14.15
     ],
     [
-     -0.97,
-     14.69
+     -0.89,
+     14.52
     ],
     [
-     -1.14,
-     15.03
+     -1.06,
+     14.85
     ],
     [
-     -1.41,
+     -1.32,
+     15.12
+    ],
+    [
+     -1.66,
      15.29
     ],
     [
-     -1.74,
-     15.46
+     -2.03,
+     15.35
     ],
     [
-     -2.12,
-     15.52
-    ],
-    [
-     -2.49,
-     15.46
-    ],
-    [
-     -2.82,
+     -2.4,
      15.29
     ],
     [
-     -3.09,
-     15.03
+     -2.73,
+     15.12
     ],
     [
-     -3.26,
-     14.69
+     -3.0,
+     14.85
     ],
     [
-     -3.32,
-     14.32
+     -3.17,
+     14.52
     ],
     [
-     -3.26,
-     13.95
+     -3.23,
+     14.15
     ],
     [
-     -3.09,
-     13.61
+     -3.17,
+     13.77
     ],
     [
-     -2.82,
-     13.35
+     -3.0,
+     13.44
     ],
     [
-     -2.49,
-     13.18
+     -2.73,
+     13.17
     ],
     [
-     -2.12,
-     13.12
+     -2.4,
+     13.0
     ],
     [
-     -1.74,
-     13.18
+     -2.03,
+     12.95
     ],
     [
-     -1.41,
-     13.35
+     -1.66,
+     13.0
     ],
     [
-     -1.14,
-     13.61
+     -1.32,
+     13.17
     ],
     [
-     -0.97,
-     13.95
+     -1.06,
+     13.44
+    ],
+    [
+     -0.89,
+     13.77
     ]
    ],
    "members": [
@@ -901,103 +834,103 @@
    "sign": true
   },
   {
-   "id": "Z4",
+   "id": "Z5",
    "source": "agent",
    "reason": "방치된 유출 주변 미끄럼 위험",
    "zone": "동쪽 통로",
-   "x": 3.8,
-   "y": 6.45,
+   "x": 3.79,
+   "y": 6.31,
    "radius": 1.3,
    "poly": [
     [
-     5.1,
-     6.45
+     5.09,
+     6.31
     ],
     [
-     5.04,
-     6.85
-    ],
-    [
-     4.85,
-     7.22
-    ],
-    [
-     4.57,
-     7.5
-    ],
-    [
-     4.2,
-     7.69
-    ],
-    [
-     3.8,
-     7.75
-    ],
-    [
-     3.4,
-     7.69
-    ],
-    [
-     3.04,
-     7.5
-    ],
-    [
-     2.75,
-     7.22
-    ],
-    [
-     2.57,
-     6.85
-    ],
-    [
-     2.5,
-     6.45
-    ],
-    [
-     2.57,
-     6.05
-    ],
-    [
-     2.75,
-     5.69
-    ],
-    [
-     3.04,
-     5.4
-    ],
-    [
-     3.4,
-     5.22
-    ],
-    [
-     3.8,
-     5.15
-    ],
-    [
-     4.2,
-     5.22
-    ],
-    [
-     4.57,
-     5.4
+     5.03,
+     6.72
     ],
     [
      4.85,
-     5.69
+     7.08
     ],
     [
-     5.04,
-     6.05
+     4.56,
+     7.37
+    ],
+    [
+     4.2,
+     7.55
+    ],
+    [
+     3.79,
+     7.61
+    ],
+    [
+     3.39,
+     7.55
+    ],
+    [
+     3.03,
+     7.37
+    ],
+    [
+     2.74,
+     7.08
+    ],
+    [
+     2.56,
+     6.72
+    ],
+    [
+     2.49,
+     6.31
+    ],
+    [
+     2.56,
+     5.91
+    ],
+    [
+     2.74,
+     5.55
+    ],
+    [
+     3.03,
+     5.26
+    ],
+    [
+     3.39,
+     5.08
+    ],
+    [
+     3.79,
+     5.01
+    ],
+    [
+     4.2,
+     5.08
+    ],
+    [
+     4.56,
+     5.26
+    ],
+    [
+     4.85,
+     5.55
+    ],
+    [
+     5.03,
+     5.91
     ]
    ],
    "members": [
-    "F05"
+    "F04"
    ],
    "n_cones": 0,
    "sign": false
   },
   {
-   "id": "Z5",
+   "id": "Z6",
    "source": "agent",
    "reason": "방치된 유출 주변 미끄럼 위험",
    "zone": "북쪽 구역",
@@ -1087,291 +1020,387 @@
     ]
    ],
    "members": [
+    "F03"
+   ],
+   "n_cones": 0,
+   "sign": false
+  },
+  {
+   "id": "Z8",
+   "source": "sign",
+   "reason": "DANGER 표지가 세워진 영역",
+   "zone": "북쪽 구역",
+   "x": -2.39,
+   "y": 13.61,
+   "radius": 1.2,
+   "poly": [
+    [
+     -1.19,
+     13.61
+    ],
+    [
+     -1.25,
+     13.98
+    ],
+    [
+     -1.42,
+     14.31
+    ],
+    [
+     -1.69,
+     14.58
+    ],
+    [
+     -2.02,
+     14.75
+    ],
+    [
+     -2.39,
+     14.81
+    ],
+    [
+     -2.76,
+     14.75
+    ],
+    [
+     -3.1,
+     14.58
+    ],
+    [
+     -3.36,
+     14.31
+    ],
+    [
+     -3.53,
+     13.98
+    ],
+    [
+     -3.59,
+     13.61
+    ],
+    [
+     -3.53,
+     13.24
+    ],
+    [
+     -3.36,
+     12.9
+    ],
+    [
+     -3.1,
+     12.64
+    ],
+    [
+     -2.76,
+     12.47
+    ],
+    [
+     -2.39,
+     12.41
+    ],
+    [
+     -2.02,
+     12.47
+    ],
+    [
+     -1.69,
+     12.64
+    ],
+    [
+     -1.42,
+     12.9
+    ],
+    [
+     -1.25,
+     13.24
+    ]
+   ],
+   "members": [
+    "S06"
+   ],
+   "n_cones": 0,
+   "sign": true
+  },
+  {
+   "id": "Z9",
+   "source": "agent",
+   "reason": "방치된 유출 주변 미끄럼 위험",
+   "zone": "북쪽 구역",
+   "x": 0.42,
+   "y": 17.0,
+   "radius": 1.3,
+   "poly": [
+    [
+     1.72,
+     17.0
+    ],
+    [
+     1.66,
+     17.4
+    ],
+    [
+     1.47,
+     17.76
+    ],
+    [
+     1.19,
+     18.05
+    ],
+    [
+     0.82,
+     18.23
+    ],
+    [
+     0.42,
+     18.3
+    ],
+    [
+     0.02,
+     18.23
+    ],
+    [
+     -0.34,
+     18.05
+    ],
+    [
+     -0.63,
+     17.76
+    ],
+    [
+     -0.81,
+     17.4
+    ],
+    [
+     -0.88,
+     17.0
+    ],
+    [
+     -0.81,
+     16.6
+    ],
+    [
+     -0.63,
+     16.23
+    ],
+    [
+     -0.34,
+     15.95
+    ],
+    [
+     0.02,
+     15.76
+    ],
+    [
+     0.42,
+     15.7
+    ],
+    [
+     0.82,
+     15.76
+    ],
+    [
+     1.19,
+     15.95
+    ],
+    [
+     1.47,
+     16.23
+    ],
+    [
+     1.66,
+     16.6
+    ]
+   ],
+   "members": [
     "F07"
    ],
    "n_cones": 0,
    "sign": false
   },
   {
-   "id": "Z6",
+   "id": "Z9",
    "source": "agent",
-   "reason": "방치된 유출 주변 미끄럼 위험",
+   "reason": "무너질 듯한 적재 주변 붕괴 위험",
    "zone": "북쪽 구역",
-   "x": 0.4,
-   "y": 17.0,
-   "radius": 1.3,
+   "x": 6.85,
+   "y": 16.58,
+   "radius": 1.6,
    "poly": [
     [
-     1.7,
-     17.0
+     8.45,
+     16.58
     ],
     [
-     1.63,
-     17.4
+     8.37,
+     17.08
     ],
     [
-     1.45,
-     17.77
+     8.15,
+     17.52
     ],
     [
-     1.16,
-     18.05
+     7.79,
+     17.88
     ],
     [
-     0.8,
-     18.24
+     7.35,
+     18.1
     ],
     [
-     0.4,
-     18.3
+     6.85,
+     18.18
     ],
     [
-     -0.01,
-     18.24
+     6.36,
+     18.1
     ],
     [
-     -0.37,
-     18.05
+     5.91,
+     17.88
     ],
     [
-     -0.66,
-     17.77
+     5.56,
+     17.52
     ],
     [
-     -0.84,
-     17.4
+     5.33,
+     17.08
     ],
     [
-     -0.9,
-     17.0
+     5.25,
+     16.58
     ],
     [
-     -0.84,
-     16.6
+     5.33,
+     16.09
     ],
     [
-     -0.66,
-     16.24
+     5.56,
+     15.64
     ],
     [
-     -0.37,
-     15.95
+     5.91,
+     15.29
     ],
     [
-     -0.01,
-     15.76
+     6.36,
+     15.06
     ],
     [
-     0.4,
-     15.7
+     6.85,
+     14.98
     ],
     [
-     0.8,
-     15.76
+     7.35,
+     15.06
     ],
     [
-     1.16,
-     15.95
+     7.79,
+     15.29
     ],
     [
-     1.45,
-     16.24
+     8.15,
+     15.64
     ],
     [
-     1.63,
-     16.6
+     8.37,
+     16.09
     ]
    ],
    "members": [
-    "F08"
+    "F05"
    ],
    "n_cones": 0,
    "sign": false
   },
   {
-   "id": "Z7",
-   "source": "sign",
-   "reason": "DANGER 표지가 세워진 영역",
-   "zone": "북쪽 구역",
-   "x": -2.4,
-   "y": 13.65,
-   "radius": 1.2,
-   "poly": [
-    [
-     -1.2,
-     13.65
-    ],
-    [
-     -1.26,
-     14.02
-    ],
-    [
-     -1.43,
-     14.35
-    ],
-    [
-     -1.69,
-     14.62
-    ],
-    [
-     -2.03,
-     14.79
-    ],
-    [
-     -2.4,
-     14.85
-    ],
-    [
-     -2.77,
-     14.79
-    ],
-    [
-     -3.1,
-     14.62
-    ],
-    [
-     -3.37,
-     14.35
-    ],
-    [
-     -3.54,
-     14.02
-    ],
-    [
-     -3.6,
-     13.65
-    ],
-    [
-     -3.54,
-     13.28
-    ],
-    [
-     -3.37,
-     12.94
-    ],
-    [
-     -3.1,
-     12.68
-    ],
-    [
-     -2.77,
-     12.51
-    ],
-    [
-     -2.4,
-     12.45
-    ],
-    [
-     -2.03,
-     12.51
-    ],
-    [
-     -1.69,
-     12.68
-    ],
-    [
-     -1.43,
-     12.94
-    ],
-    [
-     -1.26,
-     13.28
-    ]
-   ],
-   "members": [
-    "S03"
-   ],
-   "n_cones": 0,
-   "sign": true
-  },
-  {
-   "id": "Z8",
+   "id": "Z9",
    "source": "agent",
    "reason": "방치된 유출 주변 미끄럼 위험",
    "zone": "남쪽 작업 구역",
-   "x": 2.93,
-   "y": -4.93,
+   "x": 2.9,
+   "y": -4.96,
    "radius": 1.3,
    "poly": [
     [
-     4.23,
-     -4.93
+     4.2,
+     -4.96
     ],
     [
-     4.17,
-     -4.52
+     4.14,
+     -4.55
     ],
     [
-     3.98,
-     -4.16
+     3.95,
+     -4.19
     ],
     [
-     3.7,
-     -3.87
+     3.67,
+     -3.9
     ],
     [
-     3.33,
-     -3.69
+     3.3,
+     -3.72
     ],
     [
-     2.93,
-     -3.63
+     2.9,
+     -3.66
     ],
     [
-     2.53,
-     -3.69
+     2.5,
+     -3.72
     ],
     [
-     2.17,
-     -3.87
+     2.14,
+     -3.9
     ],
     [
-     1.88,
-     -4.16
+     1.85,
+     -4.19
     ],
     [
-     1.7,
-     -4.52
+     1.67,
+     -4.55
     ],
     [
-     1.63,
-     -4.93
+     1.6,
+     -4.96
     ],
     [
-     1.7,
-     -5.33
+     1.67,
+     -5.36
     ],
     [
-     1.88,
-     -5.69
+     1.85,
+     -5.72
     ],
     [
-     2.17,
-     -5.98
+     2.14,
+     -6.01
     ],
     [
-     2.53,
-     -6.16
+     2.5,
+     -6.19
     ],
     [
-     2.93,
-     -6.23
+     2.9,
+     -6.26
     ],
     [
-     3.33,
-     -6.16
+     3.3,
+     -6.19
     ],
     [
-     3.7,
-     -5.98
+     3.67,
+     -6.01
     ],
     [
-     3.98,
-     -5.69
+     3.95,
+     -5.72
     ],
     [
-     4.17,
-     -5.33
+     4.14,
+     -5.36
     ]
    ],
    "members": [
@@ -1383,41 +1412,77 @@
  ],
  "voice": [
   {
-   "t": 2.4333333333333345,
-   "target": "Z:Z1",
-   "dist": 0.41,
-   "what": "위험 영역 Z1 (DANGER 표지가 세워진 영역) 0.4 m"
+   "t": 2.4309000000000043,
+   "target": "Z:Z2",
+   "dist": 0.49,
+   "what": "위험 영역 Z2 (DANGER 표지가 세워진 영역) 0.5 m",
+   "level": "hazard",
+   "vibration": "strong",
+   "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
   },
   {
-   "t": 20.233333333333498,
-   "target": "Z:Z7",
-   "dist": 0.38,
-   "what": "위험 영역 Z7 (DANGER 표지가 세워진 영역) 0.4 m"
-  },
-  {
-   "t": 32.83333333333403,
-   "target": "Z:Z4",
-   "dist": 0.46,
-   "what": "위험 영역 Z4 (방치된 유출 주변 미끄럼 위험) 0.5 m"
-  },
-  {
-   "t": 42.633333333333475,
+   "t": 20.21310000000017,
    "target": "Z:Z8",
-   "dist": 0.47,
-   "what": "위험 영역 Z8 (방치된 유출 주변 미끄럼 위험) 0.5 m"
+   "dist": 0.39,
+   "what": "위험 영역 Z8 (DANGER 표지가 세워진 영역) 0.4 m",
+   "level": "hazard",
+   "vibration": "strong",
+   "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+  },
+  {
+   "t": 27.805500000000297,
+   "target": "Z:Z1",
+   "dist": 0.33,
+   "what": "위험 영역 Z1 (컨베이어 작동 중 (끼임 위험)) 0.3 m",
+   "level": "hazard",
+   "vibration": "strong",
+   "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+  },
+  {
+   "t": 42.79049999999939,
+   "target": "Z:Z9",
+   "dist": 0.42,
+   "what": "위험 영역 Z9 (방치된 유출 주변 미끄럼 위험) 0.4 m",
+   "level": "hazard",
+   "vibration": "strong",
+   "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+  }
+ ],
+ "machines": [
+  {
+   "id": "M1",
+   "name": "컨베이어",
+   "on": false,
+   "zone_alerts": 1,
+   "pinch_alerts": 1,
+   "pinch_fallback": 1
+  }
+ ],
+ "pinch_events": [
+  {
+   "t": 28.804500000000314,
+   "machine": "M1",
+   "dist_cm": 3.0,
+   "fallback": true,
+   "say": "손 빼세요",
+   "level": "critical"
   }
  ],
  "stats": {
-  "zones": 8,
-  "recheck_requested": 17,
+  "zones": 11,
+  "ambiguous_caution": 9,
   "voice": 4,
-  "recheck_run": 15,
-  "recheck_found": 12,
-  "recheck_escalated": 3,
-  "recheck_changed": 1,
-  "recheck_canceled": 2
+  "caution_rejudged": 38,
+  "ambiguous_hazard": 4,
+  "caution_rejudged_confirmed": 1,
+  "pinch_alert": 1
  },
  "timeline": [
+  {
+   "t": 0.0,
+   "kind": "위험구역",
+   "text": "Z1 컨베이어 작동 시작 → 끼임점 반경 1.5 m 위험구역 설정"
+  },
   {
    "t": 0.0,
    "kind": "계획",
@@ -1426,477 +1491,412 @@
   {
    "t": 0.0,
    "kind": "계획",
-   "text": "통로 바닥(유출, 공구, 적재)은 바디캠, 점검표 8곳은 바디캠으로 보되 못 보면 CCTV 확대로 확인"
+   "text": "통로 바닥(유출, 공구, 적재)과 점검표 8곳 모두 바디캠으로 확인한다. 애매하면 고위험 후보가 있는 쪽은 즉시 위험으로, 없으면 주의로 분류해 다시 지나칠 때 재판단한다"
   },
   {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C1 소화기 1 (서쪽 랙 북쪽 끝)  (확대 가능 CCTV: cctv_east)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C2 소화기 2 (서쪽 랙 남쪽 끝)  (확대 가능 CCTV: cctv_west, cctv_south)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C3 소화기 3 (가운데 랙 북쪽 끝)  (확대 가능 CCTV: cctv_east)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C4 소화기 4 (가운데 랙 남쪽 끝)  (확대 가능 CCTV: cctv_west, cctv_south)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C5 소화기 5 (동쪽 랙 북쪽 끝)  (확대 가능 CCTV: cctv_east)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C6 소화기 6 (동쪽 랙 남쪽 끝)  (확대 가능 CCTV: cctv_west)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C7 작업대 1 (서쪽)  (확대 가능 CCTV: cctv_west, cctv_south)"
-  },
-  {
-   "t": 0.0,
-   "kind": "계획",
-   "text": "점검표 C8 작업대 2 (동쪽)  (확대 가능 CCTV: cctv_south, cctv_west, cctv_east)"
-  },
-  {
-   "t": 0.6333333333333333,
+   "t": 0.6327,
    "kind": "위험 영역",
-   "text": "Z1 DANGER 표지가 세워진 영역 (남쪽 작업 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
+   "text": "Z2 DANGER 표지가 세워진 영역 (남쪽 작업 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
   },
   {
-   "t": 0.8333333333333333,
+   "t": 0.8325,
    "kind": "판정",
    "text": "바디캠 위험 무너질 듯한 적재  |  남쪽 작업 구역  |  YOLO 96%  → 대장 F01"
   },
   {
-   "t": 0.8333333333333333,
+   "t": 0.8325,
    "kind": "위험 영역",
-   "text": "Z2 무너질 듯한 적재 주변 붕괴 위험 (남쪽 작업 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+   "text": "Z3 무너질 듯한 적재 주변 붕괴 위험 (남쪽 작업 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
   },
   {
-   "t": 1.2333333333333338,
-   "kind": "재확인 계획",
-   "text": "F02 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (통로에 방치된 공구?) → cctv_west 확대로 재확인 예약 (5 m)"
+   "t": 1.4319000000000013,
+   "kind": "주의",
+   "text": "F02 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (정상 비치 소화기), 다시 보이면 재판단"
   },
   {
-   "t": 1.2333333333333338,
-   "kind": "재확인 계획",
-   "text": "F03 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (정상 비치 소화기?) → cctv_west 확대로 재확인 예약 (10 m, cctv_south 는 F01 적재에 가림)"
-  },
-  {
-   "t": 2.4333333333333345,
+   "t": 2.4309000000000043,
    "kind": "음성 경고",
-   "text": "\"경고 경고 위험 요소가 식별되었습니다\" ← 작업자 ↔ 위험 영역 Z1 (DANGER 표지가 세워진 영역) 0.4 m"
+   "text": "\"경고! 경고! 멈추세요! 위험 요소가 식별되었습니다.\" ← 작업자 ↔ 위험 영역 Z2 (DANGER 표지가 세워진 영역) 0.5 m"
   },
   {
-   "t": 3.433333333333331,
-   "kind": "CCTV 선택",
-   "text": "cctv_west PTZ 를 F02 남쪽 작업 구역 쪽으로 돌려 확대 (화각 40°, 5 m)"
+   "t": 5.028299999999999,
+   "kind": "주의",
+   "text": "F02 재관측했지만 여전히 못 가름 → 주의 유지"
   },
   {
-   "t": 3.63333333333333,
-   "kind": "재확인",
-   "text": "F02 cctv_west 확대 결과 위험 통로에 방치된 공구 (삽) 88% 확인"
-  },
-  {
-   "t": 3.8333333333333295,
-   "kind": "CCTV 선택",
-   "text": "cctv_west PTZ 를 F03 남쪽 작업 구역 쪽으로 돌려 확대 (화각 23°, 10 m)"
-  },
-  {
-   "t": 4.033333333333329,
-   "kind": "재확인",
-   "text": "F03 cctv_west 확대 결과 안전 정상 비치 소화기 91% 확인"
-  },
-  {
-   "t": 4.033333333333329,
-   "kind": "점검표",
-   "text": "C2 소화기 2 (서쪽 랙 남쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F03)"
-  },
-  {
-   "t": 5.2333333333333245,
+   "t": 5.228099999999997,
    "kind": "위험 영역",
-   "text": "Z3 DANGER 표지가 세워진 영역 (북쪽 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
+   "text": "Z4 DANGER 표지가 세워진 영역 (북쪽 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
   },
   {
-   "t": 5.2333333333333245,
-   "kind": "접근 경고",
-   "text": "cctv_south: 작업자 ↔ 무너질 듯한 적재 1.8 m  |  남쪽 작업 구역 → 대장 F01 우선순위 올림"
+   "t": 6.626699999999983,
+   "kind": "주의",
+   "text": "F03 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (앞이 가로막힌 소화기), 다시 보이면 재판단"
   },
   {
-   "t": 6.6333333333333195,
-   "kind": "재확인 계획",
-   "text": "F04 북쪽 구역: 바디캠에 1프레임만 보이고 지나감 (앞이 가로막힌 소화기?) → cctv_east 확대로 재확인 예약 (8 m)"
-  },
-  {
-   "t": 7.633333333333316,
-   "kind": "재확인 계획",
-   "text": "F05 동쪽 통로: 바디캠에 1프레임만 보이고 지나감 (방치된 유출 (기름/물)?) → cctv_east 확대로 재확인 예약 (12 m)"
-  },
-  {
-   "t": 8.633333333333313,
-   "kind": "재확인 계획",
-   "text": "F06 북쪽 구역: 바디캠에 1프레임만 보이고 지나감 (반듯한 적재?) → cctv_east 확대로 재확인 예약 (5 m)"
-  },
-  {
-   "t": 8.833333333333313,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 F04 북쪽 구역 쪽으로 돌려 확대 (화각 28°, 8 m)"
-  },
-  {
-   "t": 8.833333333333313,
+   "t": 7.625699999999973,
    "kind": "판정",
-   "text": "바디캠 위험 앞이 가로막힌 소화기  |  북쪽 구역  |  YOLO 52%  → 대장 F04"
+   "text": "F04 바디캠에 1프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 방치된 유출 (기름/물) 로 확정"
   },
   {
-   "t": 8.833333333333313,
-   "kind": "점검표",
-   "text": "C3 소화기 3 (가운데 랙 북쪽 끝) 확인: 위험 앞이 가로막힌 소화기 (대장 F04)"
-  },
-  {
-   "t": 9.033333333333312,
-   "kind": "재확인",
-   "text": "F04 cctv_east 확대 결과 위험 앞이 가로막힌 소화기 96% 확인"
-  },
-  {
-   "t": 9.833333333333309,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 F05 동쪽 통로 쪽으로 돌려 확대 (화각 20°, 12 m)"
-  },
-  {
-   "t": 10.033333333333308,
-   "kind": "위치 보정",
-   "text": "F05 확대 화면으로 위치를 (+4.5, +6.9) → (+3.9, +6.5) 로 고침"
-  },
-  {
-   "t": 10.033333333333308,
-   "kind": "재확인",
-   "text": "F05 cctv_east 확대 결과 위험 방치된 유출 (기름/물) 96% 확인"
-  },
-  {
-   "t": 10.233333333333308,
+   "t": 7.625699999999973,
    "kind": "위험 영역",
-   "text": "Z4 방치된 유출 주변 미끄럼 위험 (동쪽 통로, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+   "text": "Z5 방치된 유출 주변 미끄럼 위험 (동쪽 통로, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
   },
   {
-   "t": 10.833333333333306,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 F06 북쪽 구역 쪽으로 돌려 확대 (화각 41°, 5 m)"
-  },
-  {
-   "t": 11.033333333333305,
-   "kind": "위치 보정",
-   "text": "F06 확대 화면으로 위치를 (+7.3, +16.4) → (+6.8, +16.9) 로 고침"
-  },
-  {
-   "t": 11.033333333333305,
-   "kind": "재확인",
-   "text": "F06 cctv_east 확대 결과 안전 반듯한 적재 96% 확인"
-  },
-  {
-   "t": 11.833333333333302,
+   "t": 8.824499999999983,
    "kind": "판정",
-   "text": "바디캠 안전 반듯한 적재  |  북쪽 구역  |  YOLO 87%  → 대장 F06"
+   "text": "F03 재관측 (규칙) → 고위험 후보 포함, 위험 방치된 유출 (기름/물) 로 확정"
   },
   {
-   "t": 12.4333333333333,
-   "kind": "판정",
-   "text": "바디캠 위험 방치된 유출 (기름/물)  |  북쪽 구역  |  YOLO 53%  → 대장 F07"
-  },
-  {
-   "t": 12.4333333333333,
-   "kind": "위험 영역",
-   "text": "Z5 방치된 유출 주변 미끄럼 위험 (북쪽 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
-  },
-  {
-   "t": 13.433333333333296,
-   "kind": "재확인 계획",
-   "text": "F07 북쪽 구역: 판정이 엇갈림 (방치된 유출 (기름/물) 67%, 앞이 가로막힌 소화기 33%) → cctv_east 확대로 재확인 예약 (8 m)"
-  },
-  {
-   "t": 15.03333333333329,
-   "kind": "판정",
-   "text": "바디캠 위험 방치된 유출 (기름/물)  |  북쪽 구역  |  YOLO 88%  → 대장 F08"
-  },
-  {
-   "t": 15.03333333333329,
+   "t": 8.824499999999983,
    "kind": "위험 영역",
    "text": "Z6 방치된 유출 주변 미끄럼 위험 (북쪽 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
   },
   {
-   "t": 15.23333333333329,
+   "t": 11.621700000000029,
+   "kind": "판정",
+   "text": "바디캠 위험 무너질 듯한 적재  |  북쪽 구역  |  YOLO 68%  → 대장 F05"
+  },
+  {
+   "t": 11.621700000000029,
    "kind": "위험 영역",
-   "text": "Z7 DANGER 표지가 세워진 영역 (북쪽 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
+   "text": "Z7 무너질 듯한 적재 주변 붕괴 위험 (북쪽 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
   },
   {
-   "t": 15.633333333333288,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 F07 북쪽 구역 쪽으로 돌려 확대 (화각 27°, 8 m)"
+   "t": 12.021300000000036,
+   "kind": "판정",
+   "text": "바디캠 위험 앞이 가로막힌 소화기  |  북쪽 구역  |  YOLO 90%  → 대장 F06"
   },
   {
-   "t": 15.833333333333288,
-   "kind": "재확인",
-   "text": "F07 확대로 못 봄 → 바디캠 판정 유지 (위험 방치된 유출 (기름/물))"
+   "t": 12.021300000000036,
+   "kind": "점검표",
+   "text": "C3 소화기 3 (가운데 랙 북쪽 끝) 확인: 위험 앞이 가로막힌 소화기 (대장 F06)"
   },
   {
-   "t": 16.43333333333331,
-   "kind": "재확인 계획",
-   "text": "F09 북쪽 구역: 바디캠에 1프레임만 보이고 지나감 (쓰러진 소화기?) → cctv_east 확대로 재확인 예약 (15 m)"
+   "t": 14.618700000000079,
+   "kind": "위험 영역",
+   "text": "Z8 DANGER 표지가 세워진 영역 (북쪽 구역, 반지름 약 1.2 m) → DANGER 표지를 알아봄, 위험 영역으로 설정"
   },
   {
-   "t": 18.433333333333408,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 F09 북쪽 구역 쪽으로 돌려 확대 (화각 15°, 15 m)"
+   "t": 15.417900000000092,
+   "kind": "판정",
+   "text": "바디캠 위험 방치된 유출 (기름/물)  |  북쪽 구역  |  YOLO 90%  → 대장 F07"
   },
   {
-   "t": 18.633333333333418,
-   "kind": "현장 확인",
-   "text": "F09 북쪽 구역 쓰러진 소화기? 카메라로 확정 못 함 → 현장 확인 요청"
+   "t": 15.417900000000092,
+   "kind": "위험 영역",
+   "text": "Z9 방치된 유출 주변 미끄럼 위험 (북쪽 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
   },
   {
-   "t": 20.233333333333498,
+   "t": 16.61670000000011,
+   "kind": "판정",
+   "text": "F08 바디캠에 1프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 쓰러진 소화기 로 확정"
+  },
+  {
+   "t": 16.61670000000011,
+   "kind": "점검표",
+   "text": "C1 소화기 1 (서쪽 랙 북쪽 끝) 확인: 위험 쓰러진 소화기 (대장 F08)"
+  },
+  {
+   "t": 20.21310000000017,
    "kind": "음성 경고",
-   "text": "\"경고 경고 위험 요소가 식별되었습니다\" ← 작업자 ↔ 위험 영역 Z7 (DANGER 표지가 세워진 영역) 0.4 m"
+   "text": "\"경고! 경고! 멈추세요! 위험 요소가 식별되었습니다.\" ← 작업자 ↔ 위험 영역 Z8 (DANGER 표지가 세워진 영역) 0.4 m"
   },
   {
-   "t": 21.033333333333537,
-   "kind": "재확인 계획",
-   "text": "F10 북쪽 구역: 바디캠에 2프레임만 보이고 지나감 (앞이 가로막힌 소화기?) → cctv_east 확대로 재확인 예약 (8 m)"
-  },
-  {
-   "t": 23.033333333333637,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 F10 북쪽 구역 쪽으로 돌려 확대 (화각 28°, 8 m)"
-  },
-  {
-   "t": 23.233333333333647,
+   "t": 20.612700000000178,
    "kind": "판정 수정",
-   "text": "F10 cctv_east 확대 결과 정상 비치 소화기 88% → 앞이 가로막힌 소화기 에서 안전 정상 비치 소화기 로 고침"
+   "text": "F05 다시 보니 무너질 듯한 적재 → 안전 반듯한 적재"
   },
   {
-   "t": 23.233333333333647,
+   "t": 21.212100000000188,
+   "kind": "판정",
+   "text": "바디캠 위험 앞이 가로막힌 소화기  |  북쪽 구역  |  YOLO 61%  → 대장 F09"
+  },
+  {
+   "t": 21.212100000000188,
    "kind": "점검표",
-   "text": "C5 소화기 5 (동쪽 랙 북쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F10)"
+   "text": "C5 소화기 5 (동쪽 랙 북쪽 끝) 확인: 위험 앞이 가로막힌 소화기 (대장 F09)"
   },
   {
-   "t": 27.633333333333866,
-   "kind": "재확인 계획",
-   "text": "F11 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (반듯한 적재?) → cctv_west 확대로 재확인 예약 (8 m)"
+   "t": 21.611700000000194,
+   "kind": "판정 수정",
+   "text": "F09 가까이서 다시 보니 앞이 가로막힌 소화기 → 안전 반듯한 적재"
   },
   {
-   "t": 28.433333333333906,
-   "kind": "재확인 계획",
-   "text": "F12 남쪽 작업 구역: 바디캠에 2프레임만 보이고 지나감 (반듯한 적재?) → cctv_south 확대로 재확인 예약 (8 m)"
-  },
-  {
-   "t": 28.433333333333906,
-   "kind": "재확인 계획",
-   "text": "F13 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (앞이 가로막힌 소화기?) → cctv_west 확대로 재확인 예약 (16 m)"
-  },
-  {
-   "t": 28.633333333333916,
+   "t": 21.811500000000198,
    "kind": "판정",
-   "text": "바디캠 위험 방치된 유출 (기름/물)  |  동쪽 통로  |  YOLO 85%  → 대장 F05"
+   "text": "F05 판정이 엇갈림 → 고위험 후보 포함, 즉시 위험 무너질 듯한 적재 로 확정"
   },
   {
-   "t": 29.233333333333945,
-   "kind": "재확인 취소",
-   "text": "F11 기다리는 동안 바디캠이 다시 보고 확정 → CCTV 확대 안 함"
-  },
-  {
-   "t": 29.233333333333945,
-   "kind": "판정",
-   "text": "바디캠 안전 반듯한 적재  |  남쪽 작업 구역  |  YOLO 92%  → 대장 F11"
-  },
-  {
-   "t": 29.833333333333975,
-   "kind": "재확인 취소",
-   "text": "F12 기다리는 동안 바디캠이 다시 보고 확정 → CCTV 확대 안 함"
-  },
-  {
-   "t": 29.833333333333975,
-   "kind": "판정",
-   "text": "바디캠 안전 반듯한 적재  |  남쪽 작업 구역  |  YOLO 91%  → 대장 F12"
-  },
-  {
-   "t": 30.433333333334005,
-   "kind": "CCTV 선택",
-   "text": "cctv_west PTZ 를 F13 남쪽 작업 구역 쪽으로 돌려 확대 (화각 14°, 16 m)"
-  },
-  {
-   "t": 30.433333333334005,
-   "kind": "재확인 계획",
-   "text": "F14 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (정상 비치 소화기?) → cctv_west 확대로 재확인 예약 (10 m)"
-  },
-  {
-   "t": 30.633333333334015,
-   "kind": "재확인",
-   "text": "F13 cctv_west 확대 결과 위험 앞이 가로막힌 소화기 67% 확인"
-  },
-  {
-   "t": 30.633333333334015,
-   "kind": "점검표",
-   "text": "C6 소화기 6 (동쪽 랙 남쪽 끝) 확인: 위험 앞이 가로막힌 소화기 (대장 F13)"
-  },
-  {
-   "t": 30.833333333334025,
-   "kind": "판정",
-   "text": "바디캠 위험 앞이 가로막힌 소화기  |  남쪽 작업 구역  |  YOLO 55%  → 대장 F13"
-  },
-  {
-   "t": 32.433333333334055,
-   "kind": "CCTV 선택",
-   "text": "cctv_west PTZ 를 F14 남쪽 작업 구역 쪽으로 돌려 확대 (화각 23°, 10 m)"
-  },
-  {
-   "t": 32.63333333333404,
-   "kind": "재확인",
-   "text": "F14 cctv_west 확대 결과 안전 정상 비치 소화기 92% 확인"
-  },
-  {
-   "t": 32.63333333333404,
-   "kind": "점검표",
-   "text": "C4 소화기 4 (가운데 랙 남쪽 끝) 확인: 안전 정상 비치 소화기 (대장 F14)"
-  },
-  {
-   "t": 32.83333333333403,
-   "kind": "음성 경고",
-   "text": "\"경고 경고 위험 요소가 식별되었습니다\" ← 작업자 ↔ 위험 영역 Z4 (방치된 유출 주변 미끄럼 위험) 0.5 m"
-  },
-  {
-   "t": 33.433333333334,
-   "kind": "접근 경고",
-   "text": "cctv_east: 작업자 ↔ 방치된 유출 (기름/물) 1.4 m  |  동쪽 통로 → 대장 F05 우선순위 올림"
-  },
-  {
-   "t": 34.033333333333964,
-   "kind": "재확인 계획",
-   "text": "F15 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (방치된 유출 (기름/물)?) → cctv_south 확대로 재확인 예약 (10 m)"
-  },
-  {
-   "t": 35.03333333333391,
-   "kind": "판정",
-   "text": "바디캠 안전 반듯한 적재  |  남쪽 작업 구역  |  YOLO 93%  → 대장 F16"
-  },
-  {
-   "t": 36.23333333333384,
-   "kind": "CCTV 선택",
-   "text": "cctv_south PTZ 를 F15 남쪽 작업 구역 쪽으로 돌려 확대 (화각 22°, 10 m)"
-  },
-  {
-   "t": 36.23333333333384,
-   "kind": "판정",
-   "text": "바디캠 안전 정상 비치 소화기  |  남쪽 작업 구역  |  YOLO 89%  → 대장 F14"
-  },
-  {
-   "t": 36.43333333333383,
-   "kind": "재확인",
-   "text": "F15 cctv_south 확대 결과 위험 방치된 유출 (기름/물) 95% 확인"
-  },
-  {
-   "t": 36.633333333333816,
+   "t": 21.811500000000198,
    "kind": "위험 영역",
-   "text": "Z8 방치된 유출 주변 미끄럼 위험 (남쪽 작업 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+   "text": "Z9 무너질 듯한 적재 주변 붕괴 위험 (북쪽 구역, 반지름 약 1.6 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
   },
   {
-   "t": 38.433333333333714,
-   "kind": "재확인 계획",
-   "text": "F17 남쪽 작업 구역: 바디캠에 1프레임만 보이고 지나감 (통로에 방치된 공구?) → cctv_south 확대로 재확인 예약 (6 m)"
+   "t": 22.61070000000021,
+   "kind": "주의",
+   "text": "F09 판정이 엇갈림 → 안전·위험을 가르지 못해 주의로 분류 (반듯한 적재), 다시 보이면 재판단"
   },
   {
-   "t": 39.633333333333645,
-   "kind": "판정",
-   "text": "바디캠 위험 방치된 유출 (기름/물)  |  남쪽 작업 구역  |  YOLO 91%  → 대장 F15"
+   "t": 23.80950000000023,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.9 m (2 m 안, 경고 없음) → 대장 F07 우선순위 올림"
   },
   {
-   "t": 40.63333333333359,
-   "kind": "CCTV 선택",
-   "text": "cctv_south PTZ 를 F17 남쪽 작업 구역 쪽으로 돌려 확대 (화각 37°, 6 m)"
+   "t": 26.406900000000274,
+   "kind": "주의",
+   "text": "F10 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (정상 비치 소화기), 다시 보이면 재판단"
   },
   {
-   "t": 40.83333333333358,
-   "kind": "재확인",
-   "text": "F17 cctv_south 확대 결과 위험 통로에 방치된 공구 (전동톱) 93% 확인"
+   "t": 27.805500000000297,
+   "kind": "주의",
+   "text": "F10 재관측했지만 여전히 못 가름 → 주의 유지"
   },
   {
-   "t": 42.633333333333475,
+   "t": 27.805500000000297,
    "kind": "음성 경고",
-   "text": "\"경고 경고 위험 요소가 식별되었습니다\" ← 작업자 ↔ 위험 영역 Z8 (방치된 유출 주변 미끄럼 위험) 0.5 m"
+   "text": "\"경고! 경고! 멈추세요! 위험 요소가 식별되었습니다.\" ← 작업자 ↔ 위험 영역 Z1 (컨베이어 작동 중 (끼임 위험)) 0.3 m"
   },
   {
-   "t": 42.633333333333475,
-   "kind": "접근 경고",
-   "text": "cctv_south: 작업자 ↔ 방치된 유출 (기름/물) 1.9 m  |  남쪽 작업 구역 → 대장 F15 우선순위 올림"
+   "t": 28.205100000000304,
+   "kind": "주의",
+   "text": "F11 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (반듯한 적재), 다시 보이면 재판단"
   },
   {
-   "t": 47.066666666666556,
+   "t": 28.60470000000031,
+   "kind": "주의",
+   "text": "F12 바디캠에 2프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (반듯한 적재), 다시 보이면 재판단"
+  },
+  {
+   "t": 28.60470000000031,
+   "kind": "주의",
+   "text": "F13 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (앞이 가로막힌 소화기), 다시 보이면 재판단"
+  },
+  {
+   "t": 28.804500000000314,
+   "kind": "끼임 경보",
+   "text": "컨베이어 손 끝 - 끼임점 3 cm (작동 중) [폴백: 등록 위치 사용 - 끼임점 탐지 실패] → 손 빼세요! (최고 등급)"
+  },
+  {
+   "t": 29.004300000000317,
+   "kind": "주의",
+   "text": "F13 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 29.403900000000323,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 29.603700000000327,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 30.003300000000333,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 30.003300000000333,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 30.40290000000034,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 30.602700000000343,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 30.802500000000347,
+   "kind": "주의",
+   "text": "F13 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 30.802500000000347,
+   "kind": "주의",
+   "text": "F13 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 31.801500000000363,
+   "kind": "위험구역",
+   "text": "Z1 컨베이어 정지 → 위험구역 즉시 해제"
+  },
+  {
+   "t": 32.201100000000345,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 32.60070000000031,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 32.60070000000031,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 1.9 m (2 m 안, 경고 없음) → 대장 F04 우선순위 올림"
+  },
+  {
+   "t": 32.80050000000029,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 32.80050000000029,
+   "kind": "주의",
+   "text": "F13 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 33.59970000000022,
+   "kind": "주의",
+   "text": "F14 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (정상 비치 소화기), 다시 보이면 재판단"
+  },
+  {
+   "t": 34.199100000000165,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 34.39890000000015,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.198100000000075,
+   "kind": "주의",
+   "text": "F13 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.198100000000075,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.59770000000004,
+   "kind": "주의",
+   "text": "F14 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.79750000000002,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.79750000000002,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.9973,
+   "kind": "주의",
+   "text": "F13 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 35.9973,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 36.197099999999985,
+   "kind": "주의",
+   "text": "F14 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 36.39689999999997,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 37.59569999999986,
+   "kind": "판정",
+   "text": "F15 바디캠에 2프레임만 보이고 지나감 → 고위험 후보 포함, 즉시 위험 방치된 유출 (기름/물) 로 확정"
+  },
+  {
+   "t": 37.59569999999986,
+   "kind": "위험 영역",
+   "text": "Z9 방치된 유출 주변 미끄럼 위험 (남쪽 작업 구역, 반지름 약 1.3 m) → 에이전트가 영역으로 판단, 위험 영역으로 설정"
+  },
+  {
+   "t": 38.39489999999979,
+   "kind": "주의",
+   "text": "F16 바디캠에 1프레임만 보이고 지나감 → 안전·위험을 가르지 못해 주의로 분류 (통로에 방치된 공구), 다시 보이면 재판단"
+  },
+  {
+   "t": 38.59469999999977,
+   "kind": "주의",
+   "text": "F12 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 39.194099999999715,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 39.99329999999964,
+   "kind": "주의",
+   "text": "F14 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 40.193099999999625,
+   "kind": "주의",
+   "text": "F16 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 40.99229999999955,
+   "kind": "주의",
+   "text": "F14 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 41.79149999999948,
+   "kind": "주의",
+   "text": "F16 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 42.191099999999444,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 42.39089999999943,
+   "kind": "접근 기록",
+   "text": "작업자 ↔ 위험 방치된 유출 (기름/물) 2.0 m (2 m 안, 경고 없음) → 대장 F15 우선순위 올림"
+  },
+  {
+   "t": 42.79049999999939,
+   "kind": "음성 경고",
+   "text": "\"경고! 경고! 멈추세요! 위험 요소가 식별되었습니다.\" ← 작업자 ↔ 위험 영역 Z9 (방치된 유출 주변 미끄럼 위험) 0.4 m"
+  },
+  {
+   "t": 45.188099999999174,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 45.78749999999912,
+   "kind": "주의",
+   "text": "F02 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 45.9872999999991,
+   "kind": "주의",
+   "text": "F11 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 46.78649999999903,
+   "kind": "주의",
+   "text": "F14 재관측했지만 여전히 못 가름 → 주의 유지"
+  },
+  {
+   "t": 47.086199999999,
    "kind": "계획",
-   "text": "순찰 끝. 점검표 5/8 확인, 남은 3곳과 대기 중인 재확인 0건을 CCTV 확대로 처리"
-  },
-  {
-   "t": 47.066666666666556,
-   "kind": "재확인 계획",
-   "text": "C1 소화기 1 (서쪽 랙 북쪽 끝): 순찰 중 확인 못 한 점검 지점 → cctv_east 확대로 재확인 예약 (15 m)"
-  },
-  {
-   "t": 47.066666666666556,
-   "kind": "재확인 계획",
-   "text": "C7 작업대 1 (서쪽): 순찰 중 확인 못 한 점검 지점 → cctv_west 확대로 재확인 예약 (4 m)"
-  },
-  {
-   "t": 47.066666666666556,
-   "kind": "재확인 계획",
-   "text": "C8 작업대 2 (동쪽): 순찰 중 확인 못 한 점검 지점 → cctv_south 확대로 재확인 예약 (5 m)"
-  },
-  {
-   "t": 47.066666666666556,
-   "kind": "CCTV 선택",
-   "text": "cctv_east PTZ 를 소화기 1 (서쪽 랙 북쪽 끝) 쪽으로 돌려 확대 (화각 15°, 15 m)"
-  },
-  {
-   "t": 47.466666666666555,
-   "kind": "현장 확인",
-   "text": "C1 소화기 1 (서쪽 랙 북쪽 끝): CCTV 로 확인 못 함 → 작업자에게 현장 확인 요청"
-  },
-  {
-   "t": 47.86666666666655,
-   "kind": "CCTV 선택",
-   "text": "cctv_west PTZ 를 작업대 1 (서쪽) 쪽으로 돌려 확대 (화각 50°, 4 m)"
-  },
-  {
-   "t": 48.26666666666655,
-   "kind": "재확인",
-   "text": "F18 cctv_west 확대 결과 안전 작업대에 정리된 공구 (렌치) 91% 확인"
-  },
-  {
-   "t": 48.26666666666655,
-   "kind": "점검표",
-   "text": "C7 작업대 1 (서쪽) 확인: 안전 작업대에 정리된 공구 (대장 F18)"
-  },
-  {
-   "t": 48.66666666666655,
-   "kind": "CCTV 선택",
-   "text": "cctv_south PTZ 를 작업대 2 (동쪽) 쪽으로 돌려 확대 (화각 44°, 5 m)"
-  },
-  {
-   "t": 49.06666666666655,
-   "kind": "재확인",
-   "text": "F19 cctv_south 확대 결과 안전 작업대에 정리된 공구 (망치) 87% 확인"
-  },
-  {
-   "t": 49.06666666666655,
-   "kind": "점검표",
-   "text": "C8 작업대 2 (동쪽) 확인: 안전 작업대에 정리된 공구 (대장 F19)"
+   "text": "순찰 끝. 점검표 3/8 확인, 2곳 못 봄(현장 확인 필요), 3곳 주의 상태로 남음"
   }
  ]
 }
