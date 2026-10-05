@@ -1,0 +1,2018 @@
+{
+ "seed": 1,
+ "sim_time": 47.066666666666556,
+ "bodycam": {
+  "objects": 17,
+  "seen": 14,
+  "hazard_total": 11,
+  "hazard_found": 11,
+  "hazard_as_safe": 0,
+  "hazard_missed": 0,
+  "safe_total": 3,
+  "safe_ok": 3,
+  "safe_as_hazard": 0,
+  "safe_missed": 0,
+  "exact": 14,
+  "false_hazard_boxes": 2,
+  "frames": 234
+ },
+ "objects": [
+  {
+   "id": "O00",
+   "class": "spill",
+   "kind": "spill",
+   "hazard": true,
+   "label": "방치된 유출 (기름/물)",
+   "x": -3.99,
+   "y": -2.02,
+   "zone": "서쪽 통로",
+   "radius": 0.75,
+   "pred": "spill",
+   "matched": 27,
+   "visible": 48,
+   "result": "정확"
+  },
+  {
+   "id": "O01",
+   "class": "spill",
+   "kind": "spill",
+   "hazard": true,
+   "label": "방치된 유출 (기름/물)",
+   "x": -3.1,
+   "y": 7.9,
+   "zone": "서쪽 통로",
+   "radius": 0.69,
+   "pred": "spill",
+   "matched": 46,
+   "visible": 58,
+   "result": "정확"
+  },
+  {
+   "id": "O02",
+   "class": "spill",
+   "kind": "spill",
+   "hazard": true,
+   "label": "방치된 유출 (기름/물)",
+   "x": 2.98,
+   "y": 2.03,
+   "zone": "동쪽 통로",
+   "radius": 0.76,
+   "pred": "spill",
+   "matched": 54,
+   "visible": 71,
+   "result": "정확"
+  },
+  {
+   "id": "O03",
+   "class": "tool_floor",
+   "kind": "tool",
+   "hazard": true,
+   "label": "통로에 방치된 공구",
+   "x": -6.11,
+   "y": -9.47,
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "power_saw",
+    "screwdriver"
+   ],
+   "tools_ko": [
+    "전동톱",
+    "드라이버"
+   ],
+   "pred": "tool_floor",
+   "matched": 23,
+   "visible": 21,
+   "result": "정확"
+  },
+  {
+   "id": "O04",
+   "class": "tool_floor",
+   "kind": "tool",
+   "hazard": true,
+   "label": "통로에 방치된 공구",
+   "x": -7.26,
+   "y": 4.41,
+   "zone": "서쪽 통로",
+   "tools": [
+    "power_saw"
+   ],
+   "tools_ko": [
+    "전동톱"
+   ],
+   "pred": "tool_floor",
+   "matched": 18,
+   "visible": 33,
+   "result": "정확"
+  },
+  {
+   "id": "O05",
+   "class": "tool_stored",
+   "kind": "tool",
+   "hazard": false,
+   "label": "작업대에 정리된 공구",
+   "x": -6.0,
+   "y": -11.45,
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "screwdriver",
+    "screwdriver",
+    "wrench"
+   ],
+   "tools_ko": [
+    "드라이버",
+    "드라이버",
+    "렌치"
+   ],
+   "pred": null,
+   "matched": 0,
+   "visible": 0,
+   "result": "안 보임"
+  },
+  {
+   "id": "O06",
+   "class": "tool_stored",
+   "kind": "tool",
+   "hazard": false,
+   "label": "작업대에 정리된 공구",
+   "x": 6.0,
+   "y": -11.45,
+   "zone": "남쪽 작업 구역",
+   "tools": [
+    "hammer",
+    "screwdriver"
+   ],
+   "tools_ko": [
+    "망치",
+    "드라이버"
+   ],
+   "pred": null,
+   "matched": 0,
+   "visible": 0,
+   "result": "안 보임"
+  },
+  {
+   "id": "O07",
+   "class": "stack_unstable",
+   "kind": "stack",
+   "hazard": true,
+   "label": "무너질 듯한 적재",
+   "x": 7.4,
+   "y": 16.7,
+   "zone": "북쪽 구역",
+   "pred": "stack_unstable",
+   "matched": 41,
+   "visible": 67,
+   "result": "정확"
+  },
+  {
+   "id": "O08",
+   "class": "stack_unstable",
+   "kind": "stack",
+   "hazard": true,
+   "label": "무너질 듯한 적재",
+   "x": 1.8,
+   "y": -10.9,
+   "zone": "남쪽 작업 구역",
+   "pred": "stack_unstable",
+   "matched": 57,
+   "visible": 93,
+   "result": "정확"
+  },
+  {
+   "id": "O09",
+   "class": "stack_unstable",
+   "kind": "stack",
+   "hazard": true,
+   "label": "무너질 듯한 적재",
+   "x": 7.2,
+   "y": -5.6,
+   "zone": "남쪽 작업 구역",
+   "pred": "stack_unstable",
+   "matched": 66,
+   "visible": 84,
+   "result": "정확"
+  },
+  {
+   "id": "O10",
+   "class": "stack_unstable",
+   "kind": "stack",
+   "hazard": true,
+   "label": "무너질 듯한 적재",
+   "x": -7.6,
+   "y": 16.6,
+   "zone": "북쪽 구역",
+   "pred": "stack_unstable",
+   "matched": 47,
+   "visible": 81,
+   "result": "정확"
+  },
+  {
+   "id": "O11",
+   "class": "ext_fallen",
+   "kind": "ext",
+   "hazard": true,
+   "label": "쓰러진 소화기",
+   "x": -8.86,
+   "y": 12.9,
+   "zone": "북쪽 구역",
+   "pred": "ext_fallen",
+   "matched": 4,
+   "visible": 17,
+   "result": "정확"
+  },
+  {
+   "id": "O12",
+   "class": "ext_ok",
+   "kind": "ext",
+   "hazard": false,
+   "label": "정상 비치 소화기",
+   "x": -8.91,
+   "y": -3.81,
+   "zone": "남쪽 작업 구역",
+   "pred": "ext_ok",
+   "matched": 24,
+   "visible": 12,
+   "result": "정확"
+  },
+  {
+   "id": "O13",
+   "class": "ext_ok",
+   "kind": "ext",
+   "hazard": false,
+   "label": "정상 비치 소화기",
+   "x": 0.14,
+   "y": 12.45,
+   "zone": "북쪽 구역",
+   "pred": "ext_ok",
+   "matched": 3,
+   "visible": 3,
+   "result": "정확"
+  },
+  {
+   "id": "O14",
+   "class": "ext_ok",
+   "kind": "ext",
+   "hazard": false,
+   "label": "정상 비치 소화기",
+   "x": 0.09,
+   "y": -3.81,
+   "zone": "남쪽 작업 구역",
+   "pred": "ext_ok",
+   "matched": 7,
+   "visible": 14,
+   "result": "정확"
+  },
+  {
+   "id": "O15",
+   "class": "ext_fallen",
+   "kind": "ext",
+   "hazard": true,
+   "label": "쓰러진 소화기",
+   "x": 9.14,
+   "y": 12.9,
+   "zone": "북쪽 구역",
+   "pred": "ext_fallen",
+   "matched": 6,
+   "visible": 6,
+   "result": "정확"
+  },
+  {
+   "id": "O16",
+   "class": "ext_ok",
+   "kind": "ext",
+   "hazard": false,
+   "label": "정상 비치 소화기",
+   "x": 9.09,
+   "y": -3.81,
+   "zone": "남쪽 작업 구역",
+   "pred": null,
+   "matched": 0,
+   "visible": 0,
+   "result": "안 보임"
+  }
+ ],
+ "agent": {
+  "evaluation": {
+   "before": {
+    "objects": 17,
+    "seen": 14,
+    "hazard_total": 11,
+    "hazard_found": 11,
+    "hazard_as_safe": 0,
+    "hazard_missed": 0,
+    "safe_total": 3,
+    "safe_ok": 3,
+    "safe_as_hazard": 0,
+    "safe_missed": 0,
+    "exact": 14,
+    "false_hazard_boxes": 2,
+    "frames": 234
+   },
+   "after": {
+    "hazard_total": 11,
+    "hazard_found": 9,
+    "hazard_as_safe": 0,
+    "hazard_missed": 2,
+    "safe_total": 6,
+    "safe_ok": 1,
+    "safe_as_hazard": 0,
+    "safe_missed": 5,
+    "exact": 10,
+    "false_reports": 2,
+    "need_check": 0,
+    "need_check_real": 0,
+    "caution": 4,
+    "caution_real": 4
+   },
+   "rows": [
+    {
+     "id": "O00",
+     "class": "spill",
+     "hazard": true,
+     "zone": "서쪽 통로",
+     "before_frame_pred": "spill",
+     "before_frame_result": "정확",
+     "before_frame_matched": 27,
+     "before_frame_visible": 48,
+     "after": "spill",
+     "after_result": "정확",
+     "finding": "F01"
+    },
+    {
+     "id": "O01",
+     "class": "spill",
+     "hazard": true,
+     "zone": "서쪽 통로",
+     "before_frame_pred": "spill",
+     "before_frame_result": "정확",
+     "before_frame_matched": 46,
+     "before_frame_visible": 58,
+     "after": "spill",
+     "after_result": "정확",
+     "finding": "F05"
+    },
+    {
+     "id": "O02",
+     "class": "spill",
+     "hazard": true,
+     "zone": "동쪽 통로",
+     "before_frame_pred": "spill",
+     "before_frame_result": "정확",
+     "before_frame_matched": 54,
+     "before_frame_visible": 71,
+     "after": "spill",
+     "after_result": "정확",
+     "finding": "F04"
+    },
+    {
+     "id": "O03",
+     "class": "tool_floor",
+     "hazard": true,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": "tool_floor",
+     "before_frame_result": "정확",
+     "before_frame_matched": 23,
+     "before_frame_visible": 21,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    },
+    {
+     "id": "O04",
+     "class": "tool_floor",
+     "hazard": true,
+     "zone": "서쪽 통로",
+     "before_frame_pred": "tool_floor",
+     "before_frame_result": "정확",
+     "before_frame_matched": 18,
+     "before_frame_visible": 33,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    },
+    {
+     "id": "O05",
+     "class": "tool_stored",
+     "hazard": false,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": null,
+     "before_frame_result": "안 보임",
+     "before_frame_matched": 0,
+     "before_frame_visible": 0,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    },
+    {
+     "id": "O06",
+     "class": "tool_stored",
+     "hazard": false,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": null,
+     "before_frame_result": "안 보임",
+     "before_frame_matched": 0,
+     "before_frame_visible": 0,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    },
+    {
+     "id": "O07",
+     "class": "stack_unstable",
+     "hazard": true,
+     "zone": "북쪽 구역",
+     "before_frame_pred": "stack_unstable",
+     "before_frame_result": "정확",
+     "before_frame_matched": 41,
+     "before_frame_visible": 67,
+     "after": "stack_unstable",
+     "after_result": "정확",
+     "finding": "F08"
+    },
+    {
+     "id": "O08",
+     "class": "stack_unstable",
+     "hazard": true,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": "stack_unstable",
+     "before_frame_result": "정확",
+     "before_frame_matched": 57,
+     "before_frame_visible": 93,
+     "after": "stack_unstable",
+     "after_result": "정확",
+     "finding": "F15"
+    },
+    {
+     "id": "O09",
+     "class": "stack_unstable",
+     "hazard": true,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": "stack_unstable",
+     "before_frame_result": "정확",
+     "before_frame_matched": 66,
+     "before_frame_visible": 84,
+     "after": "stack_unstable",
+     "after_result": "정확",
+     "finding": "F14"
+    },
+    {
+     "id": "O10",
+     "class": "stack_unstable",
+     "hazard": true,
+     "zone": "북쪽 구역",
+     "before_frame_pred": "stack_unstable",
+     "before_frame_result": "정확",
+     "before_frame_matched": 47,
+     "before_frame_visible": 81,
+     "after": "stack_unstable",
+     "after_result": "정확",
+     "finding": "F06"
+    },
+    {
+     "id": "O11",
+     "class": "ext_fallen",
+     "hazard": true,
+     "zone": "북쪽 구역",
+     "before_frame_pred": "ext_fallen",
+     "before_frame_result": "정확",
+     "before_frame_matched": 4,
+     "before_frame_visible": 17,
+     "after": "ext_fallen",
+     "after_result": "정확",
+     "finding": "F09"
+    },
+    {
+     "id": "O12",
+     "class": "ext_ok",
+     "hazard": false,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": "ext_ok",
+     "before_frame_result": "정확",
+     "before_frame_matched": 24,
+     "before_frame_visible": 12,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    },
+    {
+     "id": "O13",
+     "class": "ext_ok",
+     "hazard": false,
+     "zone": "북쪽 구역",
+     "before_frame_pred": "ext_ok",
+     "before_frame_result": "정확",
+     "before_frame_matched": 3,
+     "before_frame_visible": 3,
+     "after": "ext_ok",
+     "after_result": "정확",
+     "finding": "F10"
+    },
+    {
+     "id": "O14",
+     "class": "ext_ok",
+     "hazard": false,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": "ext_ok",
+     "before_frame_result": "정확",
+     "before_frame_matched": 7,
+     "before_frame_visible": 14,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    },
+    {
+     "id": "O15",
+     "class": "ext_fallen",
+     "hazard": true,
+     "zone": "북쪽 구역",
+     "before_frame_pred": "ext_fallen",
+     "before_frame_result": "정확",
+     "before_frame_matched": 6,
+     "before_frame_visible": 6,
+     "after": "ext_fallen",
+     "after_result": "정확",
+     "finding": "F12"
+    },
+    {
+     "id": "O16",
+     "class": "ext_ok",
+     "hazard": false,
+     "zone": "남쪽 작업 구역",
+     "before_frame_pred": null,
+     "before_frame_result": "안 보임",
+     "before_frame_matched": 0,
+     "before_frame_visible": 0,
+     "after": null,
+     "after_result": "놓침",
+     "finding": null
+    }
+   ],
+   "rejudge": {
+    "ambiguous_hazard": 4,
+    "ambiguous_caution": 5,
+    "caution_rejudged": 7,
+    "caution_rejudged_confirmed": 1,
+    "changed_correct": 1
+   },
+   "tools": {
+    "total": 7,
+    "named": 0
+   },
+   "zones": {
+    "gt": 2,
+    "found": 2,
+    "marked_spill": 0,
+    "false": 0,
+    "agent": 7,
+    "agent_real": 7
+   },
+   "voice": {
+    "events": 4,
+    "warned": 3,
+    "voices": 4,
+    "useful": 3
+   }
+  },
+  "report": {
+   "summary": {
+    "hazards": 11,
+    "safe": 1,
+    "need_check": 3,
+    "caution": 4,
+    "urgent": 4,
+    "checkpoints_done": 3,
+    "checkpoints": 8,
+    "zones": 9,
+    "voice": 4
+   },
+   "findings": [
+    {
+     "id": "F01",
+     "class": "spill",
+     "label": "방치된 유출 (기름/물)",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "서쪽 통로",
+     "x": -3.99,
+     "y": -1.92,
+     "confidence": 1.0,
+     "n_body": 19,
+     "near_miss": 1,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "spill",
+     "checkpoint": null,
+     "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+     "action_source": null,
+     "priority": "긴급",
+     "score": 5,
+     "rank": 1
+    },
+    {
+     "id": "F04",
+     "class": "spill",
+     "label": "방치된 유출 (기름/물)",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "동쪽 통로",
+     "x": 2.66,
+     "y": 2.33,
+     "confidence": 1.0,
+     "n_body": 9,
+     "near_miss": 1,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "spill",
+     "checkpoint": null,
+     "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+     "action_source": null,
+     "priority": "긴급",
+     "score": 5,
+     "rank": 2
+    },
+    {
+     "id": "F05",
+     "class": "spill",
+     "label": "방치된 유출 (기름/물)",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "서쪽 통로",
+     "x": -2.74,
+     "y": 8.61,
+     "confidence": 1.0,
+     "n_body": 43,
+     "near_miss": 1,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "spill",
+     "checkpoint": null,
+     "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+     "action_source": null,
+     "priority": "긴급",
+     "score": 5,
+     "rank": 3
+    },
+    {
+     "id": "F13",
+     "class": "spill",
+     "label": "방치된 유출 (기름/물)",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "동쪽 통로",
+     "x": 3.15,
+     "y": 0.82,
+     "confidence": 0.95,
+     "n_body": 45,
+     "near_miss": 1,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "spill",
+     "checkpoint": null,
+     "action": "유출물 제거. 치우기 전까지 미끄럼 주의 표지판과 라바콘 설치",
+     "action_source": null,
+     "priority": "긴급",
+     "score": 5,
+     "rank": 4
+    },
+    {
+     "id": "F06",
+     "class": "stack_unstable",
+     "label": "무너질 듯한 적재",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "북쪽 구역",
+     "x": -7.33,
+     "y": 16.42,
+     "confidence": 1.0,
+     "n_body": 40,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "stack_unstable",
+     "checkpoint": null,
+     "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+     "action_source": null,
+     "priority": "높음",
+     "score": 3,
+     "rank": 5
+    },
+    {
+     "id": "F08",
+     "class": "stack_unstable",
+     "label": "무너질 듯한 적재",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "북쪽 구역",
+     "x": 6.77,
+     "y": 16.75,
+     "confidence": 0.98,
+     "n_body": 30,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": true,
+     "changed_by_recheck": true,
+     "body_class": "stack_unstable",
+     "checkpoint": null,
+     "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+     "action_source": null,
+     "priority": "높음",
+     "score": 3,
+     "rank": 6
+    },
+    {
+     "id": "F11",
+     "class": "stack_unstable",
+     "label": "무너질 듯한 적재",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "북쪽 구역",
+     "x": 8.91,
+     "y": 17.9,
+     "confidence": 1.0,
+     "n_body": 2,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "stack_unstable",
+     "checkpoint": null,
+     "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+     "action_source": null,
+     "priority": "높음",
+     "score": 3,
+     "rank": 7
+    },
+    {
+     "id": "F14",
+     "class": "stack_unstable",
+     "label": "무너질 듯한 적재",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "남쪽 작업 구역",
+     "x": 6.58,
+     "y": -5.21,
+     "confidence": 1.0,
+     "n_body": 59,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "stack_unstable",
+     "checkpoint": null,
+     "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+     "action_source": null,
+     "priority": "높음",
+     "score": 3,
+     "rank": 8
+    },
+    {
+     "id": "F15",
+     "class": "stack_unstable",
+     "label": "무너질 듯한 적재",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "남쪽 작업 구역",
+     "x": 1.78,
+     "y": -10.37,
+     "confidence": 1.0,
+     "n_body": 47,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "stack_unstable",
+     "checkpoint": null,
+     "action": "기울어진 상단 상자를 내려 다시 쌓고 떨어진 상자 회수. 그 전까지 주변 통행 제한",
+     "action_source": null,
+     "priority": "높음",
+     "score": 3,
+     "rank": 9
+    },
+    {
+     "id": "F09",
+     "class": "ext_fallen",
+     "label": "쓰러진 소화기",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "북쪽 구역",
+     "x": -8.86,
+     "y": 12.45,
+     "confidence": 1.0,
+     "n_body": 4,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "ext_fallen",
+     "checkpoint": "C1",
+     "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+     "action_source": null,
+     "priority": "보통",
+     "score": 2,
+     "rank": 10
+    },
+    {
+     "id": "F12",
+     "class": "ext_fallen",
+     "label": "쓰러진 소화기",
+     "tools": [],
+     "tool_types": [],
+     "state": "위험",
+     "hazard": true,
+     "status": "확정",
+     "zone": "북쪽 구역",
+     "x": 9.14,
+     "y": 12.45,
+     "confidence": 1.0,
+     "n_body": 1,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "ext_fallen",
+     "checkpoint": "C5",
+     "action": "소화기를 제자리에 다시 걸고 압력계, 안전핀 점검",
+     "action_source": null,
+     "priority": "보통",
+     "score": 2,
+     "rank": 11
+    },
+    {
+     "id": "F03",
+     "class": "tool_floor",
+     "label": "통로에 방치된 공구 (전동톱)",
+     "tools": [
+      "전동톱"
+     ],
+     "tool_types": [
+      "power_saw"
+     ],
+     "state": "주의",
+     "hazard": true,
+     "status": "주의",
+     "zone": "남쪽 작업 구역",
+     "x": -6.29,
+     "y": -9.38,
+     "confidence": 1.0,
+     "n_body": 4,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "tool_floor",
+     "checkpoint": null,
+     "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+     "action_source": null,
+     "priority": "보통",
+     "score": 1,
+     "rank": 12
+    },
+    {
+     "id": "F07",
+     "class": "tool_floor",
+     "label": "통로에 방치된 공구 (전동톱)",
+     "tools": [
+      "전동톱"
+     ],
+     "tool_types": [
+      "power_saw"
+     ],
+     "state": "주의",
+     "hazard": true,
+     "status": "주의",
+     "zone": "서쪽 통로",
+     "x": -7.01,
+     "y": 3.97,
+     "confidence": 1.0,
+     "n_body": 6,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "tool_floor",
+     "checkpoint": null,
+     "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+     "action_source": null,
+     "priority": "보통",
+     "score": 1,
+     "rank": 13
+    },
+    {
+     "id": "C6",
+     "class": null,
+     "label": "소화기 6 (동쪽 랙 남쪽 끝) 상태 미확인",
+     "state": "확인 필요",
+     "hazard": false,
+     "status": "현장 확인 필요",
+     "zone": "남쪽 작업 구역",
+     "x": 9.09,
+     "y": -3.81,
+     "confidence": 0.0,
+     "n_body": 0,
+     "near_miss": 0,
+     "source": "점검표",
+     "rechecked": true,
+     "changed_by_recheck": false,
+     "body_class": null,
+     "checkpoint": "C6",
+     "action": "현장에서 소화기 상태 직접 확인 (바디캠으로 확인 못 함)",
+     "priority": "보통",
+     "score": 1,
+     "rank": 14
+    },
+    {
+     "id": "C7",
+     "class": null,
+     "label": "작업대 1 (서쪽) 상태 미확인",
+     "state": "확인 필요",
+     "hazard": false,
+     "status": "현장 확인 필요",
+     "zone": "남쪽 작업 구역",
+     "x": -6.0,
+     "y": -11.45,
+     "confidence": 0.0,
+     "n_body": 0,
+     "near_miss": 0,
+     "source": "점검표",
+     "rechecked": true,
+     "changed_by_recheck": false,
+     "body_class": null,
+     "checkpoint": "C7",
+     "action": "현장에서 작업대 상태 직접 확인 (바디캠으로 확인 못 함)",
+     "priority": "보통",
+     "score": 1,
+     "rank": 15
+    },
+    {
+     "id": "C8",
+     "class": null,
+     "label": "작업대 2 (동쪽) 상태 미확인",
+     "state": "확인 필요",
+     "hazard": false,
+     "status": "현장 확인 필요",
+     "zone": "남쪽 작업 구역",
+     "x": 6.0,
+     "y": -11.45,
+     "confidence": 0.0,
+     "n_body": 0,
+     "near_miss": 0,
+     "source": "점검표",
+     "rechecked": true,
+     "changed_by_recheck": false,
+     "body_class": null,
+     "checkpoint": "C8",
+     "action": "현장에서 작업대 상태 직접 확인 (바디캠으로 확인 못 함)",
+     "priority": "보통",
+     "score": 1,
+     "rank": 16
+    },
+    {
+     "id": "F02",
+     "class": "ext_ok",
+     "label": "정상 비치 소화기",
+     "tools": [],
+     "tool_types": [],
+     "state": "주의",
+     "hazard": false,
+     "status": "주의",
+     "zone": "남쪽 작업 구역",
+     "x": -8.91,
+     "y": -3.81,
+     "confidence": 1.0,
+     "n_body": 1,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "ext_ok",
+     "checkpoint": "C2",
+     "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+     "action_source": null,
+     "priority": "보통",
+     "score": 1,
+     "rank": 17
+    },
+    {
+     "id": "F16",
+     "class": "ext_ok",
+     "label": "정상 비치 소화기",
+     "tools": [],
+     "tool_types": [],
+     "state": "주의",
+     "hazard": false,
+     "status": "주의",
+     "zone": "남쪽 작업 구역",
+     "x": 0.09,
+     "y": -3.81,
+     "confidence": 1.0,
+     "n_body": 5,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "ext_ok",
+     "checkpoint": "C4",
+     "action": "현장 확인 권고: 안전·위험을 아직 가르지 못함. 다시 지나칠 때 재판단",
+     "action_source": null,
+     "priority": "보통",
+     "score": 1,
+     "rank": 18
+    },
+    {
+     "id": "F10",
+     "class": "ext_ok",
+     "label": "정상 비치 소화기",
+     "tools": [],
+     "tool_types": [],
+     "state": "안전",
+     "hazard": false,
+     "status": "확정",
+     "zone": "북쪽 구역",
+     "x": 0.14,
+     "y": 12.45,
+     "confidence": 1.0,
+     "n_body": 3,
+     "near_miss": 0,
+     "source": "바디캠",
+     "rechecked": false,
+     "changed_by_recheck": false,
+     "body_class": "ext_ok",
+     "checkpoint": "C3",
+     "action": "소화기 정상 비치",
+     "action_source": null,
+     "priority": "-",
+     "score": 0,
+     "rank": 19
+    }
+   ],
+   "checkpoints": [
+    {
+     "id": "C1",
+     "name": "소화기 1 (서쪽 랙 북쪽 끝)",
+     "status": "바디캠 확인",
+     "finding": "F09",
+     "x": -8.86,
+     "y": 12.45
+    },
+    {
+     "id": "C2",
+     "name": "소화기 2 (서쪽 랙 남쪽 끝)",
+     "status": "주의",
+     "finding": "F02",
+     "x": -8.91,
+     "y": -3.81
+    },
+    {
+     "id": "C3",
+     "name": "소화기 3 (가운데 랙 북쪽 끝)",
+     "status": "바디캠 확인",
+     "finding": "F10",
+     "x": 0.14,
+     "y": 12.45
+    },
+    {
+     "id": "C4",
+     "name": "소화기 4 (가운데 랙 남쪽 끝)",
+     "status": "주의",
+     "finding": "F16",
+     "x": 0.09,
+     "y": -3.81
+    },
+    {
+     "id": "C5",
+     "name": "소화기 5 (동쪽 랙 북쪽 끝)",
+     "status": "바디캠 확인",
+     "finding": "F12",
+     "x": 9.14,
+     "y": 12.45
+    },
+    {
+     "id": "C6",
+     "name": "소화기 6 (동쪽 랙 남쪽 끝)",
+     "status": "현장 확인 필요",
+     "finding": null,
+     "x": 9.09,
+     "y": -3.81
+    },
+    {
+     "id": "C7",
+     "name": "작업대 1 (서쪽)",
+     "status": "현장 확인 필요",
+     "finding": null,
+     "x": -6.0,
+     "y": -11.45
+    },
+    {
+     "id": "C8",
+     "name": "작업대 2 (동쪽)",
+     "status": "현장 확인 필요",
+     "finding": null,
+     "x": 6.0,
+     "y": -11.45
+    }
+   ],
+   "zones": [
+    {
+     "id": "Z1",
+     "source": "agent",
+     "reason": "방치된 유출 주변 미끄럼 위험",
+     "zone": "서쪽 통로",
+     "x": -3.99,
+     "y": -1.92,
+     "radius": 1.3,
+     "poly": [
+      [
+       -2.69,
+       -1.92
+      ],
+      [
+       -2.76,
+       -1.52
+      ],
+      [
+       -2.94,
+       -1.15
+      ],
+      [
+       -3.23,
+       -0.87
+      ],
+      [
+       -3.59,
+       -0.68
+      ],
+      [
+       -3.99,
+       -0.62
+      ],
+      [
+       -4.39,
+       -0.68
+      ],
+      [
+       -4.76,
+       -0.87
+      ],
+      [
+       -5.04,
+       -1.15
+      ],
+      [
+       -5.23,
+       -1.52
+      ],
+      [
+       -5.29,
+       -1.92
+      ],
+      [
+       -5.23,
+       -2.32
+      ],
+      [
+       -5.04,
+       -2.68
+      ],
+      [
+       -4.76,
+       -2.97
+      ],
+      [
+       -4.39,
+       -3.15
+      ],
+      [
+       -3.99,
+       -3.22
+      ],
+      [
+       -3.59,
+       -3.15
+      ],
+      [
+       -3.23,
+       -2.97
+      ],
+      [
+       -2.94,
+       -2.68
+      ],
+      [
+       -2.76,
+       -2.32
+      ]
+     ],
+     "members": [
+      "F01"
+     ],
+     "n_cones": 0,
+     "sign": false
+    },
+    {
+     "id": "Z10",
+     "source": "agent",
+     "reason": "무너질 듯한 적재 주변 붕괴 위험",
+     "zone": "남쪽 작업 구역",
+     "x": 1.78,
+     "y": -10.37,
+     "radius": 1.6,
+     "poly": [
+      [
+       3.38,
+       -10.37
+      ],
+      [
+       3.3,
+       -9.88
+      ],
+      [
+       3.07,
+       -9.43
+      ],
+      [
+       2.72,
+       -9.08
+      ],
+      [
+       2.27,
+       -8.85
+      ],
+      [
+       1.78,
+       -8.77
+      ],
+      [
+       1.28,
+       -8.85
+      ],
+      [
+       0.84,
+       -9.08
+      ],
+      [
+       0.48,
+       -9.43
+      ],
+      [
+       0.26,
+       -9.88
+      ],
+      [
+       0.18,
+       -10.37
+      ],
+      [
+       0.26,
+       -10.86
+      ],
+      [
+       0.48,
+       -11.31
+      ],
+      [
+       0.84,
+       -11.66
+      ],
+      [
+       1.28,
+       -11.89
+      ],
+      [
+       1.78,
+       -11.97
+      ],
+      [
+       2.27,
+       -11.89
+      ],
+      [
+       2.72,
+       -11.66
+      ],
+      [
+       3.07,
+       -11.31
+      ],
+      [
+       3.3,
+       -10.86
+      ]
+     ],
+     "members": [
+      "F15"
+     ],
+     "n_cones": 0,
+     "sign": false
+    },
+    {
+     "id": "Z2",
+     "source": "agent",
+     "reason": "위험물 2개가 모인 영역",
+     "zone": "동쪽 통로",
+     "x": 2.91,
+     "y": 1.58,
+     "radius": 2.08,
+     "poly": [
+      [
+       1.36,
+       2.33
+      ],
+      [
+       1.53,
+       1.68
+      ],
+      [
+       2.03,
+       0.17
+      ],
+      [
+       2.5,
+       -0.3
+      ],
+      [
+       3.15,
+       -0.48
+      ],
+      [
+       3.8,
+       -0.3
+      ],
+      [
+       4.28,
+       0.17
+      ],
+      [
+       4.45,
+       0.82
+      ],
+      [
+       4.28,
+       1.47
+      ],
+      [
+       3.78,
+       2.98
+      ],
+      [
+       3.31,
+       3.46
+      ],
+      [
+       2.66,
+       3.63
+      ],
+      [
+       2.01,
+       3.46
+      ],
+      [
+       1.53,
+       2.98
+      ]
+     ],
+     "members": [
+      "F04",
+      "F13"
+     ],
+     "n_cones": 0,
+     "sign": false
+    },
+    {
+     "id": "Z3",
+     "source": "agent",
+     "reason": "방치된 유출 주변 미끄럼 위험",
+     "zone": "서쪽 통로",
+     "x": -2.74,
+     "y": 8.61,
+     "radius": 1.3,
+     "poly": [
+      [
+       -1.44,
+       8.61
+      ],
+      [
+       -1.5,
+       9.01
+      ],
+      [
+       -1.69,
+       9.37
+      ],
+      [
+       -1.97,
+       9.66
+      ],
+      [
+       -2.34,
+       9.84
+      ],
+      [
+       -2.74,
+       9.91
+      ],
+      [
+       -3.14,
+       9.84
+      ],
+      [
+       -3.5,
+       9.66
+      ],
+      [
+       -3.79,
+       9.37
+      ],
+      [
+       -3.97,
+       9.01
+      ],
+      [
+       -4.04,
+       8.61
+      ],
+      [
+       -3.97,
+       8.2
+      ],
+      [
+       -3.79,
+       7.84
+      ],
+      [
+       -3.5,
+       7.55
+      ],
+      [
+       -3.14,
+       7.37
+      ],
+      [
+       -2.74,
+       7.31
+      ],
+      [
+       -2.34,
+       7.37
+      ],
+      [
+       -1.97,
+       7.55
+      ],
+      [
+       -1.69,
+       7.84
+      ],
+      [
+       -1.5,
+       8.2
+      ]
+     ],
+     "members": [
+      "F05"
+     ],
+     "n_cones": 0,
+     "sign": false
+    },
+    {
+     "id": "Z4",
+     "source": "agent",
+     "reason": "무너질 듯한 적재 주변 붕괴 위험",
+     "zone": "북쪽 구역",
+     "x": -7.33,
+     "y": 16.42,
+     "radius": 1.6,
+     "poly": [
+      [
+       -5.73,
+       16.42
+      ],
+      [
+       -5.81,
+       16.92
+      ],
+      [
+       -6.03,
+       17.37
+      ],
+      [
+       -6.39,
+       17.72
+      ],
+      [
+       -6.83,
+       17.95
+      ],
+      [
+       -7.33,
+       18.02
+      ],
+      [
+       -7.82,
+       17.95
+      ],
+      [
+       -8.27,
+       17.72
+      ],
+      [
+       -8.62,
+       17.37
+      ],
+      [
+       -8.85,
+       16.92
+      ],
+      [
+       -8.93,
+       16.42
+      ],
+      [
+       -8.85,
+       15.93
+      ],
+      [
+       -8.62,
+       15.48
+      ],
+      [
+       -8.27,
+       15.13
+      ],
+      [
+       -7.82,
+       14.9
+      ],
+      [
+       -7.33,
+       14.82
+      ],
+      [
+       -6.83,
+       14.9
+      ],
+      [
+       -6.39,
+       15.13
+      ],
+      [
+       -6.03,
+       15.48
+      ],
+      [
+       -5.81,
+       15.93
+      ]
+     ],
+     "members": [
+      "F06"
+     ],
+     "n_cones": 0,
+     "sign": false
+    },
+    {
+     "id": "Z5",
+     "source": "agent",
+     "reason": "위험물 2개가 모인 영역",
+     "zone": "북쪽 구역",
+     "x": 7.84,
+     "y": 17.32,
+     "radius": 2.81,
+     "poly": [
+      [
+       5.17,
+       16.75
+      ],
+      [
+       5.39,
+       15.95
+      ],
+      [
+       5.97,
+       15.36
+      ],
+      [
+       6.77,
+       15.15
+      ],
+      [
+       7.57,
+       15.36
+      ],
+      [
+       9.71,
+       16.51
+      ],
+      [
+       10.29,
+       17.1
+      ],
+      [
+       10.51,
+       17.9
+      ],
+      [
+       10.29,
+       18.7
+      ],
+      [
+       9.71,
+       19.29
+      ],
+      [
+       8.91,
+       19.5
+      ],
+      [
+       8.11,
+       19.29
+      ],
+      [
+       5.97,
+       18.13
+      ],
+      [
+       5.39,
+       17.55
+      ]
+     ],
+     "members": [
+      "F08",
+      "F11"
+     ],
+     "n_cones": 0,
+     "sign": false
+    },
+    {
+     "id": "Z6",
+     "source": "cone",
+     "reason": "라바콘 5개로 둘러친 영역",
+     "zone": "북쪽 구역",
+     "x": -2.27,
+     "y": 13.69,
+     "radius": 1.36,
+     "poly": [
+      [
+       -3.34,
+       13.38
+      ],
+      [
+       -3.3,
+       13.23
+      ],
+      [
+       -3.19,
+       13.12
+      ],
+      [
+       -2.15,
+       12.4
+      ],
+      [
+       -2.0,
+       12.36
+      ],
+      [
+       -1.85,
+       12.4
+      ],
+      [
+       -1.74,
+       12.51
+      ],
+      [
+       -1.17,
+       13.54
+      ],
+      [
+       -1.13,
+       13.69
+      ],
+      [
+       -1.17,
+       13.84
+      ],
+      [
+       -1.65,
+       14.7
+      ],
+      [
+       -1.76,
+       14.81
+      ],
+      [
+       -1.91,
+       14.85
+      ],
+      [
+       -2.89,
+       14.61
+      ],
+      [
+       -3.04,
+       14.57
+      ],
+      [
+       -3.15,
+       14.46
+      ],
+      [
+       -3.19,
+       14.31
+      ]
+     ],
+     "members": [
+      "K01",
+      "K03",
+      "K04",
+      "K05",
+      "K06"
+     ],
+     "n_cones": 5,
+     "sign": false
+    },
+    {
+     "id": "Z7",
+     "source": "cone",
+     "reason": "라바콘 6개로 둘러친 영역 + DANGER 표지",
+     "zone": "동쪽 통로",
+     "x": 6.14,
+     "y": 0.67,
+     "radius": 1.51,
+     "poly": [
+      [
+       4.78,
+       1.17
+      ],
+      [
+       4.87,
+       0.12
+      ],
+      [
+       4.91,
+       -0.03
+      ],
+      [
+       5.02,
+       -0.14
+      ],
+      [
+       6.06,
+       -0.8
+      ],
+      [
+       6.21,
+       -0.84
+      ],
+      [
+       6.36,
+       -0.8
+      ],
+      [
+       7.3,
+       -0.1
+      ],
+      [
+       7.41,
+       0.01
+      ],
+      [
+       7.45,
+       0.16
+      ],
+      [
+       7.34,
+       1.29
+      ],
+      [
+       7.3,
+       1.44
+      ],
+      [
+       7.19,
+       1.55
+      ],
+      [
+       6.35,
+       2.06
+      ],
+      [
+       6.2,
+       2.1
+      ],
+      [
+       6.05,
+       2.06
+      ],
+      [
+       4.93,
+       1.43
+      ],
+      [
+       4.82,
+       1.32
+      ]
+     ],
+     "members": [
+      "K07",
+      "K09",
+      "K10",
+      "K11",
+      "K12",
+      "K13",
+      "S08"
+     ],
+     "n_cones": 6,
+     "sign": true
+    },
+    {
+     "id": "Z9",
+     "source": "agent",
+     "reason": "무너질 듯한 적재 주변 붕괴 위험",
+     "zone": "남쪽 작업 구역",
+     "x": 6.58,
+     "y": -5.21,
+     "radius": 1.6,
+     "poly": [
+      [
+       8.18,
+       -5.21
+      ],
+      [
+       8.1,
+       -4.72
+      ],
+      [
+       7.87,
+       -4.27
+      ],
+      [
+       7.52,
+       -3.92
+      ],
+      [
+       7.07,
+       -3.69
+      ],
+      [
+       6.58,
+       -3.61
+      ],
+      [
+       6.08,
+       -3.69
+      ],
+      [
+       5.64,
+       -3.92
+      ],
+      [
+       5.28,
+       -4.27
+      ],
+      [
+       5.06,
+       -4.72
+      ],
+      [
+       4.98,
+       -5.21
+      ],
+      [
+       5.06,
+       -5.71
+      ],
+      [
+       5.28,
+       -6.15
+      ],
+      [
+       5.64,
+       -6.51
+      ],
+      [
+       6.08,
+       -6.73
+      ],
+      [
+       6.58,
+       -6.81
+      ],
+      [
+       7.07,
+       -6.73
+      ],
+      [
+       7.52,
+       -6.51
+      ],
+      [
+       7.87,
+       -6.15
+      ],
+      [
+       8.1,
+       -5.71
+      ]
+     ],
+     "members": [
+      "F14"
+     ],
+     "n_cones": 0,
+     "sign": false
+    }
+   ],
+   "voice": [
+    {
+     "t": 6.43333333333332,
+     "target": "Z:Z1",
+     "dist": 0.48,
+     "what": "위험 영역 Z1 (방치된 유출 주변 미끄럼 위험) 0.5 m",
+     "level": "hazard",
+     "vibration": "strong",
+     "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+    },
+    {
+     "t": 16.43333333333331,
+     "target": "Z:Z3",
+     "dist": 0.47,
+     "what": "위험 영역 Z3 (방치된 유출 주변 미끄럼 위험) 0.5 m",
+     "level": "hazard",
+     "vibration": "strong",
+     "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+    },
+    {
+     "t": 37.43333333333377,
+     "target": "Z:Z2",
+     "dist": 0.49,
+     "what": "위험 영역 Z2 (위험물 2개가 모인 영역) 0.5 m",
+     "level": "hazard",
+     "vibration": "strong",
+     "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+    },
+    {
+     "t": 43.43333333333343,
+     "target": "Z:Z9",
+     "dist": 0.48,
+     "what": "위험 영역 Z9 (무너질 듯한 적재 주변 붕괴 위험) 0.5 m",
+     "level": "hazard",
+     "vibration": "strong",
+     "text": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다."
+    }
+   ],
+   "machines": [
+    {
+     "id": "M1",
+     "name": "컨베이어",
+     "on": false,
+     "zone_alerts": 0,
+     "pinch_alerts": 0,
+     "pinch_fallback": 0
+    }
+   ],
+   "pinch_events": [],
+   "stats": {
+    "zones": 11,
+    "ambiguous_caution": 5,
+    "caution_rejudged": 7,
+    "voice": 4,
+    "caution_rejudged_confirmed": 1,
+    "ambiguous_hazard": 4
+   }
+  }
+ }
+}
