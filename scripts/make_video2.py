@@ -2,9 +2,10 @@
 
     .venv-assistant/Scripts/python scripts/make_video2.py --out outputs/video/bodyguard_v2.mp4
 
-흐름: 인트로 타이틀 → (스토리보드 이미지 + 내레이션 → 그 장면의 실제 시연 클립) × 4(지게차/주의·적재물/표지판 질의/끼임 경보)
-→ 관리자 화면(알림 피드 + 확인 상호작용) + 내레이션 → 아웃트로.
-내레이션은 scripts/make_narration.py, 시연 클립은 scripts/record_scenario.py --which {forklift,spill,sign,pinch},
+흐름: 표지 이미지 → (스토리보드 이미지 + 내레이션 → 그 장면의 실제 시연 클립) × 4(지게차 → 끼임 → 주의·적재물 → 표지판 질의,
+스토리보드에 박힌 번호 순서) → 관리자 화면(알림 피드 + 확인 상호작용) + 내레이션 → 마무리 이미지.
+지게차·끼임 경보는 베트남어 고정 문구, 표지판 질문은 그 장면에서 실제로 생성된 베트남어 답변 음성을 쓴다.
+내레이션은 scripts/make_narration.py, 시연 클립은 scripts/record_scenario.py --which {forklift,pinch,spill,sign},
 관리자 화면은 scripts/render_manager_dashboard.py 가 미리 만들어 둔 결과를 그대로 읽어 붙인다 (이 스크립트는 합성만 한다).
 """
 import argparse
@@ -21,24 +22,29 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from make_video import (  # noqa: E402
-    BG, FG, FPS, FONT, FONT_B, HEIGHT, KIND_COLOR, MUTED, WIDTH,
-    add_audio, card, fit, font, text, wrap,
+    FG, FPS, HEIGHT, KIND_COLOR, MUTED, WIDTH,
+    add_audio, card, text, wrap,
 )
 
 # 리포(또는 이 워크트리)가 어디 있든, 스토리보드는 항상 AI_SW_CONTEST/agent_senario 에 있다
 STORYBOARD_DIR = r"C:\Users\user\Desktop\AI_SW_CONTEST\agent_senario"
 NARRATION_DIR = os.path.join(ROOT, "outputs", "video", "narration")
+ALERT_DIR = os.path.join(NARRATION_DIR, "alerts_vi")
+COVER_IMG = "BodyGuard_영상_표지.png"
+OUTRO_IMG = "BodyGuard_영상_마무리.png"
 
 # 기존 make_video.py 의 KIND_COLOR 에는 없는, 이 기능(끼임/지게차)에서 새로 쓰는 분류
 EXTRA_KIND_COLOR = {"위험구역": (255, 110, 110), "끼임 경보": (232, 72, 72)}
 
+# 스토리보드 이미지에 박힌 번호(①~④) 순서 그대로: 지게차 -> 끼임 -> 주의(바닥·적재물) -> 표지판 질문
 SCENARIOS = [
-    ("forklift", "image.png", "v2_forklift"),
-    ("spill", "image (1).png", "v2_spill"),
-    ("sign", "image (2).png", "v2_sign"),
-    ("pinch", "image (3).png", "v2_pinch"),
+    ("forklift", "image_1.png", "v2_forklift"),
+    ("pinch", "image_2.png", "v2_pinch"),
+    ("spill", "image_3.png", "v2_spill"),
+    ("sign", "image_4.png", "v2_sign"),
 ]
 CAPTION_DUR = 2.8   # 시연 클립 자막(에이전트 기록) 한 건을 화면에 띄우는 시간
+TOAST_DUR = 3.0     # 관리자 화면 전송 토스트를 띄우는 시간
 
 
 def kind_color(kind):
@@ -47,6 +53,12 @@ def kind_color(kind):
 
 def load_narration():
     manifest = json.load(open(os.path.join(NARRATION_DIR, "narration.json"), encoding="utf-8"))
+    return {e["id"]: e for e in manifest}
+
+
+def load_alerts_vi():
+    """지게차 접근 / 끼임 경보용 베트남어 고정 음성 (scripts/make_narration.py 가 미리 만들어 둠)."""
+    manifest = json.load(open(os.path.join(ALERT_DIR, "alerts_vi.json"), encoding="utf-8"))
     return {e["id"]: e for e in manifest}
 
 
@@ -72,16 +84,49 @@ def draw_clip_caption(im, kind, txt):
         yy += 36
 
 
-def play_clip(emit, now, rec_dir):
-    """record_scenario.py 가 남긴 state.jsonl/프레임을 그대로, 실제 경과 시간에 맞춰 재생한다 (가짜 타이밍 아님)."""
+def draw_manager_toast(im, note):
+    """시연 클립 재생 중, 에이전트가 그 순간 관리자 화면으로 보낸 알림을 오른쪽 위 토스트로 잠깐 띄운다
+    (관리자 화면 쪽은 뒤에 따로 보여주지만, '이 사건이 지금 그쪽으로 전송됐다' 는 걸 그 자리에서 바로 보여줌)."""
+    d = ImageDraw.Draw(im, "RGBA")
+    color = (232, 72, 72) if note["level"] == "critical" else (190, 150, 60)
+    w, pad, bw = 600, 20, 134
+    lines = wrap(d, note["summary"], 19, w - pad * 2, 2)
+    h = 50 + 24 * len(lines)
+    x1, y0 = WIDTH - 36, 36
+    x0, y1 = x1 - w, 36 + h
+    d.rounded_rectangle([x0, y0, x1, y1], 12, fill=(10, 14, 20, 235))
+    d.rounded_rectangle([x0, y0, x0 + 6, y1], 3, fill=color)
+    d.rounded_rectangle([x0 + pad, y0 + 14, x0 + pad + bw, y0 + 42], 7, fill=color)
+    text(d, (x0 + pad + bw / 2, y0 + 28), "관리자 전송", 16, (15, 15, 15), True, anchor="mm")
+    text(d, (x0 + pad + bw + 14, y0 + 28), note["zone"], 16, MUTED, anchor="lm")
+    yy = y0 + 48
+    for ln in lines:
+        text(d, (x0 + pad, yy), ln, 19, FG)
+        yy += 24
+
+
+def play_clip(emit, now, rec_dir, sid, alerts_vi):
+    """record_scenario.py 가 남긴 state.jsonl/프레임을 그대로, 실제 경과 시간에 맞춰 재생한다 (가짜 타이밍 아님).
+    음성 경보: 지게차·끼임은 베트남어 고정 문구(alerts_vi), 표지판 질문은 그 장면에서 실제로 생성된
+    베트남어 답변 음성(report['assistant'][i]['wav'])을 쓴다. '주의'(바닥 미끄러움 등)는 경보 음성이 없다
+    (관리자 토스트만 뜬다) — 애초에 작업자에게 큰 소리로 알릴 일이 아니라서."""
     states = [json.loads(ln) for ln in open(os.path.join(rec_dir, "state.jsonl"), encoding="utf-8") if ln.strip()]
     final = json.load(open(os.path.join(rec_dir, "final.json"), encoding="utf-8"))
     r = final["report"]
     events = sorted([(e["t"], e["kind"], e["text"]) for e in r["timeline"] if e["kind"] != "계획"], key=lambda x: x[0])
-    voice_events = sorted(r.get("voice", []), key=lambda v: v["t"])
-    ei = vi = 0
-    active = None
-    voice_marks = []
+    notifications = sorted(r.get("manager_notifications", []), key=lambda note: note["t"])
+    assist_events = sorted(r.get("assistant", []), key=lambda e: e["t"])
+    if sid == "forklift":
+        alert_times = [v["t"] for v in r.get("voice", []) if v["level"] == "hazard"]
+    elif sid == "pinch":
+        alert_times = [e["t"] for e in r.get("pinch_events", [])]
+    else:
+        alert_times = []
+    alert_wav = (alerts_vi.get(sid) or {}).get("path")
+
+    ei = ni = ai = ci = 0
+    active, active_toast = None, None
+    audio_clips = []
     n = len(states)
     for i, st in enumerate(states):
         t = st["t"]
@@ -96,13 +141,26 @@ def play_clip(emit, now, rec_dir):
             draw_clip_caption(im, active[0], active[1])
         else:
             active = None
-        while vi < len(voice_events) and voice_events[vi]["t"] <= t:
-            voice_marks.append((now(), voice_events[vi]["level"]))
-            vi += 1
+        while ni < len(notifications) and notifications[ni]["t"] <= t:
+            active_toast = (notifications[ni], t + TOAST_DUR)
+            ni += 1
+        if active_toast and t <= active_toast[1]:
+            draw_manager_toast(im, active_toast[0])
+        else:
+            active_toast = None
+        while ci < len(alert_times) and alert_times[ci] <= t:
+            if alert_wav:
+                audio_clips.append((now(), alert_wav))
+            ci += 1
+        while ai < len(assist_events) and assist_events[ai]["t"] <= t:
+            w = assist_events[ai].get("wav")
+            if w:
+                audio_clips.append((now(), w))
+            ai += 1
         nxt = states[i + 1]["t"] if i + 1 < n else t + 0.1
         dt = max(0.0, nxt - t)
         emit(im, frames=max(1, int(round(dt * FPS))))
-    return voice_marks, r.get("manager_notifications", [])
+    return audio_clips, notifications
 
 
 def play_manager_clip(emit, rec_dir):
@@ -123,23 +181,6 @@ def manager_title_card():
     ], title="관리자 화면")
 
 
-def outro_card():
-    return card([
-        ("말이 안 통해도, 첫날부터 안전하게.", 38, (120, 220, 255), True),
-        ("", 24, FG, False),
-        ("BodyGuard", 30, FG, True),
-    ], title="")
-
-
-def intro_card():
-    return card([
-        ("외국인 근로자를 위한 바디캠 안전 관리 에이전트", 30, (120, 220, 255), True),
-        ("", 16, FG, False),
-        ("말이 안 통해도 괜찮습니다 — 위험하면 작업자에게 바로, 애매하면 관리자에게, 궁금한 건 손짓 하나로", 26, FG, False),
-        ("NVIDIA Isaac Sim 디지털 트윈 · LangGraph + 로컬 LLM(Qwen2.5-7B) · YOLO26", 22, MUTED, False),
-    ], title="BodyGuard")
-
-
 def main():
     p = argparse.ArgumentParser(description="BodyGuard v2 시연 영상 합성 (스토리보드+내레이션+실제 시연)")
     p.add_argument("--record-dir", default=os.path.join(ROOT, "outputs", "record"))
@@ -148,6 +189,7 @@ def main():
     a = p.parse_args()
 
     narr = load_narration()
+    alerts_vi = load_alerts_vi()
     missing = [rec_name for _, _, rec_name in SCENARIOS + [(None, None, "v2_manager")]
                if not os.path.isdir(os.path.join(a.record_dir, rec_name))]
     if missing:
@@ -169,25 +211,19 @@ def main():
     def now():
         return n[0] / FPS
 
-    from factory_safety.config import VOICE_TEXT_CAUTION
-    from factory_safety.voice import VOICE_CAUTION_WAV, VOICE_WAV, ensure_voice
-    ensure_voice()
-    ensure_voice(VOICE_CAUTION_WAV, VOICE_TEXT_CAUTION)
-
-    clips = []   # (영상 시각 초, wav 경로) — 내레이션 + 시연 중 음성 경고, 끝에서 한 번에 섞어 넣음
+    clips = []   # (영상 시각 초, wav 경로) — 내레이션 + 시연 중 음성, 끝에서 한 번에 섞어 넣음
 
     intro = narr["intro"]
     clips.append((now(), intro["path"]))
-    emit(intro_card(), seconds=intro["dur"] + 0.6)
+    emit(full_bleed(os.path.join(a.storyboard_dir, COVER_IMG)), seconds=intro["dur"] + 0.6)
 
     for sid, img_name, rec_name in SCENARIOS:
         rec_dir = os.path.join(a.record_dir, rec_name)
         meta = narr[sid]
         clips.append((now(), meta["path"]))
         emit(full_bleed(os.path.join(a.storyboard_dir, img_name)), seconds=meta["dur"] + 0.5)
-        vmarks, _ = play_clip(emit, now, rec_dir)
-        for vt, lvl in vmarks:
-            clips.append((vt, VOICE_WAV if lvl == "hazard" else VOICE_CAUTION_WAV))
+        audio_clips, _ = play_clip(emit, now, rec_dir, sid, alerts_vi)
+        clips.extend(audio_clips)
         print(f"[{sid}] 스토리보드 {meta['dur']:.1f}초 + 시연 클립 재생 완료 (누적 {now():.1f}초)")
 
     mgr = narr["manager"]
@@ -198,7 +234,7 @@ def main():
 
     outro = narr["outro"]
     clips.append((now(), outro["path"]))
-    emit(outro_card(), seconds=outro["dur"] + 1.0)
+    emit(full_bleed(os.path.join(a.storyboard_dir, OUTRO_IMG)), seconds=outro["dur"] + 1.0)
 
     writer.close()
     total = n[0] / FPS
