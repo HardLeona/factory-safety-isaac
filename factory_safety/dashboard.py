@@ -118,7 +118,7 @@ def llm_note(e):
             f'<br>{html.escape(" → ".join(m.get("trace") or []))}</span>')
 
 
-def write_dashboard(path, rep, evaluation=None, seed=None, title="창고 안전 순찰 조치 지시서"):
+def write_dashboard(path, rep, evaluation=None, seed=None, title="바디캠 안전관리 조치 지시서"):
     s = rep["summary"]
     tl = "".join(f'<li><span class="t">{clock(e["t"])}</span><span class="k k{e["kind"].replace(" ", "")}">{e["kind"]}</span>'
                  f'{html.escape(e["text"])}</li>' for e in rep["timeline"] if e["kind"] != "계획" or "점검표" not in e["text"])

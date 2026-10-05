@@ -43,7 +43,7 @@ def architecture(path):
     W_, H_ = 2600, 980
     im = Image.new("RGB", (W_, H_), (255, 255, 255))
     d = ImageDraw.Draw(im)
-    d.text((W_ / 2, 40), "창고 안전 순찰 AI 에이전트 구조", font=f(48, True), fill=INK, anchor="ma")
+    d.text((W_ / 2, 40), "바디캠 안전관리 에이전트 구조", font=f(48, True), fill=INK, anchor="ma")
     bw, gap, top, bh = 440, 72, 130, 640
     xs = [60 + i * (bw + gap) for i in range(5)]
     box(d, (xs[0], top, xs[0] + bw, top + bh), "디지털 트윈", [

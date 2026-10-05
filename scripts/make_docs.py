@@ -28,8 +28,8 @@ GRAY = RGBColor(0x55, 0x5F, 0x6D)
 TEAM = "IBDP 팀"
 MEMBERS = "문상균, 이승혜, 조현준"
 DIVISION = os.environ.get("DIVISION", "대학부")
-TITLE = "창고 안전 순찰 AI 에이전트"
-SUBTITLE = "작업자 바디캠만으로 위험 요소를 판정하고, 애매하면 재관측으로 재판단하며, 손동작 명령에 작업자 언어로 답하는 피지컬 AI"
+TITLE = "외국인 근로자를 위한 바디캠 안전관리 에이전트"
+SUBTITLE = "작업자가 평소처럼 착용하는 바디캠 하나로 위험 요소를 판정하고, 애매하면 재관측으로 재판단하며, 손동작 명령에 작업자 모국어로 답하는 피지컬 AI"
 REPO = "https://github.com/HardLeona/factory-safety-isaac"
 N_TESTS = 29
 sys.path.insert(0, ROOT)

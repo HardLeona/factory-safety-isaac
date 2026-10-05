@@ -170,7 +170,7 @@ def draw_map(d, ox, oy, st, alerts, path_pts):
 # ---------------------------------------------------------------- 화면 한 장
 def header(d, t, stage, live=True):
     d.rectangle([0, 0, WIDTH, 66], fill=(12, 16, 24))
-    text(d, (22, 12), "창고 안전 순찰 AI 에이전트", 30, bold=True)
+    text(d, (22, 12), "바디캠 안전관리 에이전트", 30, bold=True)
     text(d, (400, 22), f"Isaac Sim 시뮬레이션 · {'실시간 1배속' if live else ''} · {clock(t)}", 18, fill=MUTED)
     steps = ["① 입력: 바디캠·손동작", "② 판단: YOLO·위험 영역", "③ 도구: LLM 에이전트·음성", "④ 결과: 대장·조치 지시서"]
     x = 900
@@ -439,11 +439,11 @@ def main():
 
     seed = final["seed"]
     emit(card([(a.team, 30, FG, True), ("제4회 경남AI·SW경진대회 · 제조·피지컬 AI Agent", 26, MUTED, False), ("", 20, FG, False),
-               ("작업자 바디캠으로 창고를 순찰하며 위험/안전을 판정하고, 위험 영역을 잡아 닿기 전에 경고하는 AI 에이전트", 28, FG, False),
+               ("작업자가 평소처럼 착용하는 바디캠 하나로 위험/안전을 판정하고, 위험 영역을 잡아 닿기 전에 경고하는 AI 에이전트", 28, FG, False),
                ("애매하면 '주의'로 분류하고, 같은 물체를 바디캠이 다시 지나칠 때 로컬 LLM (Qwen2.5-7B, LangGraph) 이 재판단", 28, FG, False),
-               ("작업자가 손가락 1~5 를 보이면 장비 설명·공장 위험 스캔·TBM 안내·관리자 호출·SOS 를 작업자 언어로 처리", 26, (120, 220, 255), False),
+               ("한국어가 서툰 외국인 근로자도 손가락 1~5 로 장비 설명·위험 스캔·TBM 안내·관리자 호출·SOS 를 모국어로 안내받음", 26, (120, 220, 255), False),
                ("", 20, FG, False), (f"NVIDIA Isaac Sim 6.0 디지털 트윈 · YOLO26 · 시나리오 {seed}", 24, MUTED, False)],
-              title="창고 안전 순찰 AI 에이전트"), 5)
+              title="외국인 근로자를 위한 바디캠 안전관리 에이전트"), 5)
     emit(workflow_card(), 8)
     emit(plan_card(tl), 6)
     cache = {}
