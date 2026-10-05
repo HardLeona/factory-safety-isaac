@@ -244,7 +244,7 @@
 
 `score_gestures.py` 는 저장한 시험 화면 (`--raw`) 으로 Isaac 없이 다시 채점합니다 (손 인식 기준을 바꿀 때, JPEG 로 저장한 화면이라 실시간 시험과 한두 번 다를 수 있음).
 
-시나리오별 표는 [`outputs/eval/patrol_results.md`](outputs/eval/patrol_results.md), 물체별 판정은 `outputs/eval/inspection_seed<시드>.json`, 조치 지시서는 `outputs/agent/dashboard_seed<시드>.html`.
+`eval_patrol.py` 를 돌리면 시나리오별 표가 `outputs/eval/patrol_results.md` (`--agent both` 는 `patrol_results_compare.md` 도), 물체별 판정은 `outputs/eval/inspection_seed<시드>.json`, 조치 지시서는 `outputs/agent/dashboard_seed<시드>.html` 에 생깁니다 (옛 CCTV 시절 결과는 `outputs/eval/_legacy_pre_cctv_removal/` 참고).
 시드마다 약 5분 (Isaac 안 YOLO 는 CPU). RTX 렌더링이 매번 조금씩 달라서 같은 시드라도 결과가 한두 개 달라질 수 있습니다.
 
 ---
