@@ -64,10 +64,11 @@ import omni.replicator.core as rep  # noqa: E402
 
 from factory_safety.agent import SafetyAgent, action_summary, evaluation_summary  # noqa: E402
 from factory_safety.assistant import load_tbm  # noqa: E402
-from factory_safety.config import CLASSES, IMG_H, IMG_W, VOICE_TEXT_CAUTION  # noqa: E402
+from factory_safety.config import CLASSES, IMG_H, IMG_W, VOICE_TEXT_CAUTION, VOICE_TEXT_HAZARD  # noqa: E402
 from factory_safety.dashboard import write_dashboard  # noqa: E402
+from factory_safety import i18n  # noqa: E402
 from factory_safety import overlay  # noqa: E402
-from factory_safety.voice import VOICE_CAUTION_WAV, ensure_voice, play_async, with_alarm  # noqa: E402
+from factory_safety.voice import VOICE_CAUTION_WAV, VOICE_WAV, ensure_voice, play_async, with_alarm  # noqa: E402
 from factory_safety.detector import YoloDetector  # noqa: E402
 from factory_safety.geometry import Projector  # noqa: E402
 from factory_safety.inspection import bodycam_summary  # noqa: E402
@@ -139,20 +140,19 @@ boxes3d = DebugBoxes()
 yolo = YoloDetector(args.weights)
 RT_SUBFRAMES = 2   # Isaac Sim 6.0: 1 이면 어노테이터에 한 단계 전 화면이 들어 있음
 agent.plan(walker.path.length)
-VOICE_HAZARD = ensure_voice()
-VOICE_CAUTION = ensure_voice(VOICE_CAUTION_WAV, VOICE_TEXT_CAUTION)
 SOUND = args.sound == "on" or (args.sound == "auto" and not args.headless)
-if SOUND:
-    agent.on_voice = lambda t, level: play_async(VOICE_HAZARD if level == "hazard" else VOICE_CAUTION)
+WORKER_LANGS = [v.strip() for v in args.lang.split(",") if v.strip()] or ["ko"]
+WORKER_LANG = WORKER_LANGS[0]   # 근접 위험·주의 경보는 작업자 본인 언어 하나로 (여러 언어 순환은 손동작 응답 데모용)
 
-# 손동작 명령 + 재관측 재판단 + 조치문구 보강 (손 인식·다국어 음성·LangGraph LLM 도우미는 따로 띄운 .venv-assistant 프로세스)
+# 손동작 명령 + 재관측 재판단 + 조치문구 보강 + 근접 경보 다국어 음성
+# (손 인식·다국어 음성(edge-tts)·LangGraph LLM 도우미는 따로 띄운 .venv-assistant 프로세스)
 assistant = client = demo = None
-need_client = args.gestures != "off" or args.recheck_llm != "off" or args.report_llm != "off"
+need_client = SOUND or args.gestures != "off" or args.recheck_llm != "off" or args.report_llm != "off"
 if need_client:
     from factory_safety.assistant_client import AssistantClient
     client = AssistantClient()
     if not client.ok:
-        print(f"[도우미] 못 띄워서 LangGraph 기능은 꺼짐 (손동작·재판단·조치문구 규칙/고정문구로 동작): {client.error}")
+        print(f"[도우미] 못 띄워서 LangGraph·다국어 경보 기능은 꺼짐 (손동작·재판단·조치문구 규칙/고정문구, 근접 경보는 한국어로 동작): {client.error}")
     else:
         if args.recheck_llm != "off":
             agent.recheck_judge = lambda snap: client.recheck(snap, args.recheck_llm)   # LangGraph + 로컬 LLM 이 재관측 재판단
@@ -162,11 +162,29 @@ if need_client:
             print(f"[조치 지시서] 조치 문구를 매뉴얼 근거로 보강 ({args.report_llm})")
 if args.gestures != "off" and client and client.ok:
     from factory_safety.assistant import DemoScript, SiteAssistant, gesture_eval
-    assistant = SiteAssistant(agent, langs=[v.strip() for v in args.lang.split(",") if v.strip()])
+    assistant = SiteAssistant(agent, langs=WORKER_LANGS)
     if args.llm != "off":
         assistant.planner = lambda snap: client.agent(snap, args.llm)       # LangGraph + 로컬 LLM 이 판단
     demo = DemoScript() if args.gestures == "demo" else None
     print(f"[손동작] 손 인식 + 다국어 안내 켬 (작업자 언어 {args.lang}, 판단 {args.llm if args.llm != 'off' else '규칙'})")
+
+
+def _proximity_voice(lang, i18n_text, fallback_text, fallback_path):
+    """근접 위험/주의 경보 음성 (경보음 + 작업자 언어). 다국어 도우미(edge-tts)가 있으면 그 언어로, 없으면 한국어 Windows 음성으로."""
+    if client and client.ok:
+        wav, _ = client.tts(i18n_text.get(lang, i18n_text["ko"]), lang)
+        if wav:
+            return with_alarm(wav, 0.6)
+        print(f"[음성] {lang} 음성 생성 실패, 한국어로 대신 경보합니다.")
+    elif lang != "ko":
+        print(f"[음성] {lang} 음성 도우미가 없어 한국어로 대신 경보합니다.")
+    return ensure_voice(fallback_path, fallback_text)
+
+
+VOICE_HAZARD = _proximity_voice(WORKER_LANG, i18n.VOICE, VOICE_TEXT_HAZARD, VOICE_WAV)
+VOICE_CAUTION = _proximity_voice(WORKER_LANG, i18n.VOICE_CAUTION, VOICE_TEXT_CAUTION, VOICE_CAUTION_WAV)
+if SOUND:
+    agent.on_voice = lambda t, level: play_async(VOICE_HAZARD if level == "hazard" else VOICE_CAUTION)
 gest = {"pending": None, "n_ev": 0, "pts": None, "count": 0, "region": None, "t_hand": -1e9}
 HAND_HOLD_S = 1.0       # 손이 사라진 뒤에도 이 시간 동안은 손·팔 자리의 YOLO 박스를 판정에서 뺌 (손을 내리는 중)
 badge = {"text": None, "until": -1e9, "n_seen": 0}
