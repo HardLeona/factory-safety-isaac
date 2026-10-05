@@ -375,7 +375,7 @@ def results_card(eval_dir, gestures=None, langs=None):
              f"{tot('after', 'safe_ok')}/{tot('after', 'safe_total')}"),
             ("위험↔안전 거꾸로 판정", f"{tot('before', 'hazard_as_safe') + tot('before', 'safe_as_hazard')}",
              f"{tot('after', 'hazard_as_safe') + tot('after', 'safe_as_hazard')}"),
-            ("없는 위험을 보고", f"{tot('before', 'false_reports')}", f"{tot('after', 'false_reports')}")]
+            ("없는 위험 판정 (박스 수 / 보고 건수)", f"{tot('before', 'false_hazard_boxes')}개", f"{tot('after', 'false_reports')}건")]
     y = 230
     for i, (a, b, cc) in enumerate(rows):
         bold = i == 0
