@@ -1,9 +1,8 @@
 """학습 데이터 생성 도우미 (Isaac 없이 테스트 가능).
 
-촬영 시점은 실제로 쓰일 화면과 비슷하게 섞는다:
-  바디캠 (55%): 순찰 경로 위 작업자 가슴 높이, 걷는 방향 + 둘러보기. 일부는 물체 쪽을 봄
-  CCTV  (30%): CCTV 3대 근처에서 위치와 각도를 흔들어서. 작업자가 화면에 들어오게 둠
-  자유  (15%): 물체 주변 1.0~2.2 m 높이에서 그 물체를 봄
+촬영 시점은 실제로 쓰일 화면과 비슷하게 섞는다 (바디캠 단독 배치라 바디캠 시점 비중을 높게):
+  바디캠 (70%): 순찰 경로 위 작업자 가슴 높이, 걷는 방향 + 둘러보기. 일부는 물체 쪽을 봄
+  자유  (30%): 물체 주변 1.0~2.2 m 높이에서 그 물체를 봄
 """
 import math
 import os
@@ -48,7 +47,7 @@ def _tool_closeup(rng, scenario, worker):
 
 
 def _cart_closeup(rng, scenario, worker):
-    """운반 카트를 1.0~5 m 에서 (작업자 눈높이, 가끔 CCTV 높이) 찍는 장면."""
+    """운반 카트를 1.0~5 m 에서 (작업자 눈높이, 가끔 높은 각도) 찍는 장면."""
     e = list(scenario.equipment)[int(rng.integers(len(scenario.equipment)))]
     a = rng.uniform(0, 2 * math.pi)
     dist = rng.uniform(1.0, 5.0)
@@ -72,7 +71,7 @@ def sample_capture(rng, scenario, path, focus=None):
         return _tool_closeup(rng, scenario, worker)
     if focus == "cart" and getattr(scenario, "equipment", None) and rng.random() < 0.5:
         return _cart_closeup(rng, scenario, worker)
-    if r < 0.55:
+    if r < 0.70:
         s = rng.uniform(0, path.length)
         p, yaw = path.point_at(s), path.heading_at(s)
         lat = rng.uniform(-1.0, 1.0)
@@ -97,21 +96,6 @@ def sample_capture(rng, scenario, path, focus=None):
             wp = path.point_at(s + path.length / 2)
             worker = (float(wp[0]), float(wp[1]), worker[2], worker[3], worker[4])
         return pose, worker, "bodycam"
-    if r < 0.85:
-        name, cx, cy, cz, yaw_d, pitch_d, vfov = W.CCTVS[int(rng.integers(len(W.CCTVS)))]
-        pos = np.array([cx + rng.uniform(-1.0, 1.0), cy + rng.uniform(-0.3, 0.3), cz + rng.uniform(-0.8, 0.6)])
-        pose = CameraPose(pos=pos, yaw=math.radians(yaw_d + rng.uniform(-14, 14)),
-                          pitch=math.radians(pitch_d + rng.uniform(-8, 8)), roll=0.0, vfov=vfov + rng.uniform(-8, 8))
-        # 작업자를 그 CCTV 가 보는 쪽 경로 위에 둔다
-        for _ in range(20):
-            s = rng.uniform(0, path.length)
-            q = path.point_at(s)
-            d = q - pos[:2]
-            ang = (math.atan2(d[1], d[0]) - pose.yaw + math.pi) % (2 * math.pi) - math.pi
-            if abs(ang) < math.radians(vfov * 0.7) and 3 < np.linalg.norm(d) < 20:
-                worker = (float(q[0]), float(q[1]), path.heading_at(s), float(rng.uniform(0, PERIOD)), True)
-                break
-        return pose, worker, "cctv"
     o = _pick_object(rng, scenario)
     a = rng.uniform(0, 2 * math.pi)
     is_tool = getattr(o, "cls", "") in ("tool_floor", "tool_stored")
@@ -129,7 +113,7 @@ def sample_capture(rng, scenario, path, focus=None):
 
 
 def post_process(img, rng, blur_prob=0.35):
-    """흔들림 블러, 밝기/대비, 센서 노이즈 (바디캠, CCTV 느낌). img: (H, W, 3) uint8."""
+    """흔들림 블러, 밝기/대비, 센서 노이즈 (바디캠 느낌). img: (H, W, 3) uint8."""
     out = img.astype(np.float32)
     if rng.random() < blur_prob:
         ang, length, k = rng.uniform(0, 2 * math.pi), rng.uniform(2, 8), 5

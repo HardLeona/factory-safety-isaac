@@ -16,7 +16,7 @@ from factory_safety import warehouse as W  # noqa: E402
 from factory_safety.config import CLASSES, HAZARD, KIND, STATES, TOOL_TYPES  # noqa: E402
 from factory_safety.geometry import CameraPose, Projector  # noqa: E402
 from factory_safety.scenario import sample_scenario  # noqa: E402
-from factory_safety.walker import PathWalker, cctv_pose  # noqa: E402
+from factory_safety.walker import PathWalker  # noqa: E402
 
 
 def test_scenario_and_answer_key():
@@ -82,7 +82,7 @@ def test_walk_animation_targets():
 
 def test_floor_point_roundtrip():
     from factory_safety.inspection import floor_point
-    cam = cctv_pose("cctv_west")
+    cam = CameraPose(pos=np.array([-9.0, -2.0, 1.38]), yaw=0.0, pitch=-0.2, vfov=70)
     P = Projector(960, 540)
     P.set_pose(cam)
     target = np.array([-4.0, -2.0, 0.0])
@@ -128,51 +128,6 @@ def test_bodycam_live_confirm():
     for k in range(5):
         events += ins.update(k * 0.2, cam, [("spill", 0.8, [400, 300, 520, 360], 7)])
     assert len(events) == 1 and events[0][1] == "spill"
-
-
-def test_cctv_proximity():
-    from factory_safety.inspection import CCTVProximity
-    cam = cctv_pose("cctv_west")
-    P = Projector(960, 540)
-    P.set_pose(cam)
-
-    def box_at(x, y, h=40, w=16):
-        (u, v) = P.project(np.array([[x, y, 0.0]]))[0][0]
-        return [u - w / 2, v - h, u + w / 2, v]
-
-    prox = CCTVProximity(960, 540)
-    dets = [("worker", 0.9, box_at(-4.5, 0.0, 120, 40), None), ("tool_floor", 0.8, box_at(-4.5, 1.2), None)]
-    events, meas = prox.update(10.0, "cctv_west", cam, dets)
-    assert len(events) == 1 and abs(events[0][3] - 1.2) < 0.1
-    events2, _ = prox.update(11.0, "cctv_west", cam, dets)
-    assert events2 == []                                      # 5초 안 반복 경고 없음
-    far = [("worker", 0.9, box_at(-4.5, -5.0, 120, 40), None), ("tool_floor", 0.8, box_at(-4.5, 1.2), None)]
-    assert prox.update(30.0, "cctv_west", cam, far)[0] == []
-    # 작업자 박스 안에 들어간 작은 "유출" 은 발밑 그림자 오인으로 보고 뺀다
-    wb = box_at(-4.5, 0.0, 120, 40)
-    shadow = [("worker", 0.9, wb, None), ("spill", 0.7, [wb[0] + 5, wb[3] - 12, wb[2] - 5, wb[3]], None)]
-    assert prox.update(60.0, "cctv_west", cam, shadow)[1]["pairs"] == []
-
-
-def test_cctv_event_scoring():
-    """작업자가 위험물 옆을 지나가는 동안 경고가 나면 사건 1건 잡음, 먼 곳 경고는 오경보."""
-    from types import SimpleNamespace
-    from factory_safety.inspection import CCTVProximity
-    hz = SimpleNamespace(id="O01", cls="spill", x=0.0, y=0.0)
-    prox = CCTVProximity(960, 540)
-    for k in range(40):
-        t = k * 0.2
-        wy = -4.0 + 0.2 * k                      # 작업자가 (0.5, -4) -> (0.5, 4) 로 지나감
-        d = math.hypot(0.5, wy)
-        pairs = [((0.5, wy), "spill", (0.1, 0.0), d)] if d < 3.0 else []
-        if k == 2:
-            pairs.append(((0.5, wy), "spill", (6.0, 6.0), 1.0))   # 엉뚱한 곳 경고 (오경보)
-        meas = {"workers": [np.array([0.5, wy])], "pairs": [(np.array(a), n, np.array(b), dd) for a, n, b, dd in pairs]}
-        prox.score_frame(t, "cctv_west", meas, (0.5, wy), [hz], {"O01"})
-    s = prox.report()
-    assert s["events"] == 1 and s["events_visible"] == 1 and s["events_detected"] == 1
-    assert s["false_alert_episodes"] == 1
-    assert s["worker_err_median"] < 1e-6
 
 
 def _agent():
@@ -293,7 +248,7 @@ def test_agent_report_action_grounding():
 
 def test_agent_checkpoints_and_finish_patrol():
     """바디캠이 확인한 소화기 점검 지점은 '바디캠 확인' 으로, 끝내 못 본 지점은 순찰이 끝날 때 바로
-    '현장 확인 필요' 로 넘어간다 (CCTV 재확인 시도 없이)."""
+    '현장 확인 필요' 로 넘어간다 (재시도 없이)."""
     from factory_safety.agent import Finding
     a = _agent()
     mx, my, _ = W.EXT_MOUNTS[1]
@@ -317,7 +272,7 @@ def test_agent_near_miss_priority_and_eval():
     for fid, cls, xy in (("F01", "tool_floor", (-7.3, 4.6)), ("F02", "spill", (3.1, 2.2)), ("F03", "stack_stable", (7.2, -5.6))):
         f = Finding(fid, cls if KIND[cls] == "tool" else KIND[cls], np.array(xy, float), 0.0, "바디캠")
         f.body[cls] += 3.0
-        f.n_body, f.body_confirmed = 3, True
+        f.n_body = 3
         a.findings.append(f)
     a.findings[0].near_miss = 2
     rep = a.report()
@@ -330,6 +285,25 @@ def test_agent_near_miss_priority_and_eval():
     ev = a.evaluate(key)["after"]
     assert (ev["hazard_found"], ev["hazard_missed"], ev["safe_ok"], ev["safe_as_hazard"]) == (1, 1, 1, 1)
     assert ev["false_reports"] == 0
+
+
+def test_agent_evaluate_before_is_frame_raw_after_is_ledger():
+    """before = BodycamInspector 프레임 단위 YOLO 원시 판정, after = 에이전트 최종 대장. 단위가 달라 필드 구성도 다르다."""
+    from factory_safety.agent import Finding
+    a = _agent()
+    gt = [(CLASSES.index("ext_fallen"), 10, 10, 50, 50, 0.0, "/World/O1_ext/Mesh")]
+    for _ in range(3):      # 프레임 단위 YOLO 는 (잘못) "안전하게 정리된 공구" 로 봄
+        a.scorer.score_frame([("tool_stored", 0.9, (10, 10, 50, 50), 1)], gt)
+    f = Finding("F01", "ext", np.array([0.0, 0.0]), 0.0, "바디캠")   # 대장은 고위험 후보로 즉시 위험 확정 (규칙)
+    f.body["ext_fallen"] += 5.0
+    f.n_body = 3
+    a.findings.append(f)
+    key = {"objects": [{"id": "O1", "class": "ext_fallen", "hazard": True, "x": 0.0, "y": 0.0, "zone": ""}]}
+    ev = a.evaluate(key)
+    assert ev["before"]["hazard_found"] == 0 and ev["before"]["hazard_as_safe"] == 1
+    assert ev["after"]["hazard_found"] == 1 and ev["after"]["hazard_as_safe"] == 0
+    assert "frames" in ev["before"] and "frames" not in ev["after"]        # 프레임 단위만의 필드
+    assert "need_check" in ev["after"] and "need_check" not in ev["before"]  # 물체 단위만의 필드
 
 
 def test_agent_regroup_and_low_confidence():
@@ -412,9 +386,11 @@ def test_dashboard():
     box = _box_at(cam, [-5.6, 3.0, 0.0], 40, 20, flat=False)
     for k in range(3):
         a.on_bodycam(0.1 * k, cam, [("tool_floor", 0.8, box, 1)])
+    key = {"objects": [{"id": "O1", "class": "tool_floor", "hazard": True, "x": -5.6, "y": 3.0, "zone": ""}]}
     path = os.path.join(tempfile.mkdtemp(), "d.html")
-    write_dashboard(path, a.report(), seed=1)
-    assert "조치 목록" in open(path, encoding="utf-8").read()
+    write_dashboard(path, a.report(), evaluation=a.evaluate(key), seed=1)
+    html = open(path, encoding="utf-8").read()
+    assert "조치 목록" in html and "정답표 비교" in html
 
 
 def test_usd_build():
@@ -446,7 +422,7 @@ def test_usd_build():
         zp = stage.GetPrimAtPath(f"{root}/{z.id}_zone")
         names = sorted(label(c)[0] for c in zp.GetChildren() if label(c))
         assert names.count("cone") == len(z.params["cones"]) and names.count("danger_sign") == int(z.params["sign"])
-    assert stage.GetPrimAtPath(scene.cam_path) and len(scene.cctv_paths) == len(W.CCTVS)
+    assert stage.GetPrimAtPath(scene.cam_path)
 
 
 def _hand_pts(fingers, thumb):
@@ -489,7 +465,7 @@ def test_hand_count():
 def test_i18n_templates():
     from factory_safety import i18n
     langs = ("ko", "en", "zh", "ja")
-    for table in (i18n.NAMES, i18n.INFO, i18n.TBM_ITEMS, i18n.ACTIONS, i18n.COMMANDS, i18n.DIRS, i18n.ZONE_KIND, i18n.CAMS, i18n.T):
+    for table in (i18n.NAMES, i18n.INFO, i18n.TBM_ITEMS, i18n.ACTIONS, i18n.COMMANDS, i18n.DIRS, i18n.ZONE_KIND, i18n.T):
         for k, v in table.items():
             assert all(v.get(lg) for lg in langs), (k, v)
     for v in i18n.ZONES.values():
@@ -519,13 +495,12 @@ def test_assistant_commands():
     assert ev["lang"] == "zh" and "锤子" in ev["text"] and "망치" in ev["text_ko"] and ev["items"][0]["tool"] == "hammer"
     ev = s.run(1.1, 2, cam, (-4.5, -2.3), math.pi / 2)            # 영어: 공장 전체 스캔 (위험물 대장)
     assert ev["lang"] == "en" and ev["n_hazards"] == 2 and "spill" in ev["text"] and "hammer" in ev["text"] and "west aisle" in ev["text"]
-    assert s.ptz_view(1.2) is None     # CCTV 없음 -> 확대 화면 없이 텍스트로만 전달
     ev = s.run(1.2, 3, cam, (-4.5, -2.3), math.pi / 2)            # 일본어
     assert ev["lang"] == "ja" and "TBM" in ev["text"] and "南側作業エリア" in ev["text"] and "남쪽 작업 구역" in ev["text_ko"]
     ev = s.run(1.3, 4, cam, (-4.5, -2.3), math.pi / 2, lang="ko")
     assert "서쪽 통로" in ev["text"] and any(e["kind"] == "관리자 호출" for e in a.timeline)
     ev = s.run(2.0, 5, cam, (-4.5, -2.3), math.pi / 2, lang="en")
-    assert not ev["cctv"] and s.sos_view(3.0) is None     # CCTV 없음 -> 위치/정보만 전달, 영상 확대 없음
+    assert "location" in ev["text"].lower()     # CCTV 없음 -> 위치/정보만 전달, 영상 확대 없음
     assert any(e["kind"] == "SOS" for e in a.timeline)
     s2 = SiteAssistant(_agent(), langs=["en"], tbm=tbm)
     assert "No hazards" in s2.run(0.0, 2, cam, (-4.5, -2.3), math.pi / 2)["text"]

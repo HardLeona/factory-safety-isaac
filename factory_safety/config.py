@@ -26,7 +26,7 @@ ASSETS = {
     "worker": ASSET_ROOT + "People/Characters/original_male_adult_construction_05/male_adult_construction_05.usd",
 }
 
-# 바디캠, CCTV 화면 크기 (YOLO 입력과 데이터셋 기본값)
+# 바디캠 화면 크기 (YOLO 입력과 데이터셋 기본값)
 IMG_W = 960
 IMG_H = 540
 

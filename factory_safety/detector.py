@@ -1,4 +1,4 @@
-"""YOLO 래퍼 (ultralytics 필요). 바디캠은 추적(같은 물체에 번호), CCTV 는 장마다 검출."""
+"""YOLO 래퍼 (ultralytics 필요). 바디캠 추적(같은 물체에 번호를 이어 붙임)."""
 import numpy as np
 
 
@@ -26,11 +26,6 @@ class YoloDetector:
             tid = int(b.id[0]) if getattr(b, "id", None) is not None else None
             out.append((self.names[int(b.cls[0])], float(b.conf[0]), [float(v) for v in b.xyxy[0].tolist()], tid))
         return out
-
-    def __call__(self, rgb):
-        """[(클래스, 신뢰도, xyxy, None)], 결과 객체."""
-        res = self.model.predict(self._bgr(rgb), conf=self.conf, imgsz=self.imgsz, device=self.device, verbose=False)[0]
-        return self._out(res), res
 
     def track(self, rgb, stream="bodycam"):
         """같은 영상 흐름(stream)끼리 추적 번호를 이어간다. [(클래스, 신뢰도, xyxy, 추적 번호)], 결과 객체."""

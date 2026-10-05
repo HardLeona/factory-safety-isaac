@@ -1,10 +1,10 @@
 """작업자 손동작 명령: 바디캠 앞에 손을 가로로 내밀어 손가락 1~5개를 보이면 작업자 언어로 안내한다.
 
     1 장비 설명      바로 전 바디캠 화면 가운데에 있던 장비 (운반 카트, 공구, 소화기 등) 가 무엇인지, 어떻게 써야 안전한지
-    2 공장 위험 스캔  CCTV 3대와 위험물 대장으로 공장 전체의 위험 요소 (우선순위 순, 구역), CCTV 확대로 차례로 비춤
+    2 공장 위험 스캔  위험물 대장(바디캠으로 확정한 것)으로 공장 전체의 위험 요소를 우선순위 순으로 (구역 포함)
     3 오늘의 TBM     아침 작업 전 안전 회의 내용 (오늘 작업, 주의할 위험, 지킬 것, 지난 순찰 조치)
     4 관리자 호출    작업자 위치와 바디캠 화면을 관리자에게 보냄
-    5 SOS 신고       위치를 관리자·안전팀에 보내고, 작업자를 볼 수 있는 CCTV 가 작업자 쪽을 확대 촬영
+    5 SOS 신고       위치와 바디캠 화면을 관리자·안전팀에 보냄
 
 무엇을 말할지는 LLM 에이전트 (llm_agent.py: LangGraph + 로컬 Qwen2.5-7B) 가 도구로 상황을 보고 정하고 (planner),
 LLM 이 없거나 실패하면 규칙으로 정한다. 작업자에게 들려주는 문장은 i18n 의 검수한 틀로 만든다 (작업자 언어 + 관리자용 한국어).
@@ -37,11 +37,7 @@ class SiteAssistant:
     EQUIP_MAX_M = 8.0
     HAZ_MAX_M = 12.0
     ZONE_MAX_M = 8.0
-    SOS_VIEW_S = 8.0      # SOS 뒤 CCTV 가 작업자를 확대해 보여 주는 시간
-    SOS_WINDOW_M = 3.2    # 확대 화면 세로 폭
     SCAN_SAY = 3          # 공장 스캔에서 말해 주는 위험 수 (나머지는 조치 지시서)
-    SCAN_DWELL_S = 1.6    # 스캔 때 CCTV 확대로 위험 하나를 비추는 시간
-    SCAN_WINDOW_M = 3.0
 
     def __init__(self, agent, langs=("zh",), tbm=None, w=None, h=None):
         self.agent = agent
@@ -51,8 +47,6 @@ class SiteAssistant:
         self.filter = GestureFilter()
         self.tbm = tbm if tbm is not None else load_tbm()
         self.events = []
-        self.sos = None
-        self.scan = None
         self.planner = None       # 스냅샷 -> LLM 결정 (assistant_client.AssistantClient.agent). None 이면 규칙
         self.w, self.h = w or agent.w, h or agent.h
 
@@ -124,8 +118,7 @@ class SiteAssistant:
         snap = {"count": count, "t": round(float(ctx["t"]), 1), "lang": lang, "lang_name": i18n.LANGS[lang], "view": view,
                 "hazards": hazards, "zones": [{"id": z["id"], "kind": z["source"], "area_ko": z["zone"]} for z in rep["zones"]],
                 "tbm": {key: [i18n.TBM_ITEMS[k]["en"] for k in tb.get(key, [])] for key in ("work", "risks", "rules")},
-                "worker": {"area": i18n.zone(ctx["zone"], "en"), "area_ko": ctx["zone"], "xy": [round(float(v), 1) for v in ctx["xy"]],
-                           "cctv": bool(self.agent.cctvs)}}
+                "worker": {"area": i18n.zone(ctx["zone"], "en"), "area_ko": ctx["zone"], "xy": [round(float(v), 1) for v in ctx["xy"]]}}
         try:
             return self.planner(snap)
         except Exception as e:      # 도우미 연결 문제
@@ -198,7 +191,7 @@ class SiteAssistant:
 
     # ------------------------------------------------------------ 2. 공장 위험 스캔
     def _scan(self, ctx, lang):
-        """공장 전체: 위험물 대장 (바디캠·CCTV 확대로 확정한 것) 의 위험을 우선순위 순으로. 같은 종류·구역은 한 번만."""
+        """공장 전체: 위험물 대장 (바디캠으로 확정한 것) 의 위험을 우선순위 순으로. 같은 종류·구역은 한 번만."""
         rep = self.agent.report()
         haz = [r for r in rep["findings"] if r["state"] == "위험"]
         # LLM 이 고른 위험을 먼저 (고른 순서대로), 나머지는 우선순위 순
@@ -212,11 +205,10 @@ class SiteAssistant:
             seen.add(key)
             said.append(r)
         n_zone = len(rep["zones"])
-        log_only = "" if self.agent.cctvs else "_log"           # CCTV 가 없으면 위험물 대장으로만
         if not said:
-            return i18n.fmt("scan_none" + log_only, lang), {"items": [], "zones": n_zone}
+            return i18n.fmt("scan_none", lang), {"items": [], "zones": n_zone}
         sep = " " if lang in ("ko", "en") else ""
-        parts = [i18n.fmt("scan_head" + log_only, lang, n=len(said))]
+        parts = [i18n.fmt("scan_head", lang, n=len(said))]
         for r in said[:self.SCAN_SAY]:
             if r.get("tool_types"):
                 nm = i18n.fmt("floor_tool", lang, tool=i18n.join([i18n.name(t, lang) for t in r["tool_types"][:2]], lang))
@@ -227,14 +219,6 @@ class SiteAssistant:
             parts.append(i18n.fmt("scan_more", lang, n=len(said) - self.SCAN_SAY))
         if n_zone:
             parts.append(i18n.fmt("scan_zones", lang, n=n_zone))
-        if self.scan is None or self.scan.get("t0") != ctx["t"]:
-            shots = []
-            for r in said[:self.SCAN_SAY]:
-                target = np.array([r["x"], r["y"], 0.4])
-                cams = self.agent.camera_options(target) if self.agent.cctvs else []
-                if cams:
-                    shots.append((cams[0][0], target, r["id"]))
-            self.scan = {"t0": float(ctx["t"]), "shots": shots}
         items = [{"id": r["id"], "cls": r["class"], "zone": r["zone"], "xy": [r["x"], r["y"]]} for r in said[:self.SCAN_SAY]]
         return sep.join(parts), {"items": items, "zones": n_zone, "n_hazards": len(said)}
 
@@ -274,37 +258,9 @@ class SiteAssistant:
 
     # ------------------------------------------------------------ 5. SOS
     def _sos(self, ctx, lang):
-        target = np.array([ctx["xy"][0], ctx["xy"][1], 1.0])
-        cams = self.agent.camera_options(target) if self.agent.cctvs else []
-        cam = cams[0][0] if cams else None
-        if self.sos is None or self.sos.get("t0") != ctx["t"]:
-            self.sos = {"t0": float(ctx["t"]), "cam": cam, "target": target, "until": float(ctx["t"]) + self.SOS_VIEW_S}
         zone = i18n.zone(ctx["zone"], lang)
         note = self._manager_note(ctx)
-        if cam:
-            return i18n.fmt("sos", lang, zone=zone, cam=i18n.CAMS.get(cam, {}).get(lang, cam)), \
-                {"notify": "관리자, 안전팀", "cctv": cam, "manager_ko": note}
-        return i18n.fmt("sos_nocam", lang, zone=zone), {"notify": "관리자, 안전팀", "cctv": None, "manager_ko": note}
-
-    def sos_view(self, t):
-        """SOS 뒤 작업자를 확대해 보는 CCTV (이름, 카메라 자세) 또는 None."""
-        s = self.sos
-        if not s or s["cam"] is None or not (s["t0"] <= t <= s["until"]):
-            return None
-        return s["cam"], self.agent.aim(s["cam"], s["target"], self.SOS_WINDOW_M)
-
-    def ptz_view(self, t):
-        """지금 비서가 쓰는 CCTV 확대: (이름, 카메라 자세, 무엇, 목표점) 또는 None. SOS 가 먼저, 다음은 공장 스캔."""
-        v = self.sos_view(t)
-        if v:
-            return v[0], v[1], "SOS", self.sos["target"]
-        sc = self.scan
-        if sc and sc["shots"]:
-            k = int((t - sc["t0"]) // self.SCAN_DWELL_S)
-            if 0 <= k < len(sc["shots"]):
-                cam, target, fid = sc["shots"][k]
-                return cam, self.agent.aim(cam, target, self.SCAN_WINDOW_M), f"스캔 {fid}", target
-        return None
+        return i18n.fmt("sos", lang, zone=zone), {"notify": "관리자, 안전팀", "manager_ko": note}
 
     def report(self):
         return list(self.events)

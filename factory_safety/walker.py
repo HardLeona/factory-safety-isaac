@@ -139,10 +139,3 @@ class PathWalker:
             ahead = GESTURE_CAM_AHEAD + (self.cam_ahead - GESTURE_CAM_AHEAD) * (1.0 - g)
         pos = np.array([x + ahead * math.cos(yaw), y + ahead * math.sin(yaw), self.cam_h + bob])
         return CameraPose(pos=pos, yaw=yaw + look, pitch=pitch, roll=roll, vfov=self.vfov)
-
-
-def cctv_pose(name):
-    for n, x, y, z, yaw, pitch, vfov in W.CCTVS:
-        if n == name:
-            return CameraPose(pos=np.array([x, y, z]), yaw=math.radians(yaw), pitch=math.radians(pitch), vfov=vfov)
-    raise KeyError(name)

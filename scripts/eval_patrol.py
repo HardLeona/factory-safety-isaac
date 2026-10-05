@@ -1,7 +1,7 @@
 """Isaac Sim 순찰을 여러 시나리오로 돌려서 정답표 채점 결과를 표로 모은다 (일반 파이썬으로 실행).
 
     python scripts/eval_patrol.py --seeds 0 1 2 3 4
-    python scripts/eval_patrol.py --seeds 0 1 2 --agent both      # 규칙 vs LangGraph 재확인 비교 (LLM 호출로 느려서 시드 적게 권장)
+    python scripts/eval_patrol.py --seeds 0 1 2 --agent both      # 규칙 vs LangGraph 재판단 비교 (LLM 호출로 느려서 시드 적게 권장)
 
 각 실행은 --sim-dt 로 시간 간격을 고정해서 같은 시드면 같은 결과가 나온다.
 결과: outputs/eval/inspection_seed<시드>.json (물체별 판정), outputs/eval/answer_key_seed<시드>.json (정답표),
@@ -49,7 +49,7 @@ def extra_lines(results):
             f"| 라바콘이 놓인 조치된 유출을 영역으로 | {z('marked_spill')} |",
             f"| 엉뚱한 곳에 만든 표시 영역 | {z('false')} |",
             f"| 에이전트가 스스로 판단한 위험 영역 (실제 위험 주변인 것) | {z('agent')} ({z('agent_real')}) |",
-            f"| 작업자가 닿기 직전 (위험물 1 m, 영역 0.5 m) 사건에 음성 경고 | {v('warned')}/{v('events')} |",
+            f"| 작업자가 닿기 직전 (회피형 위험 1.5 m, 영역 0.5 m) 사건에 음성 경고 | {v('warned')}/{v('events')} |",
             f"| 음성 경고 중 실제 사건에 맞은 것 | {v('useful')}/{v('voices')} |",
             f"| 공구 이름 맞힘 (정답 공구 종류 중) | {t('named')}/{t('total')} |", ""]
 
@@ -82,16 +82,16 @@ def collect_results(seeds, isaac, weights, laps, sim_dt, report_only, out_dir, a
             continue
         r = json.load(open(res_path, encoding="utf-8"))
         results.append(r)
-        b, c = r["bodycam"], r["cctv"] or {}
-        print(f"  seed {seed} [{agent_mode}]: 위험 {b['hazard_found']}/{b['hazard_total']}  안전 {b['safe_ok']}/{b['safe_total']}  "
-              f"안전->위험 오판 {b['safe_as_hazard']}  CCTV 접근 사건 {c.get('events_detected')}/{c.get('events_visible')} 경고"
-              f" (사각지대 {c.get('events_blind')}, 오경보 {c.get('false_alert_episodes')})  ({(time.time() - t0) / 60:.1f}분)", flush=True)
+        b = r["bodycam"]
+        print(f"  seed {seed} [{agent_mode}]: 바디캠 프레임 원시판정 위험 {b['hazard_found']}/{b['hazard_total']}  "
+              f"안전 {b['safe_ok']}/{b['safe_total']}  안전->위험 오판 {b['safe_as_hazard']}  ({(time.time() - t0) / 60:.1f}분)", flush=True)
         if r.get("agent"):
             e = r["agent"]["evaluation"]
-            print(f"           에이전트: 위험 {e['after']['hazard_found']}/{e['after']['hazard_total']} (바디캠만 {e['before']['hazard_found']})  "
-                  f"안전 {e['after']['safe_ok']}/{e['after']['safe_total']} (바디캠만 {e['before']['safe_ok']})  "
-                  f"거꾸로 {e['after']['hazard_as_safe'] + e['after']['safe_as_hazard']}  없는 위험 {e['after']['false_reports']}  "
-                  f"현장 확인 {e['after']['need_check']}  미확정 {e['after'].get('undetermined', 0)}  재확인 {e['recheck']['recheck_run']}",
+            print(f"           에이전트: 위험 {e['after']['hazard_found']}/{e['after']['hazard_total']}  "
+                  f"안전 {e['after']['safe_ok']}/{e['after']['safe_total']}  "
+                  f"거꾸로 {e['after']['hazard_as_safe'] + e['after']['safe_as_hazard']}  없는 위험 보고 {e['after']['false_reports']}  "
+                  f"현장 확인 {e['after']['need_check']}  주의 {e['after'].get('caution', 0)}  "
+                  f"주의 재판단 {e['rejudge']['caution_rejudged']} (확정 전환 {e['rejudge']['caution_rejudged_confirmed']})",
                   flush=True)
     return results
 
@@ -101,30 +101,28 @@ def summarize(results):
     def tot(k, part="bodycam"):
         return sum((r[part] or {}).get(k, 0) or 0 for r in results)
 
-    def med(k):
-        v = [r["cctv"][k] for r in results if r["cctv"] and r["cctv"].get(k) is not None]
-        return f"{sorted(v)[len(v) // 2]:.2f} m" if v else "-"
-
     def ag(part, k):
         return sum(r["agent"]["evaluation"][part][k] for r in results if r.get("agent"))
 
-    def rc(k):
-        return sum(r["agent"]["evaluation"]["recheck"][k] for r in results if r.get("agent"))
+    def rj(k):
+        return sum(r["agent"]["evaluation"]["rejudge"][k] for r in results if r.get("agent"))
 
     cps = [checkpoint_checks(r) for r in results if r.get("agent")]
     cpc = (sum(c[0] for c in cps), sum(c[1] for c in cps))
-    return SimpleNamespace(results=results, tot=tot, med=med, ag=ag, rc=rc, cpc=cpc,
+    return SimpleNamespace(results=results, tot=tot, ag=ag, rj=rj, cpc=cpc,
                            hz=tot("hazard_total"), sf=tot("safe_total"),
                            ah=ag("after", "hazard_total"), asf=ag("after", "safe_total"))
 
 
 def format_report(s):
     """기존(단일 모드) 전체 표 (patrol_results.md)."""
-    results, tot, med, ag, rc, cpc, hz, sf, ah, asf = (s.results, s.tot, s.med, s.ag, s.rc, s.cpc, s.hz, s.sf, s.ah, s.asf)
+    results, tot, ag, rj, cpc, hz, sf, ah, asf = (s.results, s.tot, s.ag, s.rj, s.cpc, s.hz, s.sf, s.ah, s.asf)
     lines = [f"# Isaac Sim 창고 순찰 평가 (시나리오 {len(results)}개, 한 바퀴, 시드 {[r['seed'] for r in results]})", "",
              f"## 에이전트 최종 판정 (창고 전체 물체 {ah + asf}개, 정답표와 비교)", "",
-             "바디캠만: 바디캠이 확정한 물체만 바디캠 판정으로. 에이전트: 재확인(CCTV 확대)과 점검표까지 거친 최종 위험물 대장.", "",
-             "| 항목 | 바디캠만 | 에이전트 |", "|---|:-:|:-:|",
+             "바디캠 프레임 원시판정: 에이전트 판단 없이 YOLO 프레임 투표만 (BodycamInspector). "
+             "에이전트: 2단계 분류 + 재관측 재판단 + 위험 영역·점검표까지 거친 최종 위험물 대장 (물체 단위). "
+             "두 열은 집계 단위가 달라(프레임 대 물체) '없는 위험' 행만 단위를 나눠 적는다.", "",
+             "| 항목 | 바디캠 프레임 원시판정 | 에이전트 |", "|---|:-:|:-:|",
              f"| 위험 물체를 위험으로 | {ag('before', 'hazard_found')}/{ah} ({100 * ag('before', 'hazard_found') / max(1, ah):.0f}%) | "
              f"{ag('after', 'hazard_found')}/{ah} ({100 * ag('after', 'hazard_found') / max(1, ah):.0f}%) |",
              f"| 안전 물체를 안전으로 | {ag('before', 'safe_ok')}/{asf} ({100 * ag('before', 'safe_ok') / max(1, asf):.0f}%) | "
@@ -132,15 +130,14 @@ def format_report(s):
              f"| 위험을 안전으로 오판 | {ag('before', 'hazard_as_safe')} | {ag('after', 'hazard_as_safe')} |",
              f"| 안전을 위험으로 오판 | {ag('before', 'safe_as_hazard')} | {ag('after', 'safe_as_hazard')} |",
              f"| 상태까지 정확 | {ag('before', 'exact')}/{ah + asf} | {ag('after', 'exact')}/{ah + asf} |",
-             f"| 없는 위험 보고 | {ag('before', 'false_reports')} | {ag('after', 'false_reports')} |",
+             f"| 없는 위험 판정 (프레임 박스 수 / 물체 보고 건수) | {ag('before', 'false_hazard_boxes')}개 | {ag('after', 'false_reports')}건 |",
              f"| 현장 확인 요청 (그중 실제 물체) | - | {ag('after', 'need_check') + cpc[0]} ({ag('after', 'need_check_real') + cpc[1]}) |",
-             f"| 미확정 (주의, 그중 실제 물체) | - | {ag('after', 'undetermined')} ({ag('after', 'undetermined_real')}) |", "",
-             f"재확인 {rc('recheck_run')}건 실행 (요청 {rc('recheck_requested')}, 기다리는 동안 바디캠이 확정해서 취소 {rc('recheck_canceled')}): "
-             f"찾음 {rc('recheck_found')}, 판정 고침 {rc('recheck_changed')} (맞게 고침 {rc('changed_correct')}), "
-             f"다른 CCTV 로 재시도 {rc('recheck_retry')}, 재확인 소진 후 위험으로 둠 {rc('recheck_defaulted_hazard')}, "
-             f"미확정 {rc('recheck_undetermined')}, 현장 확인(점검표) {rc('recheck_escalated')}, 오검출로 뺌 {rc('recheck_rejected')}", "",
+             f"| 주의 (안전·위험 못 가름, 그중 실제 물체) | - | {ag('after', 'caution')} ({ag('after', 'caution_real')}) |", "",
+             f"애매한 판정 {rj('ambiguous_hazard') + rj('ambiguous_caution')}건 "
+             f"(즉시 위험 확정 {rj('ambiguous_hazard')}, 주의 분류 {rj('ambiguous_caution')}): "
+             f"주의 재관측 재판단 {rj('caution_rejudged')}건 중 확정 전환 {rj('caution_rejudged_confirmed')} (맞게 고침 {rj('changed_correct')})", "",
              *extra_lines(results),
-             "## 바디캠 YOLO 판정 (정답표와 비교, 경로에서 보인 물체만)", "",
+             "## 바디캠 YOLO 프레임 원시판정 (정답표와 비교, 경로에서 보인 물체만)", "",
              "| 항목 | 결과 |", "|---|:-:|",
              f"| 위험 물체를 위험으로 판정 | {tot('hazard_found')}/{hz} ({100 * tot('hazard_found') / max(1, hz):.0f}%) |",
              f"| 위험 물체를 안전으로 오판 | {tot('hazard_as_safe')} |",
@@ -149,49 +146,41 @@ def format_report(s):
              f"| 안전 물체를 위험으로 오판 | {tot('safe_as_hazard')} |",
              f"| 상태까지 정확 | {tot('exact')}/{tot('seen')} |",
              f"| 정답 없는 곳의 위험 박스 (프레임 단위) | {tot('false_hazard_boxes')} / {tot('frames')}프레임 |", "",
-             "## CCTV 작업자-위험물 접근 경고 (2 m, CCTV 3대를 묶어서 사건 단위)", "",
-             "| 항목 | 결과 |", "|---|:-:|",
-             f"| 작업자가 위험물에 다가간 사건 | {tot('events', 'cctv')} |",
-             f"| CCTV 에 보인 사건 중 경고 | {tot('events_detected', 'cctv')}/{tot('events_visible', 'cctv')} |",
-             f"| 어느 CCTV 에도 안 보인 사건 (사각지대) | {tot('events_blind', 'cctv')} |",
-             f"| 오경보 (실제 3 m 넘는데 경고) | {tot('false_alert_episodes', 'cctv')}번 |",
-             f"| 작업자 위치 오차 (중앙값) | {med('worker_err_median')} |",
-             f"| 거리 오차 (중앙값) | {med('dist_err_median')} |", "",
              "## 시나리오별 (대표 테스트 케이스)", "",
-             "| 시드 | 물체 (위험) | 에이전트 위험 판정 | 에이전트 안전 판정 | 거꾸로 판정 | 없는 위험 보고 | 현장 확인 | 재확인 (판정 고침) | 바디캠 YOLO 위험/안전 | CCTV 접근 경고 | 오경보 |",
-             "|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
+             "| 시드 | 물체 (위험) | 에이전트 위험 판정 | 에이전트 안전 판정 | 거꾸로 판정 | 없는 위험 보고 | 현장 확인 | 주의 (재판단, 확정 전환) | 바디캠 원시판정 위험/안전 |",
+             "|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|"]
     for r in results:
-        b, c = r["bodycam"], r["cctv"] or {}
+        b = r["bodycam"]
         e = r.get("agent", {}).get("evaluation")
         if e:
-            a_, rr = e["after"], e["recheck"]
+            a_, rr = e["after"], e["rejudge"]
             ag_cols = (f"{a_['hazard_total'] + a_['safe_total']} ({a_['hazard_total']}) | {a_['hazard_found']}/{a_['hazard_total']} | "
                        f"{a_['safe_ok']}/{a_['safe_total']} | {a_['hazard_as_safe'] + a_['safe_as_hazard']} | {a_['false_reports']} | "
-                       f"{a_['need_check'] + checkpoint_checks(r)[0]} | {rr['recheck_run']} ({rr['recheck_changed']})")
+                       f"{a_['need_check'] + checkpoint_checks(r)[0]} | {a_['caution']} ({rr['caution_rejudged']}, {rr['caution_rejudged_confirmed']})")
         else:
             ag_cols = "- | - | - | - | - | - | -"
-        lines.append(f"| {r['seed']} | {ag_cols} | {b['hazard_found']}/{b['hazard_total']}, {b['safe_ok']}/{b['safe_total']} | "
-                     f"{c.get('events_detected')}/{c.get('events_visible')} | {c.get('false_alert_episodes')} |")
+        lines.append(f"| {r['seed']} | {ag_cols} | {b['hazard_found']}/{b['hazard_total']}, {b['safe_ok']}/{b['safe_total']} |")
     return lines
 
 
 def format_compare(seeds, s_rule, s_lg):
-    """바디캠만(규칙 실행 기준) / 규칙 에이전트 / LangGraph 에이전트 3단 비교표 (patrol_results_compare.md)."""
+    """바디캠 프레임 원시판정(규칙 실행 기준, 두 모드 공통) / 규칙 에이전트 / LangGraph 에이전트 3단 비교표 (patrol_results_compare.md)."""
     ar = {"hazard_total": s_rule.ah, "hazard_found": s_rule.ag("after", "hazard_found"),
          "safe_total": s_rule.asf, "safe_ok": s_rule.ag("after", "safe_ok"),
          "hazard_as_safe": s_rule.ag("after", "hazard_as_safe"), "safe_as_hazard": s_rule.ag("after", "safe_as_hazard"),
          "false_reports": s_rule.ag("after", "false_reports"), "need_check": s_rule.ag("after", "need_check") + s_rule.cpc[0],
-         "undetermined": s_rule.ag("after", "undetermined")}
+         "caution": s_rule.ag("after", "caution")}
     al = {"hazard_total": s_lg.ah, "hazard_found": s_lg.ag("after", "hazard_found"),
          "safe_total": s_lg.asf, "safe_ok": s_lg.ag("after", "safe_ok"),
          "hazard_as_safe": s_lg.ag("after", "hazard_as_safe"), "safe_as_hazard": s_lg.ag("after", "safe_as_hazard"),
          "false_reports": s_lg.ag("after", "false_reports"), "need_check": s_lg.ag("after", "need_check") + s_lg.cpc[0],
-         "undetermined": s_lg.ag("after", "undetermined")}
+         "caution": s_lg.ag("after", "caution")}
+    # 바디캠 프레임 원시판정은 재판단 전 단계라 recheck_llm 과 무관 (rule 실행 기준, 두 모드 공통)
     bh, bs = s_rule.ag("before", "hazard_found"), s_rule.ag("before", "safe_ok")
-    lines = [f"# 규칙 vs LangGraph 재확인 비교 (시드 {seeds}, --recheck-llm 만 다름)", "",
-             "바디캠만: 두 모드 공통 (재확인 전 단계라 recheck_llm 과 무관, rule 실행 기준). "
-             "규칙: --agent rule (PTZ_SURE 임계값). LangGraph: --agent langgraph (로컬 LLM 이 재확인 확신 판단).", "",
-             "| 항목 | 바디캠만 | 규칙 에이전트 | LangGraph 에이전트 |", "|---|:-:|:-:|:-:|",
+    lines = [f"# 규칙 vs LangGraph 재판단 비교 (시드 {seeds}, --recheck-llm 만 다름)", "",
+             "바디캠 프레임 원시판정: 두 모드 공통 (재판단 전 단계라 recheck_llm 과 무관, rule 실행 기준). "
+             "규칙: --agent rule (고위험 후보 규칙만). LangGraph: --agent langgraph (로컬 LLM 이 주의 물체 재관측 재판단).", "",
+             "| 항목 | 바디캠 프레임 원시판정 | 규칙 에이전트 | LangGraph 에이전트 |", "|---|:-:|:-:|:-:|",
              f"| 위험을 위험으로 | {bh}/{ar['hazard_total']} | {ar['hazard_found']}/{ar['hazard_total']} "
              f"({100 * ar['hazard_found'] / max(1, ar['hazard_total']):.0f}%) | {al['hazard_found']}/{al['hazard_total']} "
              f"({100 * al['hazard_found'] / max(1, al['hazard_total']):.0f}%) |",
@@ -201,9 +190,13 @@ def format_compare(seeds, s_rule, s_lg):
              f"| 거꾸로 판정 (위험↔안전) | - | {ar['hazard_as_safe'] + ar['safe_as_hazard']} | {al['hazard_as_safe'] + al['safe_as_hazard']} |",
              f"| 없는 위험 보고 | - | {ar['false_reports']} | {al['false_reports']} |",
              f"| 현장 확인 요청 | - | {ar['need_check']} | {al['need_check']} |",
-             f"| 미확정 (주의) | - | {ar['undetermined']} | {al['undetermined']} |", "",
-             f"규칙: 재확인 {s_rule.rc('recheck_run')}건, 위험으로 둠 {s_rule.rc('recheck_defaulted_hazard')}, 미확정 {s_rule.rc('recheck_undetermined')}",
-             f"LangGraph: 재확인 {s_lg.rc('recheck_run')}건, 위험으로 둠 {s_lg.rc('recheck_defaulted_hazard')}, 미확정 {s_lg.rc('recheck_undetermined')}",
+             f"| 주의 (안전·위험 못 가름) | - | {ar['caution']} | {al['caution']} |",
+             f"| 주의 재관측 재판단 발생 건수 (그중 확정 전환) | - | {s_rule.rj('caution_rejudged')} ({s_rule.rj('caution_rejudged_confirmed')}) | "
+             f"{s_lg.rj('caution_rejudged')} ({s_lg.rj('caution_rejudged_confirmed')}) |", "",
+             f"규칙: 애매한 판정 {s_rule.rj('ambiguous_hazard') + s_rule.rj('ambiguous_caution')}건 "
+             f"(즉시 위험 확정 {s_rule.rj('ambiguous_hazard')}, 주의 분류 {s_rule.rj('ambiguous_caution')}), 재판단 맞게 고침 {s_rule.rj('changed_correct')}",
+             f"LangGraph: 애매한 판정 {s_lg.rj('ambiguous_hazard') + s_lg.rj('ambiguous_caution')}건 "
+             f"(즉시 위험 확정 {s_lg.rj('ambiguous_hazard')}, 주의 분류 {s_lg.rj('ambiguous_caution')}), 재판단 맞게 고침 {s_lg.rj('changed_correct')}",
              ""]
     return lines
 
@@ -217,7 +210,7 @@ def main():
     p.add_argument("--report-only", action="store_true", help="순찰은 다시 안 돌리고 저장된 결과로 표만 다시 만들기")
     p.add_argument("--isaac", default=os.environ.get("ISAACSIM_PYTHON") or os.path.join(ROOT, ".venv-isaac", "Scripts", "python.exe"))
     p.add_argument("--agent", choices=["rule", "langgraph", "both"], default="langgraph",
-                   help="재확인 판단: langgraph (기본, 로컬 LLM) | rule (PTZ_SURE 임계값만) | both (둘 다 돌려 비교표, 시드 적게 권장)")
+                   help="재판단 방식: langgraph (기본, 로컬 LLM) | rule (고위험 후보 규칙만) | both (둘 다 돌려 비교표, 시드 적게 권장)")
     p.add_argument("--recheck-llm", default="qwen2.5:7b", help="--agent langgraph/both 일 때 쓸 로컬 LLM")
     a = p.parse_args()
     out_dir = os.path.join(ROOT, "outputs", "eval")
@@ -246,7 +239,7 @@ def main():
         print("[실패] 두 모드 중 하나라도 결과가 없어서 비교표를 못 만들어요.")
         return
     s_rule, s_lg = summarize(results_rule), summarize(results_lg)
-    lines = format_compare(a.seeds, s_rule, s_lg)     # 바디캠만은 규칙 실행 기준 (recheck_llm 과 무관한 단계)
+    lines = format_compare(a.seeds, s_rule, s_lg)     # 바디캠 프레임 원시판정은 규칙 실행 기준 (recheck_llm 과 무관한 단계)
     path = os.path.join(out_dir, "patrol_results_compare.md")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")

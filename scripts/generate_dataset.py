@@ -76,7 +76,7 @@ for split in ("train", "val"):
 
 path = PatrolPath()
 counts = [0] * len(CLASSES)
-kinds = {"bodycam": 0, "cctv": 0, "free": 0, "tool": 0, "cart": 0}
+kinds = {"bodycam": 0, "free": 0, "tool": 0, "cart": 0}
 n_train = n_val = empties = 0
 t0 = time.time()
 for _ in range(3):      # 셰이더와 텍스처가 다 올라오게

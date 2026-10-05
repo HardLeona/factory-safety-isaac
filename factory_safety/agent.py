@@ -1,6 +1,6 @@
 """안전 순찰 에이전트: 점검 계획 -> 바디캠 판정 -> 위험물 대장 -> 재관측 재판단 -> 조치 지시서.
 
-판정에는 정답표를 쓰지 않는다. 에이전트가 아는 것은 도면(경로, 랙, 소화기 자리, 작업대)과 바디캠 화면뿐이다 (CCTV 없음).
+판정에는 정답표를 쓰지 않는다. 에이전트가 아는 것은 도면(경로, 랙, 소화기 자리, 작업대)과 바디캠 화면뿐이다.
 
   1. 계획      : 도면에서 꼭 확인할 지점(소화기 6곳, 작업대 2곳)으로 점검표를 만든다.
   2. 판정      : 바디캠 YOLO 추적으로 물체마다 판정을 모아 위험물 대장에 올린다 (위치, 상태, 확신도, 본 횟수).
@@ -113,7 +113,6 @@ class Finding:
     source: str
     body: dict = field(default_factory=lambda: defaultdict(float))
     n_body: int = 0
-    body_confirmed: bool = False
     forced_cls: str = None   # 애매한 후보 중 고위험이 있어 즉시 위험 확정하거나 재판단으로 바뀌면, 투표와 무관하게 이 클래스로 고정
     status: str = "확정"     # 확정 / 주의 / 현장 확인 필요 / 기각 / 병합
     merged_into: str = None
@@ -169,7 +168,6 @@ class SafetyAgent:
 
     def __init__(self, img_w, img_h, log=print):
         self.w, self.h = img_w, img_h
-        self.cctvs = {}          # 호환용 빈 dict (assistant.py/dashboard.py 의 "CCTV 있음?" 체크, 5단계에서 정리)
         self.checkpoints = build_checkpoints()
         self.findings = []
         self.tracks = {}
@@ -384,7 +382,6 @@ class SafetyAgent:
         was_caution = f.status == "주의"
         prior_body = dict(f.body) if was_caution else None
         self._add_track_votes(f, tr)
-        f.body_confirmed = True
         if was_caution:
             f = self._rejudge_caution(t, f, prior_body, dict(tr["votes"]))
         elif f.status == "현장 확인 필요":
@@ -759,7 +756,10 @@ class SafetyAgent:
 
     # ------------------------------------------------------------ 채점 (정답표, 판정에는 안 씀)
     def evaluate(self, answer_key, match_m=2.0):
-        """창고 전체 물체와 비교. before: 바디캠이 확정한 것만 바디캠 판정으로, after: 에이전트 최종 대장."""
+        """창고 전체 물체와 비교.
+        before: BodycamInspector 의 프레임 단위 YOLO 원시 판정 (에이전트 판단 없이, 물체당 그냥 다수결).
+        after : 에이전트 최종 대장 (2단계 분류 + 재관측 재판단 + 위험 영역/점검표 반영, 물체 단위).
+        두 쪽은 집계 단위(프레임 대 물체)가 달라 필드 이름도 다르게 두고 하나로 합치지 않는다."""
         objs = answer_key["objects"]
 
         def match(entries):
@@ -802,21 +802,22 @@ class SafetyAgent:
         def entry(f, cls):
             return {"id": f.fid, "class": cls, "x": float(f.xy[0]), "y": float(f.xy[1])}
 
-        before = [entry(f, f.body_cls) for f in self.findings if f.body_confirmed and f.body_cls]
         after = [entry(f, f.cls) for f in self.findings if f.status in ACTIVE and f.cls]
         checks = [entry(f, f.cls) for f in self.findings if f.status == "현장 확인 필요" and f.cls]
         caution = [entry(f, f.cls) for f in self.findings if f.status == "주의" and f.cls]
-        sb, pb = score(before, [])
         sa, pa = score(after, checks, caution)
+        bq_rows, before = self.scorer.report(answer_key)      # 프레임 단위 YOLO 원시 판정 (에이전트 판단 전)
+        bq = {r["id"]: r for r in bq_rows}
         rows = [{"id": o["id"], "class": o["class"], "hazard": o["hazard"], "zone": o["zone"],
-                 "before": pb[o["id"]][0], "before_result": pb[o["id"]][2],
+                 "before_frame_pred": bq[o["id"]]["pred"], "before_frame_result": bq[o["id"]]["result"],
+                 "before_frame_matched": bq[o["id"]]["matched"], "before_frame_visible": bq[o["id"]]["visible"],
                  "after": pa[o["id"]][0], "after_result": pa[o["id"]][2], "finding": pa[o["id"]][1]} for o in objs]
         rc = [f for f in self.findings if f.changed_by_recheck]
         fix_ok = 0
         for f in rc:
             o = next((objs[j] for j, i in match([entry(f, f.cls)])[0].items()), None)
             fix_ok += bool(o and HAZARD[o["class"]] == HAZARD[f.cls])
-        return {"before": sb, "after": sa, "rows": rows,
+        return {"before": before, "after": sa, "rows": rows,
                 "rejudge": {"ambiguous_hazard": self.stats.get("ambiguous_hazard", 0),
                             "ambiguous_caution": self.stats.get("ambiguous_caution", 0),
                             "caution_rejudged": self.stats.get("caution_rejudged", 0),
@@ -869,17 +870,19 @@ class SafetyAgent:
 
 
 def evaluation_summary(ev):
+    """b(before): BodycamInspector 프레임 단위 YOLO 원시 판정. a(after): 에이전트 최종 대장 (물체 단위).
+    집계 단위가 달라(프레임 대 물체) 필드 이름도 다르다 (b 는 false_hazard_boxes, a 는 false_reports)."""
     b, a, r = ev["before"], ev["after"], ev["rejudge"]
     return "\n".join([
         f"에이전트 채점 (창고 전체 물체 {b['hazard_total'] + b['safe_total']}개, 정답표와 비교)",
-        f"                     바디캠만   에이전트 (재판단, 점검표 포함)",
-        f"  위험을 위험으로      {b['hazard_found']:>2}/{b['hazard_total']:<4}   {a['hazard_found']:>2}/{a['hazard_total']}",
-        f"  안전을 안전으로      {b['safe_ok']:>2}/{b['safe_total']:<4}   {a['safe_ok']:>2}/{a['safe_total']}",
-        f"  위험을 안전으로 오판  {b['hazard_as_safe']:>2}        {a['hazard_as_safe']:>2}",
-        f"  안전을 위험으로 오판  {b['safe_as_hazard']:>2}        {a['safe_as_hazard']:>2}",
-        f"  없는 위험 보고        {b['false_reports']:>2}        {a['false_reports']:>2}",
-        f"  현장 확인 요청        -         {a['need_check']} (실제 물체 {a['need_check_real']})",
-        f"  주의 (안전·위험 미확정) -        {a['caution']} (실제 물체 {a['caution_real']})",
+        f"                     바디캠 프레임 원시판정   에이전트 (재판단, 점검표 포함)",
+        f"  위험을 위험으로      {b['hazard_found']:>2}/{b['hazard_total']:<4}            {a['hazard_found']:>2}/{a['hazard_total']}",
+        f"  안전을 안전으로      {b['safe_ok']:>2}/{b['safe_total']:<4}            {a['safe_ok']:>2}/{a['safe_total']}",
+        f"  위험을 안전으로 오판  {b['hazard_as_safe']:>2}                   {a['hazard_as_safe']:>2}",
+        f"  안전을 위험으로 오판  {b['safe_as_hazard']:>2}                   {a['safe_as_hazard']:>2}",
+        f"  없는 위험 판정 (프레임 단위 박스/물체 단위 보고로 단위가 달라 나란히만) {b['false_hazard_boxes']:>2}개 박스 / {a['false_reports']:>2}건 보고",
+        f"  현장 확인 요청        -                  {a['need_check']} (실제 물체 {a['need_check_real']})",
+        f"  주의 (안전·위험 미확정) -                 {a['caution']} (실제 물체 {a['caution_real']})",
         f"  애매한 판정 {r['ambiguous_hazard'] + r['ambiguous_caution']}건 (즉시 위험 확정 {r['ambiguous_hazard']}, 주의 분류 {r['ambiguous_caution']}): "
         f"주의 재관측 재판단 {r['caution_rejudged']}건 중 확정 전환 {r['caution_rejudged_confirmed']} (맞게 고침 {r['changed_correct']})",
     ])

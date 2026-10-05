@@ -1,13 +1,11 @@
-"""바디캠 YOLO 판정, 정답표 채점, CCTV 작업자-위험물 거리 경고.
+"""바디캠 YOLO 판정, 정답표 채점.
 
 판정(실시간 출력)에는 정답을 쓰지 않는다:
   바디캠: YOLO 추적 번호로 같은 물체를 묶고, CONFIRM 프레임 이상 같은 판정이면 위험/안전을 한 번 알린다.
           위치(구역)는 작업자 위치 + 박스 아래쪽을 바닥에 투영해서 추정.
-  CCTV  : YOLO 로 작업자와 위험 물체를 찾고, 박스 아래쪽을 바닥에 투영해서 거리를 잰다. 가까우면 경고.
 채점(끝나고)에만 정답을 쓴다:
-  바디캠: 매 프레임 Replicator 정답 박스(물체 경로까지)와 YOLO 박스를 겹침으로 맞춰, 물체마다 판정을 모아
-          정답표(위험/안전)와 비교.
-  CCTV  : 실제 작업자 위치와 물체 위치로 진짜 거리를 구해 경고가 맞았는지, 거리 오차가 얼마인지.
+  매 프레임 Replicator 정답 박스(물체 경로까지)와 YOLO 박스를 겹침으로 맞춰, 물체마다 판정을 모아
+  정답표(위험/안전)와 비교.
 """
 import math
 import re
@@ -16,10 +14,8 @@ from collections import defaultdict
 import numpy as np
 
 from . import warehouse as W
-from .config import CLASS_KO, HAZARD, KIND, KIND_KO, PROXIMITY_WARN_M
+from .config import CLASS_KO, HAZARD, KIND, KIND_KO
 from .geometry import Projector
-
-FLAT = {"spill", "spill_marked"}
 
 
 def iou(a, b):
@@ -178,117 +174,6 @@ def bodycam_summary(rows, s):
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------- CCTV
-def _inter(a, b):
-    return max(0.0, min(a[2], b[2]) - max(a[0], b[0])) * max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
-
-
-class CCTVProximity:
-    REPEAT_S = 5.0       # 같은 위험물 경고는 이 간격으로만 다시
-    MAX_RANGE = 20.0     # 카메라에서 이보다 먼 바닥 추정은 안 씀
-    INSIDE_WORKER = 0.5  # 위험물 박스의 이 비율 이상이 작업자 박스 안이면 뺌
-
-    def __init__(self, img_w, img_h, warn=PROXIMITY_WARN_M):
-        self.w, self.h, self.warn = img_w, img_h, warn
-        self.last_alert = {}
-        self.records = []        # 채점용: 프레임마다 (추정 경고, 실제 경고, 위치 오차들)
-        self.worker_err = []
-        self.dist_err = []
-
-    def update(self, t, name, cam, dets):
-        """실시간. 반환: (경고 [(t, cctv, 클래스, 거리, 위치)], 측정 결과 dict).
-        - 카메라에서 MAX_RANGE 보다 먼 추정은 안 쓴다 (몇 픽셀 차이로 수 m 가 틀어짐, 그 구역은 다른 CCTV 가 맡음)
-        - 유출 박스가 작업자 박스 안에 대부분 들어 있으면 작업자 발밑 그림자를 잘못 본 것으로 보고 뺀다
-          (평가에서 오경보의 절반이 이것. 작업자가 밟고 지나가는 넓은 웅덩이는 작업자 박스보다 커서 안 빠짐.
-          공구, 적재, 소화기는 작업자 뒤에 겹쳐 보여도 진짜일 수 있어서 그대로 둠)"""
-        wboxes = [b for n, c, b, *_ in dets if n == "worker"]
-        workers = [floor_point(cam, b, "worker", self.w, self.h, self.MAX_RANGE) for b in wboxes]
-        workers = [p for p in workers if p is not None]
-        hazards = []
-        for n, c, b, *_ in dets:
-            if n == "worker" or not HAZARD.get(n, False):
-                continue
-            area = max((b[2] - b[0]) * (b[3] - b[1]), 1e-6)
-            if n in FLAT and any(_inter(b, wb) / area > self.INSIDE_WORKER for wb in wboxes):
-                continue
-            p = floor_point(cam, b, n, self.w, self.h, self.MAX_RANGE)
-            if p is not None:
-                hazards.append((n, c, p))
-        events, pairs = [], []
-        for wp in workers:
-            for n, c, hp in hazards:
-                d = float(np.linalg.norm(wp - hp))
-                pairs.append((wp, n, hp, d))
-                if d < self.warn:
-                    key = (name, n, int(hp[0] // 2), int(hp[1] // 2))
-                    if t - self.last_alert.get(key, -99) >= self.REPEAT_S:
-                        self.last_alert[key] = t
-                        events.append((t, name, n, d, hp))
-        return events, {"workers": workers, "pairs": pairs}
-
-    def score_frame(self, t, cam_name, meas, worker_gt, hazard_objs, visible_ids):
-        """채점용 기록 (판정에는 안 씀). worker_gt: 실제 작업자 (x, y). hazard_objs: 정답 위험 물체 [SceneObject].
-        visible_ids: 이 CCTV 정답 박스에 보인 물체 id."""
-        if not hasattr(self, "objs"):
-            self.objs = [(o.id, KIND[o.cls], float(o.x), float(o.y)) for o in hazard_objs]
-            self.log = []
-        self.log.append({"t": float(t), "cam": cam_name, "worker_gt": [float(v) for v in worker_gt],
-                         "workers": [[float(v) for v in w] for w in meas["workers"]],
-                         "pairs": [[n, [float(hp[0]), float(hp[1])], float(d)] for wp, n, hp, d in meas["pairs"]],
-                         "visible": sorted(i for i in visible_ids if i)})
-
-    def report(self, match_m=1.5, false_margin=1.0, gap_s=0.6):
-        """사건 단위 채점.
-        다가간 사건: 작업자가 어떤 정답 위험물에 경고 거리 안으로 들어간 구간 (CCTV 를 하나로 묶어서).
-        잡음: 그 구간(앞뒤 1초)에 그 물체로 경고가 났으면. 사각지대: 그 구간에 어느 CCTV 에도 그 물체가 안 보임.
-        오경보: 경고한 물체의 실제 거리가 경고 거리 + false_margin 보다 멀거나, 근처에 그런 정답 물체가 없음."""
-        log = getattr(self, "log", [])
-        objs = getattr(self, "objs", [])
-        if not log:
-            return None
-        times = sorted({e["t"] for e in log})
-        wgt = {e["t"]: np.array(e["worker_gt"]) for e in log}
-        vis_any = defaultdict(set)
-        alerts = defaultdict(list)                 # t -> [(물체 id 또는 None, 추정 거리, 실제 거리)]
-        worker_err, dist_err = [], []
-        for e in log:
-            t, w = e["t"], wgt[e["t"]]
-            vis_any[t] |= set(e["visible"])
-            if e["workers"]:
-                worker_err.append(min(float(np.linalg.norm(np.array(p) - w)) for p in e["workers"]))
-            for n, hp, d in e["pairs"]:
-                cand = [(math.hypot(x - hp[0], y - hp[1]), oid, x, y) for oid, kind, x, y in objs if kind == KIND[n]]
-                best = min(cand) if cand else None
-                if best and best[0] < match_m:
-                    true_d = math.hypot(best[2] - w[0], best[3] - w[1])
-                    dist_err.append(abs(d - true_d))
-                    if d < self.warn:
-                        alerts[t].append((best[1], d, true_d))
-                elif d < self.warn:
-                    alerts[t].append((None, d, None))
-        events = []
-        for oid, kind, x, y in objs:
-            near = [t for t in times if math.hypot(x - wgt[t][0], y - wgt[t][1]) < self.warn]
-            for grp in _runs(near, gap_s):
-                t0, t1 = grp[0], grp[-1]
-                win = [t for t in times if t0 - 1.0 <= t <= t1 + 1.0]
-                events.append({"id": oid, "t0": t0, "t1": t1,
-                               "visible": any(oid in vis_any[t] for t in grp),
-                               "detected": any(a[0] == oid for t in win for a in alerts[t])})
-        false_t = [t for t in times if any(a[0] is None or a[2] > self.warn + false_margin for a in alerts[t])]
-        vis_ev = [e for e in events if e["visible"]]
-        return {
-            "frames": len(times), "events": len(events), "events_visible": len(vis_ev),
-            "events_detected": sum(1 for e in vis_ev if e["detected"]), "events_blind": len(events) - len(vis_ev),
-            "false_alert_episodes": len(_runs(false_t, 1.0)), "false_alert_frames": len(false_t),
-            "alert_frames": sum(1 for t in times if alerts[t]),
-            "worker_err_median": float(np.median(worker_err)) if worker_err else None,
-            "dist_err_median": float(np.median(dist_err)) if dist_err else None,
-            "dist_err_p90": float(np.percentile(dist_err, 90)) if dist_err else None,
-            "event_list": events, "log": log,
-        }
-
-
 def _runs(ts, gap):
     """정렬된 시각 목록을 gap 보다 가까운 것끼리 묶음."""
     out = []
@@ -300,23 +185,4 @@ def _runs(ts, gap):
     return out
 
 
-def cctv_line(t, name, cls, d, hp):
-    from .report import clock
-    return (f"[{clock(t)}] CCTV {name}  ⚠ 접근 경고: 작업자 ↔ {CLASS_KO[cls]} {d:.1f} m  |  "
-            f"{W.zone_name(*hp)} ({hp[0]:+.1f}, {hp[1]:+.1f})")
-
-
-def cctv_summary(s):
-    def f(v):
-        return "-" if v is None else f"{v:.2f} m"
-    if not s:
-        return "CCTV 접근 경고 채점: 기록 없음"
-    return (f"CCTV 접근 경고 채점 (경고 거리 {PROXIMITY_WARN_M} m, CCTV {len({e['cam'] for e in s['log']})}대를 묶어서)\n"
-            f"  작업자가 위험물에 다가간 사건 {s['events']}건: CCTV 에 보인 {s['events_visible']}건 중 경고 {s['events_detected']}건"
-            f"  |  사각지대 {s['events_blind']}건\n"
-            f"  오경보 {s['false_alert_episodes']}번 (실제 {PROXIMITY_WARN_M + 1.0:.0f} m 넘는데 경고, {s['false_alert_frames']}프레임)\n"
-            f"  작업자 위치 오차 중앙값 {f(s['worker_err_median'])}  |  거리 오차 중앙값 {f(s['dist_err_median'])}, 90% {f(s['dist_err_p90'])}")
-
-
-__all__ = ["BodycamInspector", "CCTVProximity", "bodycam_line", "bodycam_summary", "cctv_line", "cctv_summary",
-           "floor_point", "iou", "object_id_from_path", "KIND_KO"]
+__all__ = ["BodycamInspector", "bodycam_line", "bodycam_summary", "floor_point", "iou", "object_id_from_path", "KIND_KO"]

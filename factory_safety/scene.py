@@ -1,4 +1,4 @@
-"""USD 장면: NVIDIA 실사 창고 + 위험/안전 물체 + 걷는 작업자 + 바디캠 + CCTV.
+"""USD 장면: NVIDIA 실사 창고 + 위험/안전 물체 + 걷는 작업자 + 바디캠.
 
 OpenUSD(pxr)만 쓴다. Isaac Sim 안에서도, usd-core 만 깔린 일반 파이썬에서도 만들 수 있다
 (일반 파이썬에서는 원격 에셋을 못 불러와서 창고 안 소화기 위치는 warehouse.EXT_MOUNTS 값을 씀).
@@ -101,7 +101,6 @@ class WarehouseScene:
         self._bank = []
         self.scenario = None
         self.cam_path = "/World/BodyCam"
-        self.cctv_paths = {}
         self.ext_mats = []
 
     # ------------------------------------------------------------ 기본 구조
@@ -130,8 +129,6 @@ class WarehouseScene:
                     p.SetActive(False)
         self._build_worker()
         self.add_camera(self.cam_path)
-        for name, *_ in W.CCTVS:
-            self.cctv_paths[name] = self.add_camera(f"/World/CCTV/{name}")
         return self
 
     def _read_env_extinguishers(self):

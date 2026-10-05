@@ -1,10 +1,9 @@
-"""창고 평면도: 랙, 순찰 경로, 위험/안전 물체와 위험 영역 (한 시나리오), CCTV 위치와 시야 (일반 파이썬, matplotlib).
+"""창고 평면도: 랙, 순찰 경로, 위험/안전 물체와 위험 영역 (한 시나리오) (일반 파이썬, matplotlib).
 
     python scripts/plot_layout.py               # docs/layout.png
     python scripts/plot_layout.py --seed 3
 """
 import argparse
-import math
 import os
 import sys
 
@@ -26,7 +25,7 @@ def main():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Polygon, Rectangle
+    from matplotlib.patches import Rectangle
     plt.rcParams["font.family"] = ["Malgun Gothic", "AppleGothic", "NanumGothic", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
 
@@ -53,19 +52,10 @@ def main():
         c = "#e03131" if o.hazard else "#2f9e44"
         ax.scatter([o.x], [o.y], marker=MARK[o.kind], s=90, color=c, edgecolor="k", zorder=5)
         ax.text(o.x + 0.35, o.y + 0.25, o.label.split(" (")[0], fontsize=6.5, color=c)
-    for n, x, y, z, yaw, pitch, vfov in W.CCTVS:
-        hf = math.radians(vfov * 16 / 9 / 2)
-        yr = math.radians(yaw)
-        r = 14
-        ax.add_patch(Polygon([(x, y), (x + r * math.cos(yr - hf), y + r * math.sin(yr - hf)),
-                              (x + r * math.cos(yr + hf), y + r * math.sin(yr + hf))], color="#f59f00", alpha=0.12))
-        ax.scatter([x], [y], marker="v", s=110, color="#f59f00", edgecolor="k", zorder=6)
-        ax.text(x, y + 0.5 if y < 0 else y - 0.9, n, fontsize=7, ha="center")
     for k, v in {"o": "바닥 유출", "s": "공구", "^": "적재", "D": "소화기"}.items():
         ax.scatter([], [], marker=k, color="#888", edgecolor="k", label=v)
     ax.scatter([], [], marker="o", color="#e03131", label="위험")
     ax.scatter([], [], marker="o", color="#2f9e44", label="안전")
-    ax.scatter([], [], marker="v", color="#f59f00", label="CCTV")
     ax.scatter([], [], marker="^", color="#fd7e14", edgecolor="k", label="라바콘")
     ax.scatter([], [], marker="X", color="#ffd43b", edgecolor="k", label="DANGER 표지")
     ax.set_xlim(-11, 11)
