@@ -8,12 +8,20 @@ import math
 
 LANGS = {"ko": "한국어", "en": "English", "zh": "中文", "ja": "日本語"}
 
-# 경고 음성
+# 근접 위험 경보 음성 (config.VOICE_TEXT_HAZARD 와 ko 문구를 맞춤)
 VOICE = {
-    "ko": "경고! 경고! 위험 요소가 식별되었습니다.",
-    "en": "Warning! Warning! A hazard has been identified.",
-    "zh": "警告！警告！已识别到危险因素。",
-    "ja": "警告！警告！危険要素が検出されました。",
+    "ko": "경고! 경고! 멈추세요! 위험 요소가 식별되었습니다.",
+    "en": "Warning! Warning! Stop! A hazard has been identified.",
+    "zh": "警告！警告！请停下！已识别到危险因素。",
+    "ja": "警告！警告！止まってください！危険要素が検出されました。",
+}
+
+# 근접 주의 경보 음성 (config.VOICE_TEXT_CAUTION 과 ko 문구를 맞춤)
+VOICE_CAUTION = {
+    "ko": "주의하세요. 발밑을 확인하세요.",
+    "en": "Caution. Watch your step.",
+    "zh": "请注意，留意脚下。",
+    "ja": "注意してください。足元を確認してください。",
 }
 
 # 물체 이름
